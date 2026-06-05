@@ -55,32 +55,32 @@ const userService = {
   },
 
   // login
-login: async ({ email, password }) => {
-  const user = await userRepository.findByEmail(email, "+password");
-  if (!user) throw new Error("INVALID_CREDENTIALS");
+  login: async ({ email, password }) => {
+    const user = await userRepository.findByEmail(email, "+password");
+    if (!user) throw new Error("INVALID_CREDENTIALS");
 
-  if (user.status !== "Active") throw new Error("ACCOUNT_INACTIVE");
+    if (user.status !== "Active") throw new Error("ACCOUNT_INACTIVE");
 
-  const isPasswordValid = await bcryptjs.compare(password, user.password);
-  if (!isPasswordValid) throw new Error("INVALID_CREDENTIALS");
+    const isPasswordValid = await bcryptjs.compare(password, user.password);
+    if (!isPasswordValid) throw new Error("INVALID_CREDENTIALS");
 
-  const accessToken = generateAccessToken(user);
-  const refreshToken = await generateRefreshToken(user._id);
+    const accessToken = generateAccessToken(user);
+    const refreshToken = await generateRefreshToken(user._id);
 
-  // security critical — blocking
-  await userRepository.updateRefreshToken(user._id, refreshToken);
+    // security critical — blocking
+    await userRepository.updateRefreshToken(user._id, refreshToken);
 
-  // analytics — fire and forget
-  userRepository
-    .updateById(user._id, { last_login_date: new Date() })
-    .catch(err => console.error("Non-critical:", err));
+    // analytics — fire and forget
+    userRepository
+      .updateById(user._id, { last_login_date: new Date() })
+      .catch((err) => console.error("Non-critical:", err));
 
-  return {
-    user: { name: user.name, email: user.email },
-    accessToken,
-    refreshToken,
-  };
-},
+    return {
+      user: { name: user.name, email: user.email },
+      accessToken,
+      refreshToken,
+    };
+  },
 
   // get userDetails
   getUserDetails: async ({ userId }) => {
@@ -153,10 +153,32 @@ login: async ({ email, password }) => {
       .update(otp.toString())
       .digest("hex");
     if (hashedOtp !== user.forgot_password_otp) throw new Error("INVALID_OTP");
-
-    await userRepository.updateById(user._id, {
-      forgot_password_otp: "",
-      forgot_password_expiry: "",
+  },
+  
+  //resetPassword
+  resetPassword: async ({ email, otp, newPassword }) => {
+    const user = await userRepository.findByEmail(
+      email,
+      "+forgot_password_otp +forgot_password_expiry",
+    );
+    if (!user) throw new Error("USER_NOT_FOUND");
+    if (
+      !user.forgot_password_expiry ||
+      user.forgot_password_expiry < Date.now()
+    ) {
+      throw new Error("OTP_EXPIRED");
+    }
+    const hashedOtp = crypto
+      .createHash("sha256")
+      .update(otp.toString())
+      .digest("hex");
+    if (hashedOtp !== user.forgot_password_otp) throw new Error("INVALID_OTP");
+    const salt = await bcryptjs.genSalt(12);
+    const hashedPassword = await bcryptjs.hash(newPassword, salt);
+    await userRepository.updateUserFields(user, {
+      password: hashedPassword,
+      forgot_password_otp: null,
+      forgot_password_expiry: null,
     });
   },
 
