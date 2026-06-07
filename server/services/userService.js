@@ -7,6 +7,7 @@ import generateAccessToken from "../utils/generateAccessToken.js";
 import generateRefreshToken from "../utils/generateRefreshToken.js";
 import generateOTP from "../utils/generateOTP.js";
 import verifyOtpTemplate from "../utils/verifyOtpTemplate.js";
+import jwt from "jsonwebtoken";
 
 const userService = {
   // register
@@ -154,33 +155,7 @@ const userService = {
       .digest("hex");
     if (hashedOtp !== user.forgot_password_otp) throw new Error("INVALID_OTP");
   },
-  
-  //resetPassword
-  resetPassword: async ({ email, otp, newPassword }) => {
-    const user = await userRepository.findByEmail(
-      email,
-      "+forgot_password_otp +forgot_password_expiry",
-    );
-    if (!user) throw new Error("USER_NOT_FOUND");
-    if (
-      !user.forgot_password_expiry ||
-      user.forgot_password_expiry < Date.now()
-    ) {
-      throw new Error("OTP_EXPIRED");
-    }
-    const hashedOtp = crypto
-      .createHash("sha256")
-      .update(otp.toString())
-      .digest("hex");
-    if (hashedOtp !== user.forgot_password_otp) throw new Error("INVALID_OTP");
-    const salt = await bcryptjs.genSalt(12);
-    const hashedPassword = await bcryptjs.hash(newPassword, salt);
-    await userRepository.updateUserFields(user, {
-      password: hashedPassword,
-      forgot_password_otp: null,
-      forgot_password_expiry: null,
-    });
-  },
+
   //reset password
   resetPassword: async ({ email, otp, newPassword }) => {
     const user = await userRepository.findByEmail(

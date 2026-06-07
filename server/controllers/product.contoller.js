@@ -62,8 +62,7 @@ export const getProductController = asyncHandler(async (req, res) => {
 
     if (typeof cachedProducts === "object" && cachedProducts !== null) {
       parsedData = cachedProducts;
-    }
-    else if (typeof cachedProducts === "string") {
+    } else if (typeof cachedProducts === "string") {
       try {
         if (cachedProducts !== "[object Object]") {
           parsedData = JSON.parse(cachedProducts);
@@ -87,7 +86,9 @@ export const getProductController = asyncHandler(async (req, res) => {
 
   // Database fallback query execution
   const products = await Product.find(query)
-    .select("title slug price compareAtPrice images category stock ratingAverage")
+    .select(
+      "title slug price compareAtPrice images category stock ratingAverage",
+    )
     .lean()
     .sort({ _id: -1 })
     .limit(limit + 1);
@@ -145,9 +146,15 @@ export const getFeaturedProductConroller = asyncHandler(async (req, res) => {
     }
 
     if (parsedData) {
-      return res.status(200).json(
-        new ApiResponse(200, { products: parsedData, total: parsedData.length }, "Featured products fetched successfully")
-      );
+      return res
+        .status(200)
+        .json(
+          new ApiResponse(
+            200,
+            { products: parsedData, total: parsedData.length },
+            "Featured products fetched successfully",
+          ),
+        );
     }
   }
 
@@ -156,12 +163,21 @@ export const getFeaturedProductConroller = asyncHandler(async (req, res) => {
     throw new ApiError(404, "No featured products found");
   }
 
-  await redis.set("featured_products", JSON.stringify(featuredProducts), { ex: 600 });
+  await redis.set("featured_products", JSON.stringify(featuredProducts), {
+    ex: 600,
+  });
 
-  return res.status(200).json(
-    new ApiResponse(200, { products: featuredProducts, total: featuredProducts.length }, "Featured products fetched successfully")
-  );
+  return res
+    .status(200)
+    .json(
+      new ApiResponse(
+        200,
+        { products: featuredProducts, total: featuredProducts.length },
+        "Featured products fetched successfully",
+      ),
+    );
 });
+
 /**
  * @desc    Get single product details by unique slug identification
  * @route   GET /api/v1/products/:slug

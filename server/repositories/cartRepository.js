@@ -5,6 +5,10 @@ export const cartRepository = {
     return CartProductModel.findOne({ userId, productId }).lean();
   },
 
+  async findByUserId(userId) {
+    return CartProductModel.find({ userId }).lean();
+  },
+
   async createItem(userId, productId, priceAtAdd) {
     return CartProductModel.create({
       userId,
@@ -24,6 +28,9 @@ export const cartRepository = {
 
   async removeItem(userId, productId) {
     return CartProductModel.findOneAndDelete({ userId, productId });
+  },
+  async deleteManyByIds(cartItemIds) {
+    return CartProductModel.deleteMany({ _id: { $in: cartItemIds } });
   },
 
   async getUserCart(userId) {
