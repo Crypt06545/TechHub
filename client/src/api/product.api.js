@@ -14,3 +14,8 @@ export const getFeaturedProducts = async () => {
   const res = await api.get("/products/featured");
   return res.data;
 };
+
+export const getProductDetails = async (slug) => {
+  const res = await api.get(`/products/${slug}`);
+  return res.data;
+};

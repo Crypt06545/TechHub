@@ -2,6 +2,7 @@ import {
   getCategories,
   getFeaturedProducts,
   getProducsts,
+  getProductDetails,
 } from "@/api/product.api";
 import { useQuery } from "@tanstack/react-query";
 
@@ -22,11 +23,20 @@ export const useGetCategories = () => {
     staleTime: 15 * 60 * 1000,
   });
 };
-// 
+
+//
 export const useFeaturedProducts = () => {
   return useQuery({
     queryKey: ["featuredProducts"],
     queryFn: getFeaturedProducts,
     staleTime: 1000 * 60 * 5,
+  });
+};
+
+export const useProductDetails = (slug) => {
+  return useQuery({
+    queryKey: ["product", slug],
+    queryFn: () => getProductDetails(slug),
+    enabled: !!slug,
   });
 };

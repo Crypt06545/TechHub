@@ -2,13 +2,11 @@ import HeroBlock from "@/components/common/navbar/Heroblock";
 import MegaMenuSidebar from "@/components/common/navbar/Megamenusidebar";
 import StoreFeatures from "@/components/common/navbar/Storefeatures";
 import FeaturedProducts from "@/components/FeaturedProducts";
-import HomeCategories   from "@/components/HomeCategories";
-
+import HomeCategories from "@/components/HomeCategories";
 
 const Home = () => {
   return (
     <div className="min-h-screen bg-gray-100">
-
       {/* Hero — sidebar megamenu + banners + trust badges */}
       <div className="bg-white">
         <div className="container mx-auto px-4 lg:px-6">
@@ -23,7 +21,6 @@ const Home = () => {
       {/* Rest of home page */}
       <HomeCategories />
       <FeaturedProducts />
-
     </div>
   );
 };

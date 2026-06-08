@@ -8,8 +8,7 @@ import Register from "@/pages/Auth/Register";
 
 import NotFound from "@/components/NotFound";
 import ProductsPage from "@/pages/ProductPage";
-
-
+import ProductDetails from "@/pages/ProductDetails";
 
 const router = createBrowserRouter([
   {
@@ -18,10 +17,11 @@ const router = createBrowserRouter([
     children: [
       { index: true, element: <Home /> },
       { path: "/products", element: <ProductsPage /> },
-      { path: "login", element: <Login /> },
-      { path: "register", element: <Register /> },
+      { path: "/products/:slug?", element: <ProductDetails /> },
     ],
   },
+  { path: "login", element: <Login /> },
+  { path: "register", element: <Register /> },
   // 2. Full-screen catch-all outside of <App />
   {
     path: "*",

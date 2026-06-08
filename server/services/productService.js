@@ -250,6 +250,7 @@ export const productService = {
     return updated;
   },
 
+  
   /**
    * Returns images array so controller can clean up Cloudinary after DB delete.
    */

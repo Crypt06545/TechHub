@@ -1,8 +1,4 @@
-// PATH: src/components/products/FeaturedProducts.jsx
-// FILE: FeaturedProducts.jsx
-
 import { useFeaturedProducts } from "@/hooks/useProducts";
-import React from "react";
 import ProductCardSkeleton from "./productCard/ProductCardSkeleton";
 import { Link } from "react-router-dom";
 import { ArrowRight } from "lucide-react";
@@ -10,12 +6,14 @@ import ProductCard from "./productCard/ProductCard";
 
 const FeaturedProducts = () => {
   const { data, isLoading, error } = useFeaturedProducts();
+  // console.log(data);
 
   // FIXED: Flipped logic rules so 'isFeatured' takes priority over 'Sale'
   const getProductBadge = (product) => {
     if (product.stock === 0) return { type: "dark", text: "Out of Stock" };
     if (product.isFeatured) return { type: "success", text: "Featured" };
-    if (product.compareAtPrice > product.price) return { type: "sale", text: "Sale" };
+    if (product.compareAtPrice > product.price)
+      return { type: "sale", text: "Sale" };
     return null;
   };
 
@@ -51,7 +49,7 @@ const FeaturedProducts = () => {
     );
   }
 
-  const products = data?.data?.products?.slice(0,8) || [];
+  const products = data?.data?.products?.slice(0, 8) || [];
 
   return (
     <section className="py-12 px-4 container mx-auto sm:px-6 lg:px-8">

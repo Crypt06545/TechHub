@@ -1,10 +1,6 @@
 import React, { useState, useRef, useEffect } from "react";
 import { gsap } from "gsap";
 import { useGSAP } from "@gsap/react";
-
-
-
-
 import UtilityBar from "./navbar/Utilitybar";
 import NavBrand from "./navbar/Navbrand";
 import SearchBar from "./navbar/SearchBar";

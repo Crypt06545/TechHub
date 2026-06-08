@@ -3,7 +3,7 @@ import { NAV_LINKS } from "./NavData";
 // Each link gets its own GSAP hover animation via delegated handlers passed in
 // from the parent (which owns the contextSafe scope).
 const NavLinks = ({ onMouseEnter, onMouseLeave }) => (
-  <div className="hidden lg:flex items-center justify-start border-t border-gray-100 py-3 h-12 overflow-hidden">
+  <div className="hidden sticky top-0 z-50 lg:flex items-center justify-start border-t border-gray-100 py-3 h-12 overflow-hidden">
     <nav className="flex items-center gap-8">
       {NAV_LINKS.map((link, idx) => (
         <div

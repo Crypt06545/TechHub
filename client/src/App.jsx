@@ -3,6 +3,7 @@ import Footer from "./components/common/Footer";
 import ChatWidget from "./components/common/ChatWidget";
 // import { useGetProfile } from "./hooks/user.query";
 import Navbar from "./components/common/Navbar";
+// import { useGetProfile } from "./hooks/user.query";
 
 function App() {
   // const { data } = useGetProfile();

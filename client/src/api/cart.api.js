@@ -1,20 +1,26 @@
-// PATH: src/api/cart.api.js
-import api from "./Axios"; // আপনার তৈরি করা Axios ইনস্ট্যান্স
-
-// ১. ডাটাবেজ থেকে কার্টের আইটেমগুলো নিয়ে আসা
+import api from "./Axios";
+// 1. Fetch Cart Items
 export const getCartItems = async () => {
-  const res = await api.get("/users/cart"); // আপনার ব্যাকএন্ডের গেট কার্ট রাউট
+  const res = await api.get("/cart");
   return res.data;
 };
 
-// ২. কার্টে প্রোডাক্ট যোগ করা বা সংখ্যা বাড়ানো
-export const addToCartApi = async ({ productId, quantity = 1 }) => {
-  const res = await api.post("/users/cart/add", { productId, quantity });
+// 2. Add product to cart (or increment by 1 on backend)
+export const addToCartApi = async ({ productId }) => {
+  const res = await api.post("/cart/addToCart", { productId });
   return res.data;
 };
 
-// ৩. কার্ট থেকে প্রোডাক্ট রিমুভ করা বা সংখ্যা কমানো
+// 3. Completely remove product from cart
 export const removeFromCartApi = async ({ productId }) => {
-  const res = await api.post("/users/cart/remove", { productId });
+  const res = await api.delete("/cart/removeFromCart", { data: { productId } });
+  return res.data;
+};
+
+// 4. Update quantity explicitly (Useful for -1 increments or manual inputs)
+export const updateQuantityApi = async ({ productId, quantity }) => {
+  const res = await api.patch(`/cart/updateQuantity/${productId}`, {
+    quantity,
+  });
   return res.data;
 };
