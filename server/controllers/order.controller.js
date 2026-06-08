@@ -1,48 +1,43 @@
-import orderService from "../services/orderService.js";
-import { ApiError } from "../utils/ApiError.js";
 import asyncHandler from "../utils/asyncHandler.js";
+import { ApiResponse } from "../utils/ApiResponse.js";
+import { ApiError } from "../utils/ApiError.js";
+import orderService from "../services/orderService.js";
 
-const createCheckOutSeccssion = asyncHandler(async (req, res) => {
-  const { products } = req.body;
+export const placeCodOrderController = asyncHandler(async (req, res) => {
+  const { addressId } = req.body;
+  if (!addressId) throw new ApiError(400, "Address ID is required");
 
-  if (!Array.isArray(products)) {
-    return res.status(401).json({
-      message: "Empty products",
-    });
-  }
-  const totalAmount = 0;
-  const linteItem = products.map((product) => {
-    const amount = Math.random(product.price * 100);
-    totalAmount += amount * product.quantity;
-
-    return {
-      product_data: {
-        currency: "usd",
-        product_data: {
-          name: product.name,
-          image: [product.image],
-        },
-        unit_amount: amount,
-      },
-      quantity: product.quantity || 1,
-    };
+  const order = await orderService.placeCodOrder({
+    userId: req.user._id,
+    addressId,
   });
 
-  const session = await stripe.checkout.session.create({
-    payment_method_types: ["card"],
-    line_items: linteItem,
-    mode: "payment",
-    success_url: `${successUrl}?session_id={CHECKOUT_SESSION_ID}&orderId=${orderId}`,
-    cancel_url: `${cancelUrl}?orderId=${orderId}`,
-    metadata: { userId:req.user._id.toString(),
+  return res
+    .status(201)
+    .json(new ApiResponse(201, order, "Order placed successfully"));
+});
 
-        products:JSON.stringify(
-            products.map((p)=>{
-                id:p._id,
-                quantity:p.quantity,
-                price:p.price,
-            })
-        )
-     },
+export const getUserOrdersController = asyncHandler(async (req, res) => {
+  const orders = await orderService.getUserOrders(req.user._id);
+
+  return res
+    .status(200)
+    .json(
+      new ApiResponse(
+        200,
+        { orders, total: orders.length },
+        "Orders fetched successfully",
+      ),
+    );
+});
+
+export const getSingleOrderController = asyncHandler(async (req, res) => {
+  const order = await orderService.getSingleOrder({
+    orderId: req.params.id,
+    userId:  req.user._id,
   });
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, order, "Order fetched successfully"));
 });

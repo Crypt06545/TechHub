@@ -1,14 +1,13 @@
 import { redis } from "../config/redis.js";
 import Category from "../models/category.mode.js";
 import User from "../models/user.model.js";
-import { productService } from "../services/productService.js";
 import { ApiError } from "../utils/ApiError.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import asyncHandler from "../utils/asyncHandler.js";
-import {
-  deleteFromCloudinary,
-  uploadOnCloudinary,
-} from "../utils/cloudinary.js";
+import { deleteFromCloudinary, uploadOnCloudinary } from "../utils/cloudinary.js";
+import { orderRepository } from "../repositories/order.repository.js";
+import orderService from "../services/orderService.js";
+import { productService } from "../services/productService.js";
 
 // ─── Internal Helpers ─────────────────────────────────────────────────────────
 
@@ -30,7 +29,7 @@ const safeRedisGet = async (key) => {
   return null;
 };
 
-// ─── User ─────────────────────────────────────────────────────────────────────
+// ─── Users ────────────────────────────────────────────────────────────────────
 
 export const getAllUserController = asyncHandler(async (req, res) => {
   const users = await User.find()
@@ -50,7 +49,7 @@ export const getAllUserController = asyncHandler(async (req, res) => {
     );
 });
 
-// ─── Product ──────────────────────────────────────────────────────────────────
+// ─── Products ─────────────────────────────────────────────────────────────────
 
 export const addProductController = asyncHandler(async (req, res) => {
   const { title, description, price, compareAtPrice, category, stock, isPublished } = req.body;
@@ -59,7 +58,6 @@ export const addProductController = asyncHandler(async (req, res) => {
     throw new ApiError(400, "title, price, category and stock are required");
   }
 
-  // Process Cloudinary uploads before handing off to service
   let images = [];
   if (req.files?.length) {
     const uploads = await Promise.all(
@@ -87,14 +85,12 @@ export const updateProductController = asyncHandler(async (req, res) => {
   const { id } = req.params;
   const { title, description, price, compareAtPrice, category, stock, isPublished, removeImages } = req.body;
 
-  // Handle Cloudinary deletions first
   let imagesToRemove = [];
   if (removeImages) {
     imagesToRemove = JSON.parse(removeImages);
     await Promise.all(imagesToRemove.map((url) => deleteFromCloudinary(url)));
   }
 
-  // Handle Cloudinary uploads
   let newImages = [];
   if (req.files?.length) {
     const uploads = await Promise.all(
@@ -118,6 +114,20 @@ export const updateProductController = asyncHandler(async (req, res) => {
     .json(new ApiResponse(200, product, "Product updated successfully"));
 });
 
+export const deleteProductController = asyncHandler(async (req, res) => {
+  const images = await productService.deleteProduct(req.params.id);
+
+  if (images?.length) {
+    Promise.all(
+      images.map((img) => img.url && deleteFromCloudinary(img.url)),
+    ).catch((err) => console.error("[Cloudinary] delete failed:", err.message));
+  }
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, null, "Product deleted successfully"));
+});
+
 export const toggleFeaturedProduct = asyncHandler(async (req, res) => {
   const { id } = req.params;
   if (!id) throw new ApiError(400, "Product ID is required");
@@ -133,42 +143,24 @@ export const toggleFeaturedProduct = asyncHandler(async (req, res) => {
   );
 });
 
-export const deleteProductController = asyncHandler(async (req, res) => {
-  // Service deletes from DB + invalidates cache, returns images for Cloudinary cleanup
-  const images = await productService.deleteProduct(req.params.id);
-
-  // Cloudinary cleanup — fire-and-forget, don't block response
-  if (images?.length) {
-    Promise.all(
-      images.map((img) => img.url && deleteFromCloudinary(img.url))
-    ).catch((err) => console.error("[Cloudinary] delete failed:", err.message));
-  }
-
-  return res
-    .status(200)
-    .json(new ApiResponse(200, null, "Product deleted successfully"));
-});
-
-// ─── Category (flat — migrates to own microservice later) ─────────────────────
+// ─── Categories ───────────────────────────────────────────────────────────────
 
 export const AddCategoryController = asyncHandler(async (req, res) => {
   const { name } = req.body;
   const file = req.file;
 
-  if (!name || !file) throw new ApiError(400, "Enter required fields.");
+  if (!name || !file) throw new ApiError(400, "Name and image are required");
 
   const result = await uploadOnCloudinary(
     file.buffer,
     file.originalname || `${name}-${Date.now()}`,
   );
 
-  if (!result?.secure_url) {
-    throw new ApiError(500, "Failed to upload image to Cloudinary");
-  }
+  if (!result?.secure_url) throw new ApiError(500, "Failed to upload image to Cloudinary");
 
   const newCategory = await Category.create({
     name,
-    image:        result.secure_url,
+    image:         result.secure_url,
     imagePublicId: result.public_id,
   });
 
@@ -201,7 +193,7 @@ export const updateCategoryController = asyncHandler(async (req, res) => {
 
     if (!result?.secure_url) throw new ApiError(500, "Failed to upload image");
 
-    category.image        = result.secure_url;
+    category.image         = result.secure_url;
     category.imagePublicId = result.public_id;
   }
 
@@ -243,4 +235,98 @@ export const getAllCategoryController = asyncHandler(async (req, res) => {
       "Categories fetched successfully",
     ),
   );
+});
+
+// ─── Orders ───────────────────────────────────────────────────────────────────
+
+export const adminGetAllOrdersController = asyncHandler(async (req, res) => {
+  const { payment_status, order_status, page, limit } = req.query;
+
+  const data = await orderService.adminGetAllOrders({
+    payment_status,
+    order_status,
+    page:  parseInt(page  || "1",  10),
+    limit: parseInt(limit || "20", 10),
+  });
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, data, "Orders fetched successfully"));
+});
+
+export const adminUpdateOrderStatusController = asyncHandler(async (req, res) => {
+  const { order_status, payment_status } = req.body;
+
+  const order = await orderService.adminUpdateOrderStatus({
+    orderId: req.params.id,
+    order_status,
+    payment_status,
+  });
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, order, "Order status updated successfully"));
+});
+
+// ─── Analytics ────────────────────────────────────────────────────────────────
+
+export const getDashboardController = asyncHandler(async (req, res) => {
+  const [totalRevenue, totalOrders, totalUsers, orderStatusBreakdown] =
+    await Promise.all([
+      orderRepository.totalRevenue(),
+      orderRepository.countAll(),
+      User.countDocuments(),
+      orderRepository.orderStatusBreakdown(),
+    ]);
+
+  return res.status(200).json(
+    new ApiResponse(
+      200,
+      { totalRevenue, totalOrders, totalUsers, orderStatusBreakdown },
+      "Dashboard stats fetched successfully",
+    ),
+  );
+});
+
+export const getRevenueAnalyticsController = asyncHandler(async (req, res) => {
+  const { period = "daily" } = req.query;
+
+  const data =
+    period === "monthly"
+      ? await orderRepository.revenueByMonth(12)
+      : await orderRepository.revenueByDay(30);
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, data, "Revenue analytics fetched successfully"));
+});
+
+export const getTopProductsController = asyncHandler(async (req, res) => {
+  const limit = Math.min(parseInt(req.query.limit || "10", 10), 50);
+
+  const data = await orderRepository.topSellingProducts(limit);
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, data, "Top products fetched successfully"));
+});
+
+export const getNewUsersAnalyticsController = asyncHandler(async (req, res) => {
+  const days  = Math.min(parseInt(req.query.days || "30", 10), 365);
+  const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+
+  const data = await User.aggregate([
+    { $match: { createdAt: { $gte: since } } },
+    {
+      $group: {
+        _id:   { $dateToString: { format: "%Y-%m-%d", date: "$createdAt" } },
+        count: { $sum: 1 },
+      },
+    },
+    { $sort: { _id: 1 } },
+  ]);
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, data, "New users analytics fetched successfully"));
 });

@@ -1,27 +1,62 @@
 import { Router } from "express";
 import {
-  AddCategoryController,
-  addProductController,
-  getAllCategoryController,
   getAllUserController,
+  addProductController,
+  updateProductController,
+  deleteProductController,
+  toggleFeaturedProduct,
+  AddCategoryController,
+  updateCategoryController,
+  getAllCategoryController,
+  adminGetAllOrdersController,
+  adminUpdateOrderStatusController,
+  getDashboardController,
+  getRevenueAnalyticsController,
+  getTopProductsController,
+  getNewUsersAnalyticsController,
 } from "../controllers/admin.controller.js";
 import adminAuthMiddleware from "../middleware/adminMiddleware.js";
 import { upload } from "../middleware/multerMiddleware.js";
-const AdminRouter = Router();
 
-AdminRouter.get("/users", adminAuthMiddleware, getAllUserController);
-AdminRouter.post(
-  "/add-product",
-  adminAuthMiddleware,
-  upload.array("images", 5), // single → array
-  addProductController,
+const adminRouter = Router();
+
+adminRouter.use(adminAuthMiddleware);
+
+// ─── Users ────────────────────────────────────────────────────────────────────
+
+adminRouter.get("/users", getAllUserController);
+
+// ─── Products ─────────────────────────────────────────────────────────────────
+
+adminRouter.post("/products", upload.array("images", 5), addProductController);
+adminRouter.put(
+  "/products/:id",
+  upload.array("images", 5),
+  updateProductController,
 );
+adminRouter.delete("/products/:id", deleteProductController);
+adminRouter.patch("/products/:id/featured", toggleFeaturedProduct);
 
-AdminRouter.post(
-  "/add-category",
-  adminAuthMiddleware,
+// ─── Categories ───────────────────────────────────────────────────────────────
+
+adminRouter.get("/categories", getAllCategoryController);
+adminRouter.post("/categories", upload.single("image"), AddCategoryController);
+adminRouter.put(
+  "/categories/:id",
   upload.single("image"),
-  AddCategoryController,
+  updateCategoryController,
 );
 
-export default AdminRouter;
+// ─── Orders ───────────────────────────────────────────────────────────────────
+
+adminRouter.get("/orders", adminGetAllOrdersController);
+adminRouter.patch("/orders/:id/status", adminUpdateOrderStatusController);
+
+// ─── Analytics ────────────────────────────────────────────────────────────────
+
+adminRouter.get("/dashboard", getDashboardController);
+adminRouter.get("/analytics/revenue", getRevenueAnalyticsController);
+adminRouter.get("/analytics/top-products", getTopProductsController);
+adminRouter.get("/analytics/new-users", getNewUsersAnalyticsController);
+
+export default adminRouter;
