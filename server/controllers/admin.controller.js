@@ -1,7 +1,7 @@
 import { redis } from "../config/redis.js";
 import Category from "../models/category.mode.js";
-import { Product } from "../models/product.model.js";
 import User from "../models/user.model.js";
+import { productService } from "../services/productService.js";
 import { ApiError } from "../utils/ApiError.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import asyncHandler from "../utils/asyncHandler.js";
@@ -9,24 +9,35 @@ import {
   deleteFromCloudinary,
   uploadOnCloudinary,
 } from "../utils/cloudinary.js";
-import { detectProductCategory } from "../utils/gemini.js";
 
-/**
- * @desc    Retrieve all system users with exclusions of critical infrastructure fields
- * @route   GET /api/v1/admin/users
- * @access  Private (Admin Only)
- * @note    FUTURE: Implement cursor-based or offset pagination to mitigate high memory consumption on large datasets.
- */
+// ─── Internal Helpers ─────────────────────────────────────────────────────────
+
+const safeRedisGet = async (key) => {
+  try {
+    const cached = await redis.get(key);
+    if (cached === null || cached === undefined) return null;
+    if (typeof cached === "object") return cached;
+    if (typeof cached === "string") {
+      if (cached === "[object Object]") {
+        await redis.del(key);
+        return null;
+      }
+      return JSON.parse(cached);
+    }
+  } catch {
+    await redis.del(key);
+  }
+  return null;
+};
+
+// ─── User ─────────────────────────────────────────────────────────────────────
+
 export const getAllUserController = asyncHandler(async (req, res) => {
   const users = await User.find()
-    .select(
-      "-password -refresh_token -email_verify_token -email_verify_expiry -__v",
-    )
+    .select("-password -refresh_token -email_verify_token -email_verify_expiry -__v")
     .sort({ createdAt: -1 });
 
-  if (!users || users.length === 0) {
-    throw new ApiError(404, "No users found");
-  }
+  if (!users.length) throw new ApiError(404, "No users found");
 
   return res
     .status(200)
@@ -39,47 +50,21 @@ export const getAllUserController = asyncHandler(async (req, res) => {
     );
 });
 
-/**
- * @desc    Generate a new product entry, process Cloudinary uploads, and flush operational cache layers
- * @route   POST /api/v1/products
- * @access  Private (Admin Only)
- * @note    FUTURE: Implement a transaction wrapper (session) to roll back Cloudinary uploads if database insertion fails.
- */
-export const addProductController = asyncHandler(async (req, res) => {
-  if (req.user?.role !== "Admin") {
-    throw new ApiError(403, "Access denied. Admin only.");
-  }
+// ─── Product ──────────────────────────────────────────────────────────────────
 
-  const {
-    title,
-    description,
-    price,
-    compareAtPrice,
-    category,
-    stock,
-    isPublished,
-  } = req.body;
+export const addProductController = asyncHandler(async (req, res) => {
+  const { title, description, price, compareAtPrice, category, stock, isPublished } = req.body;
 
   if (!title || !price || !category || stock === undefined) {
     throw new ApiError(400, "title, price, category and stock are required");
   }
 
-  let slug = title
-    .toLowerCase()
-    .trim()
-    .replace(/\s+/g, "-")
-    .replace(/[^a-z0-9-]/g, "");
-  const existing = await Product.findOne({ slug });
-  if (existing) slug = `${slug}-${Date.now()}`;
-
+  // Process Cloudinary uploads before handing off to service
   let images = [];
-  if (req.files && req.files.length > 0) {
+  if (req.files?.length) {
     const uploads = await Promise.all(
       req.files.map((file) =>
-        uploadOnCloudinary(
-          file.buffer,
-          file.originalname || `product-${Date.now()}`,
-        ),
+        uploadOnCloudinary(file.buffer, file.originalname || `product-${Date.now()}`),
       ),
     );
     images = uploads
@@ -87,306 +72,175 @@ export const addProductController = asyncHandler(async (req, res) => {
       .map((r) => ({ url: r.secure_url, publicId: r.public_id }));
   }
 
-  const product = await Product.create({
-    title,
-    slug,
-    description: description || "",
-    price: Number(price),
-    compareAtPrice: compareAtPrice ? Number(compareAtPrice) : null,
-    category,
-    images,
-    stock: Number(stock),
-    isPublished: isPublished === "true" || isPublished === true,
+  const product = await productService.createProduct({
+    title, description, price, compareAtPrice,
+    category, stock, isPublished, images,
     vendorId: req.user._id,
   });
-
-  await redis.del("all_products");
 
   return res
     .status(201)
     .json(new ApiResponse(201, product, "Product added successfully"));
 });
 
-/**
- * @desc    Modify existing product parameters, handle differential image synchronization, and purge cache
- * @route   PUT /api/v1/products/:id
- * @access  Private (Admin Only)
- */
 export const updateProductController = asyncHandler(async (req, res) => {
   const { id } = req.params;
-  const {
-    title,
-    description,
-    price,
-    compareAtPrice,
-    category,
-    stock,
-    isPublished,
-    removeImages,
-  } = req.body;
+  const { title, description, price, compareAtPrice, category, stock, isPublished, removeImages } = req.body;
 
-  const product = await Product.findById(id);
-  if (!product) {
-    throw new ApiError(404, "Product not found");
-  }
-
-  if (title && title !== product.title) {
-    let slug = title
-      .toLowerCase()
-      .trim()
-      .replace(/\s+/g, "-")
-      .replace(/[^a-z0-9-]/g, "");
-    const existing = await Product.findOne({ slug, _id: { $ne: id } });
-    if (existing) slug = `${slug}-${Date.now()}`;
-    product.slug = slug;
-    product.title = title;
-  }
-
-  if (description !== undefined) product.description = description;
-  if (price !== undefined) product.price = Number(price);
-  if (compareAtPrice !== undefined)
-    product.compareAtPrice = compareAtPrice ? Number(compareAtPrice) : null;
-  if (category) product.category = category;
-  if (stock !== undefined) product.stock = Number(stock);
-  if (isPublished !== undefined)
-    product.isPublished = isPublished === "true" || isPublished === true;
-
+  // Handle Cloudinary deletions first
+  let imagesToRemove = [];
   if (removeImages) {
-    const toRemove = JSON.parse(removeImages);
-    await Promise.all(toRemove.map((url) => deleteFromCloudinary(url)));
-    product.images = product.images.filter(
-      (img) => !toRemove.includes(img.url),
-    );
+    imagesToRemove = JSON.parse(removeImages);
+    await Promise.all(imagesToRemove.map((url) => deleteFromCloudinary(url)));
   }
 
-  if (req.files && req.files.length > 0) {
+  // Handle Cloudinary uploads
+  let newImages = [];
+  if (req.files?.length) {
     const uploads = await Promise.all(
       req.files.map((file) =>
-        uploadOnCloudinary(
-          file.buffer,
-          file.originalname || `product-${Date.now()}`,
-        ),
+        uploadOnCloudinary(file.buffer, file.originalname || `product-${Date.now()}`),
       ),
     );
-    const newImages = uploads
+    newImages = uploads
       .filter((r) => r?.secure_url)
       .map((r) => ({ url: r.secure_url, publicId: r.public_id }));
-
-    product.images = [...product.images, ...newImages];
   }
 
-  await product.save();
-  await redis.del("all_products");
+  const product = await productService.updateProduct(id, {
+    title, description, price, compareAtPrice,
+    category, stock, isPublished,
+    imagesToRemove, newImages,
+  });
 
   return res
     .status(200)
     .json(new ApiResponse(200, product, "Product updated successfully"));
 });
 
-/**
- * @desc    Toggle targeted product visibility on high-priority landing metrics
- * @route   PATCH /api/v1/products/:id/featured
- * @access  Private (Admin Only)
- * @note    FUTURE: Introduce a maximum threshold limit for featured items to retain optimal landing performance.
- */
 export const toggleFeaturedProduct = asyncHandler(async (req, res) => {
   const { id } = req.params;
+  if (!id) throw new ApiError(400, "Product ID is required");
 
-  if (!id) {
-    throw new ApiError(400, "Product ID is required");
-  }
-
-  const product = await Product.findById(id);
-  if (!product) {
-    throw new ApiError(404, "Product not found");
-  }
-
-  product.isFeatured = !product.isFeatured;
-  await product.save();
-
-  await redis.del("all_products");
-  await redis.del("featured_products");
+  const product = await productService.toggleFeatured(id);
 
   return res.status(200).json(
     new ApiResponse(
       200,
-      {
-        productId: product._id,
-        title: product.title,
-        isFeatured: product.isFeatured,
-      },
+      { productId: product._id, title: product.title, isFeatured: product.isFeatured },
       `Product ${product.isFeatured ? "marked as featured" : "removed from featured"} successfully`,
     ),
   );
 });
 
-/**
- * @desc    Purge physical asset associations from Cloudinary and eliminate database identity records
- * @route   DELETE /api/v1/products/:id
- * @access  Private (Admin Only)
- */
 export const deleteProductController = asyncHandler(async (req, res) => {
-  const productId = req.params.id;
+  // Service deletes from DB + invalidates cache, returns images for Cloudinary cleanup
+  const images = await productService.deleteProduct(req.params.id);
 
-  const product = await Product.findById(productId);
-  if (!product) {
-    throw new ApiError(404, "Product not found");
+  // Cloudinary cleanup — fire-and-forget, don't block response
+  if (images?.length) {
+    Promise.all(
+      images.map((img) => img.url && deleteFromCloudinary(img.url))
+    ).catch((err) => console.error("[Cloudinary] delete failed:", err.message));
   }
-
-  if (product.images && product.images.length > 0) {
-    await Promise.all(
-      product.images.map((image) => {
-        if (image.url) return deleteFromCloudinary(image.url);
-      }),
-    );
-  }
-
-  await Product.findByIdAndDelete(productId);
-  await redis.del("all_products");
 
   return res
     .status(200)
     .json(new ApiResponse(200, null, "Product deleted successfully"));
 });
 
-/**
- * @desc    Generate a new categorization resource with optimized storage paths
- * @route   POST /api/v1/categories
- * @access  Private (Admin Only)
- */
+// ─── Category (flat — migrates to own microservice later) ─────────────────────
+
 export const AddCategoryController = asyncHandler(async (req, res) => {
-  const file = req.file;
   const { name } = req.body;
+  const file = req.file;
 
-  if (!name || !file) {
-    throw new ApiError(400, "Enter required fields.");
-  }
+  if (!name || !file) throw new ApiError(400, "Enter required fields.");
 
-  const cloudinaryResult = await uploadOnCloudinary(
-    req.file.buffer,
-    req.file.originalname || `${name}-${Date.now()}`,
+  const result = await uploadOnCloudinary(
+    file.buffer,
+    file.originalname || `${name}-${Date.now()}`,
   );
 
-  if (!cloudinaryResult || !cloudinaryResult.secure_url) {
+  if (!result?.secure_url) {
     throw new ApiError(500, "Failed to upload image to Cloudinary");
   }
 
   const newCategory = await Category.create({
     name,
-    image: cloudinaryResult.secure_url,
-    imagePublicId: cloudinaryResult.public_id,
+    image:        result.secure_url,
+    imagePublicId: result.public_id,
   });
 
-  await redis.del("all_categories");
+  redis
+    .del("all_categories")
+    .catch((err) => console.error("[Redis] category cache clear failed:", err.message));
 
   return res
     .status(201)
     .json(new ApiResponse(201, newCategory, "Category added successfully"));
 });
 
-/**
- * @desc    Update specialized configuration fields and sync old file lifecycle cleanups
- * @route   PUT /api/v1/categories/:id
- * @access  Private (Admin Only)
- */
 export const updateCategoryController = asyncHandler(async (req, res) => {
   const { id } = req.params;
   const { name } = req.body;
   const file = req.file;
 
   const category = await Category.findById(id);
-  if (!category) {
-    throw new ApiError(404, "Category not found");
-  }
+  if (!category) throw new ApiError(404, "Category not found");
 
   if (name) category.name = name;
 
   if (file) {
-    if (category.image) {
-      await deleteFromCloudinary(category.image);
-    }
+    if (category.image) await deleteFromCloudinary(category.image);
 
     const result = await uploadOnCloudinary(
       file.buffer,
       file.originalname || `${name}-${Date.now()}`,
     );
 
-    if (!result?.secure_url) {
-      throw new ApiError(500, "Failed to upload image");
-    }
+    if (!result?.secure_url) throw new ApiError(500, "Failed to upload image");
 
-    category.image = result.secure_url;
+    category.image        = result.secure_url;
     category.imagePublicId = result.public_id;
   }
 
   await category.save();
-  await redis.del("all_categories");
+
+  redis
+    .del("all_categories")
+    .catch((err) => console.error("[Redis] category cache clear failed:", err.message));
 
   return res
     .status(200)
     .json(new ApiResponse(200, category, "Category updated successfully"));
 });
 
-/**
- * @desc    Fetch comprehensive category data utilizing low-latency Redis caching layers
- * @route   GET /api/v1/categories
- * @access  Public
- * @note    FUTURE: Implement partial cache revalidation pipelines (stale-while-revalidate) instead of absolute TTL expirations.
- */
 export const getAllCategoryController = asyncHandler(async (req, res) => {
-  const cached = await redis.get("all_categories");
+  const cached = await safeRedisGet("all_categories");
 
   if (cached) {
-    let parsedData = null;
-
-    // 1. If it's already a parsed object, use it directly
-    if (typeof cached === "object" && cached !== null) {
-      parsedData = cached;
-    }
-    // 2. If it's a string, safely attempt to parse it
-    else if (typeof cached === "string") {
-      try {
-        if (cached !== "[object Object]") {
-          parsedData = JSON.parse(cached);
-        } else {
-          // Self-heal: Delete the corrupted string from Redis
-          await redis.del("all_categories");
-        }
-      } catch (e) {
-        await redis.del("all_categories");
-      }
-    }
-
-    // If parsing was successful, return the data
-    if (parsedData) {
-      return res
-        .status(200)
-        .json(
-          new ApiResponse(
-            200,
-            { totalCategories: parsedData.length, categories: parsedData },
-            "Categories fetched successfully",
-          ),
-        );
-    }
-  }
-
-  // Database fallback
-  const categories = await Category.find();
-  if (!categories || categories.length === 0) {
-    throw new ApiError(404, "No categories found");
-  }
-
-  // Store properly as a stringified JSON
-  await redis.set("all_categories", JSON.stringify(categories), { ex: 3600 });
-
-  return res
-    .status(200)
-    .json(
+    return res.status(200).json(
       new ApiResponse(
         200,
-        { totalCategories: categories.length, categories },
+        { totalCategories: cached.length, categories: cached },
         "Categories fetched successfully",
       ),
     );
+  }
+
+  const categories = await Category.find();
+  if (!categories.length) throw new ApiError(404, "No categories found");
+
+  redis
+    .set("all_categories", JSON.stringify(categories), { ex: 86_400 })
+    .catch((err) => console.error("[Redis] category cache set failed:", err.message));
+
+  return res.status(200).json(
+    new ApiResponse(
+      200,
+      { totalCategories: categories.length, categories },
+      "Categories fetched successfully",
+    ),
+  );
 });
