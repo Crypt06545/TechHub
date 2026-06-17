@@ -1,5 +1,6 @@
 import React from "react";
 import { Menu } from "lucide-react";
+import senzo from '@/assets/senzo.png';
 
 const NavBrand = ({ onMobileMenuOpen }) => (
   <div className="flex items-center gap-3 lg:gap-4">
@@ -10,13 +11,13 @@ const NavBrand = ({ onMobileMenuOpen }) => (
     >
       <Menu size={24} />
     </button>
-    <div className="flex items-center gap-2 cursor-pointer">
-      <div className="w-8 h-8 bg-black rounded-lg flex items-center justify-center text-white font-black text-xl tracking-tighter">
-        T
-      </div>
-      <span className="text-xl lg:text-2xl font-bold tracking-tight text-gray-900 hidden sm:block">
-        Tech<span className="text-gray-900/60 font-medium">Hub</span>
-      </span>
+
+    <div className="flex items-center cursor-pointer flex-shrink-0">
+      <img
+        src={senzo}
+        alt="Senzo Brand Logo"
+        className="h-20 sm:h-24 w-auto object-contain mix-blend-multiply"
+      />
     </div>
   </div>
 );
