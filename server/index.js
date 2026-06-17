@@ -11,13 +11,12 @@ app.get("/", (req, res) => {
   });
 });
 
+ConnectDB().catch((err) => {
+  console.log(`MONGODB Connection Failed ${err}`);
+});
 
-ConnectDB()
-  .then(() => {
-    app.listen(process.env.PORT || 8080, () => {
-      console.log(`Server is running ${process.env.PORT}`);
-    });
-  })
-  .catch((err) => {
-    console.log(`MONGODB Connection Failed ${err}`);
+if (process.env.NODE_ENV !== "production") {
+  app.listen(process.env.PORT || 8080, () => {
+    console.log(`Server is running on port ${process.env.PORT}`);
   });
+}
