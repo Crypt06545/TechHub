@@ -1,18 +1,43 @@
 import React, { useState } from "react";
-import { X, Search, ChevronDown, ChevronRight, User } from "lucide-react";
+import {
+  X,
+  Search,
+  ChevronDown,
+  ChevronRight,
+  User,
+  LogOut,
+  Settings,
+  Heart,
+  Package,
+  LayoutDashboard,
+} from "lucide-react";
+import { Link } from "react-router-dom";
 import { SIDEBAR_DATA, NAV_LINKS } from "./NavData";
+import { useUserStore } from "../../../store/userStore";
 
 const MobileDrawer = ({ isOpen, onClose }) => {
-  const [navView, setNavView]           = useState("categories"); // "categories" | "menu"
-  const [expandedCat, setExpandedCat]   = useState(null);
+  const [navView, setNavView] = useState("categories");
+  const [expandedCat, setExpandedCat] = useState(null);
+
+  const user = useUserStore((s) => s.user);
+  const clearUser = useUserStore((s) => s.clearUser);
+  const isAdmin = user?.role === "Admin";
 
   const toggleCat = (name) =>
     setExpandedCat((prev) => (prev === name ? null : name));
 
+  const handleSignOut = () => {
+    clearUser();
+    onClose();
+    // optionally: navigate("/") or invalidate React Query cache here
+  };
+
   return (
     <div
       className={`fixed inset-0 z-[100] lg:hidden transition-opacity duration-300 ${
-        isOpen ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"
+        isOpen
+          ? "opacity-100 pointer-events-auto"
+          : "opacity-0 pointer-events-none"
       }`}
     >
       {/* Backdrop */}
@@ -35,7 +60,9 @@ const MobileDrawer = ({ isOpen, onClose }) => {
             <div className="w-7 h-7 bg-black rounded flex items-center justify-center text-white font-black text-lg">
               T
             </div>
-            <span className="text-xl font-bold tracking-tight text-gray-900">TechHub</span>
+            <span className="text-xl font-bold tracking-tight text-gray-900">
+              TechHub
+            </span>
           </div>
           <button
             onClick={onClose}
@@ -77,7 +104,6 @@ const MobileDrawer = ({ isOpen, onClose }) => {
 
         {/* Scrollable content */}
         <div className="flex-1 overflow-y-auto bg-white pb-6">
-
           {/* Categories accordion */}
           {navView === "categories" && (
             <div className="flex flex-col">
@@ -96,9 +122,13 @@ const MobileDrawer = ({ isOpen, onClose }) => {
                         <Icon
                           size={18}
                           strokeWidth={isExpanded ? 2.5 : 1.75}
-                          className={isExpanded ? "text-orange-600" : "text-gray-500"}
+                          className={
+                            isExpanded ? "text-orange-600" : "text-gray-500"
+                          }
                         />
-                        <span className={`text-[14px] font-semibold ${isExpanded ? "text-orange-600" : "text-gray-700"}`}>
+                        <span
+                          className={`text-[14px] font-semibold ${isExpanded ? "text-orange-600" : "text-gray-700"}`}
+                        >
                           {item}
                         </span>
                       </div>
@@ -107,17 +137,25 @@ const MobileDrawer = ({ isOpen, onClose }) => {
                         className={`text-gray-400 transition-transform duration-300 ${isExpanded ? "-rotate-180 text-orange-500" : ""}`}
                       />
                     </button>
-
-                    {/* Accordion body — CSS grid trick for smooth height animation */}
                     <div
                       className={`grid transition-all duration-300 ease-in-out ${
-                        isExpanded ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"
+                        isExpanded
+                          ? "grid-rows-[1fr] opacity-100"
+                          : "grid-rows-[0fr] opacity-0"
                       }`}
                     >
                       <div className="overflow-hidden">
                         <div className="px-5 pb-4 pt-1 bg-orange-50/20">
-                          <Section title="Brands" items={data.brands} />
-                          <Section title="Departments" items={data.departments} />
+                          <Section
+                            title="Brands"
+                            items={data.brands}
+                            onClose={onClose}
+                          />
+                          <Section
+                            title="Departments"
+                            items={data.departments}
+                            onClose={onClose}
+                          />
                         </div>
                       </div>
                     </div>
@@ -127,9 +165,52 @@ const MobileDrawer = ({ isOpen, onClose }) => {
             </div>
           )}
 
-          {/* Main menu links */}
+          {/* Main menu */}
           {navView === "menu" && (
             <div className="flex flex-col py-2">
+              {/* ── Auth-gated section ── */}
+              {user && (
+                <>
+                  <SectionLabel label="Account" />
+
+                  <MenuLink
+                    to="/orders"
+                    icon={<Package size={16} />}
+                    label="My Orders"
+                    onClose={onClose}
+                  />
+                  <MenuLink
+                    to="/wishlist"
+                    icon={<Heart size={16} />}
+                    label="Wishlist"
+                    onClose={onClose}
+                  />
+                  <MenuLink
+                    to="/profile"
+                    icon={<Settings size={16} />}
+                    label="Profile Settings"
+                    onClose={onClose}
+                  />
+
+                  {/* Admin-only */}
+                  {isAdmin && (
+                    <>
+                      <SectionLabel label="Admin" />
+                      <MenuLink
+                        to="/admin/dashboard"
+                        icon={<LayoutDashboard size={16} />}
+                        label="Admin Dashboard"
+                        onClose={onClose}
+                        highlight
+                      />
+                    </>
+                  )}
+
+                  <SectionLabel label="Explore" />
+                </>
+              )}
+
+              {/* General nav links — always visible */}
               {NAV_LINKS.map((link, idx) => (
                 <a
                   key={idx}
@@ -144,16 +225,53 @@ const MobileDrawer = ({ isOpen, onClose }) => {
           )}
         </div>
 
-        {/* Footer */}
+        {/* Footer — auth-aware */}
         <div className="p-5 border-t border-gray-100 bg-gray-50 space-y-4">
-          <button className="w-full flex items-center justify-center gap-2 bg-black text-white py-3 rounded-xl font-bold text-[14px] hover:bg-orange-600 transition-colors shadow-sm">
-            <User size={18} />
-            Sign In / Register
-          </button>
+          {user ? (
+            <>
+              {/* User info */}
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-gray-800 flex items-center justify-center text-white font-bold text-sm shrink-0">
+                  {user.name?.[0]?.toUpperCase() ?? <User size={16} />}
+                </div>
+                <div className="min-w-0">
+                  <p className="text-[14px] font-bold text-gray-900 truncate">
+                    {user.name}
+                  </p>
+                  <p className="text-[12px] text-gray-500 truncate">
+                    {user.email}
+                  </p>
+                </div>
+              </div>
+
+              {/* Sign out */}
+              <button
+                onClick={handleSignOut}
+                className="w-full flex items-center justify-center gap-2 border border-gray-200 bg-white text-red-600 py-3 rounded-xl font-bold text-[14px] hover:bg-red-50 transition-colors"
+              >
+                <LogOut size={16} />
+                Sign Out
+              </button>
+            </>
+          ) : (
+            <Link
+              to="/login"
+              onClick={onClose}
+              className="w-full flex items-center justify-center gap-2 bg-black text-white py-3 rounded-xl font-bold text-[14px] hover:bg-orange-600 transition-colors shadow-sm"
+            >
+              <User size={18} />
+              Sign In / Register
+            </Link>
+          )}
+
           <div className="flex justify-center gap-6 text-[12px] font-semibold text-gray-500">
-            <span className="cursor-pointer hover:text-orange-600">Help Center</span>
+            <span className="cursor-pointer hover:text-orange-600">
+              Help Center
+            </span>
             <span>|</span>
-            <span className="cursor-pointer hover:text-orange-600">Track Order</span>
+            <span className="cursor-pointer hover:text-orange-600">
+              Track Order
+            </span>
           </div>
         </div>
       </div>
@@ -161,15 +279,48 @@ const MobileDrawer = ({ isOpen, onClose }) => {
   );
 };
 
-// Tiny helper — avoids repeating the brands/departments list markup
-const Section = ({ title, items }) => (
+// ── Small helpers ─────────────────────────────────────────────
+
+const SectionLabel = ({ label }) => (
+  <p className="px-5 pt-4 pb-1 text-[10px] font-bold text-gray-400 uppercase tracking-widest">
+    {label}
+  </p>
+);
+
+const MenuLink = ({ to, icon, label, onClose, highlight = false }) => (
+  <Link
+    to={to}
+    onClick={onClose}
+    className={`px-5 py-3.5 text-[14px] font-semibold border-b border-gray-50 transition-colors flex items-center justify-between ${
+      highlight
+        ? "text-orange-600 bg-orange-50/40 hover:bg-orange-50"
+        : "text-gray-700 hover:text-orange-600 hover:bg-gray-50"
+    }`}
+  >
+    <span className="flex items-center gap-3">
+      <span className={highlight ? "text-orange-500" : "text-gray-400"}>
+        {icon}
+      </span>
+      {label}
+    </span>
+    <ChevronRight
+      size={16}
+      className={highlight ? "text-orange-300" : "text-gray-300"}
+    />
+  </Link>
+);
+
+const Section = ({ title, items, onClose }) => (
   <div className="mb-4">
     <h5 className="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-2 mt-2 ml-8">
       {title}
     </h5>
     <ul className="space-y-2 ml-8 border-l-2 border-gray-100 pl-3">
       {items.map((item, i) => (
-        <li key={i} className="text-[13px] text-gray-600 font-medium py-1">
+        <li
+          key={i}
+          className="text-[13px] text-gray-600 font-medium py-1 cursor-pointer hover:text-orange-600"
+        >
           {item}
         </li>
       ))}
