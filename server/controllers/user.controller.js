@@ -130,7 +130,7 @@ export const userDetailsController = asyncHandler(async (req, res) => {
   if (!userId) throw new ApiError(400, "Unauthorized Access");
 
   try {
-    const user = await userService.getUserDetails(userId);
+    const user = await userService.getUserDetails({userId});
     return res
       .status(200)
       .json(
