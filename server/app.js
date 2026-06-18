@@ -18,10 +18,12 @@ dotenv.config();
 const app = express();
 
 // 1. Global security & CORS middlewares
-cors({
-  origin: process.env.FRONTEND_URL,
-  credentials: true,
-});
+app.use(
+  cors({
+    credentials: true,
+    origin: process.env.FRONTEND_URL||4030,
+  }),
+);
 app.use(cookieParser());
 app.use(morgan("dev")); // Added "dev" format string to fix morgan
 app.use(
