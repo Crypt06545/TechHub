@@ -9,6 +9,9 @@ import Register from "@/pages/Auth/Register";
 import NotFound from "@/components/NotFound";
 import ProductsPage from "@/pages/ProductPage";
 import ProductDetails from "@/pages/ProductDetails";
+import Dashboard from "@/pages/Dashboard";
+import Analytics from "@/pages/Dashboard/Analytics";
+import DashLayout from "@/pages/Dashboard/DashLayout";
 
 const router = createBrowserRouter([
   {
@@ -22,6 +25,16 @@ const router = createBrowserRouter([
   },
   { path: "login", element: <Login /> },
   { path: "register", element: <Register /> },
+
+  // ── Dashboard ────────────────────────────────────
+  {
+    path: "dashboard",
+    element: <DashLayout />,
+    children: [
+      { index: true, element: <Dashboard /> },
+      { path: "analytics", element: <Analytics /> },
+    ],
+  },
   // 2. Full-screen catch-all outside of <App />
   {
     path: "*",

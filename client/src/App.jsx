@@ -7,6 +7,8 @@ import ScrollToTop from "./components/common/ScrollToTop";
 import NavLinks from "./components/common/navbar/NavLinks";
 import { useGetProfile } from "./hooks/user.query";
 import { useUserStore } from "./store/userStore";
+import Dashboard from "./pages/Dashboard";
+import Analytics from "./pages/Dashboard/Analytics";
 
 function App() {
   const setUser = useUserStore((s) => s.setUser);
@@ -40,6 +42,7 @@ function App() {
       </main>
       <Footer />
       <ChatWidget />
+
     </div>
   );
 }
