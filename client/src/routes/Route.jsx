@@ -12,6 +12,7 @@ import ProductDetails from "@/pages/ProductDetails";
 import Dashboard from "@/pages/Dashboard";
 import Analytics from "@/pages/Dashboard/Analytics";
 import DashLayout from "@/pages/Dashboard/DashLayout";
+import UserProfile from "@/pages/UserProfile";
 
 const router = createBrowserRouter([
   {
@@ -21,6 +22,7 @@ const router = createBrowserRouter([
       { index: true, element: <Home /> },
       { path: "/products", element: <ProductsPage /> },
       { path: "/products/:slug?", element: <ProductDetails /> },
+      { path: "/profile", element: <UserProfile /> },
     ],
   },
   { path: "login", element: <Login /> },
