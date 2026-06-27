@@ -36,9 +36,9 @@ const userService = {
     const verifyEmailUrl = `${process.env.FRONTEND_URL}/verify-email?token=${emailVerifyToken}`;
     sendEmail({
       sendTo: email,
-      subject: "Verify your email - GroStore",
+      subject: "Verify your email - SENZO",
       html: verifyEmailTemplate({ name, url: verifyEmailUrl }),
-    });
+    }).catch((err) => console.error("Verification email failed:", err));
 
     return newUser;
   },
@@ -96,9 +96,9 @@ const userService = {
   },
 
   //logout
-  logout: async ({ refreshToken }) => {
-    if (refreshToken) {
-      await userRepository.clearRefreshToken(refreshToken);
+  logout: async ({ userId }) => {
+    if (userId) {
+      await userRepository.clearRefreshTokenByUserId(userId);
     }
   },
 
@@ -111,7 +111,7 @@ const userService = {
   },
 
   //forgot password
-  forgotPassword: async (email) => {
+  forgotPassword: async ({ email }) => {
     const user = await userRepository.findByEmail(email);
     if (!user) throw new Error("USER_NOT_FOUND");
 
@@ -124,15 +124,15 @@ const userService = {
 
     await userRepository.updateUserFields(user, {
       forgot_password_otp: hashedOtp,
-      forgot_password_expiry: Date.now() + 3600000,
+      forgot_password_expiry: Date.now() + 15 * 60 * 1000,
     });
 
     //send email
     sendEmail({
       sendTo: user.email,
-      subject: "Your Password Reset OTP - GroStore",
+      subject: "Your Password Reset OTP - SENZP",
       html: verifyOtpTemplate({ name: user.name, otp }),
-    });
+    }).catch((err) => console.error("OTP email failed:", err));
   },
 
   //verify otp
@@ -149,11 +149,16 @@ const userService = {
     ) {
       throw new Error("OTP_EXPIRED");
     }
+
     const hashedOtp = crypto
       .createHash("sha256")
       .update(otp.toString())
       .digest("hex");
-    if (hashedOtp !== user.forgot_password_otp) throw new Error("INVALID_OTP");
+    const a = Buffer.from(hashedOtp, "hex");
+    const b = Buffer.from(user.forgot_password_otp, "hex");
+    if (a.length !== b.length || !crypto.timingSafeEqual(a, b)) {
+      throw new Error("INVALID_OTP");
+    }
   },
 
   //reset password
@@ -169,19 +174,26 @@ const userService = {
     ) {
       throw new Error("OTP_EXPIRED");
     }
+
     const hashedOtp = crypto
       .createHash("sha256")
       .update(otp.toString())
       .digest("hex");
-    if (hashedOtp !== user.forgot_password_otp) throw new Error("INVALID_OTP");
+    const a = Buffer.from(hashedOtp, "hex");
+    const b = Buffer.from(user.forgot_password_otp, "hex");
+    if (a.length !== b.length || !crypto.timingSafeEqual(a, b)) {
+      throw new Error("INVALID_OTP");
+    }
+
     const salt = await bcryptjs.genSalt(12);
     const hashedPassword = await bcryptjs.hash(newPassword, salt);
     await userRepository.updateUserFields(user, {
       password: hashedPassword,
-      forgot_password_otp: "",
-      forgot_password_expiry: "",
+      forgot_password_otp: null,
+      forgot_password_expiry: null,
     });
   },
+
   //refreshSession
   refreshSession: async (refreshToken) => {
     let decode;
@@ -196,7 +208,11 @@ const userService = {
     if (user.refresh_token !== refreshToken) throw new Error("TOKEN_MISMATCH");
     if (!user.verify_email) throw new Error("EMAIL_NOT_VERIFIED");
 
-    return generateAccessToken(user);
+    const newAccessToken = generateAccessToken(user);
+    const newRefreshToken = await generateRefreshToken(user._id); // ← rotate
+    await userRepository.updateRefreshToken(user._id, newRefreshToken);
+
+    return { accessToken: newAccessToken, refreshToken: newRefreshToken };
   },
 };
 

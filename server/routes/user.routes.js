@@ -45,7 +45,7 @@ userRouter.post("/reset-password", otpRateLimiter, resetPasswordController);
 
 userRouter.get("/me", authMiddleware, userDetailsController);
 userRouter.put("/update-details", authMiddleware, updateUserDetailsController);
-userRouter.put(
+userRouter.patch(
   "/update-avatar",
   authMiddleware,
   upload.single("avatar"),

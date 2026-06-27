@@ -21,13 +21,13 @@ const userRepository = {
     return await newUser.save();
   },
 
-  updateById: async (id, updateDate, options = {}) => {
+  updateById: async (id, updateData, options = {}) => {
     const defaultOptions = {
       returnDocument: "after",
       runValidators: true,
     };
 
-    return await User.findByIdAndUpdate(id, updateDate, {
+    return await User.findByIdAndUpdate(id, updateData, {
       ...defaultOptions,
       ...options,
     });
@@ -42,11 +42,8 @@ const userRepository = {
     return await User.findByIdAndUpdate(id, { refresh_token: token });
   },
 
-  clearRefreshToken: async (token) => {
-    return await User.updateOne(
-      { refresh_token: token },
-      { refresh_token: null },
-    );
+  clearRefreshTokenByUserId: async (userId) => {
+    return await User.findByIdAndUpdate(userId, { refresh_token: null });
   },
 };
 

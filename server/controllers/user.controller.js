@@ -70,7 +70,7 @@ export const verifyEmailController = asyncHandler(async (req, res) => {
   if (!token) throw new ApiError(400, "Verification token is missing");
 
   try {
-    await userService.verifyEmail(token);
+    await userService.verifyEmail({ token });
     return res
       .status(200)
       .json(new ApiResponse(200, null, "Email verified successfully!"));
@@ -89,7 +89,7 @@ export const loginUserController = asyncHandler(async (req, res) => {
   const { email, password } = req.body;
 
   if (!email || !password)
-    throw new ApiError("Email and password are required");
+    throw new ApiError(400, "Email and password are required");
 
   try {
     const { user, accessToken, refreshToken } = await userService.login({
@@ -108,7 +108,7 @@ export const loginUserController = asyncHandler(async (req, res) => {
 
     return res
       .status(200)
-      .json(new ApiResponse(200, { user, accessToken }, "Login successful"));
+      .json(new ApiResponse(200, { user }, "Login successful"));
   } catch (error) {
     if (error.message === "ACCOUNT_INACTIVE") {
       throw new ApiError(
@@ -130,7 +130,7 @@ export const userDetailsController = asyncHandler(async (req, res) => {
   if (!userId) throw new ApiError(400, "Unauthorized Access");
 
   try {
-    const user = await userService.getUserDetails({userId});
+    const user = await userService.getUserDetails({ userId });
     return res
       .status(200)
       .json(
@@ -147,8 +147,7 @@ export const userDetailsController = asyncHandler(async (req, res) => {
  * @access  Private
  */
 export const logoutUserController = asyncHandler(async (req, res) => {
-  const refreshToken = req.cookies?.refreshToken;
-  await userService.logout(refreshToken);
+  await userService.logout({ userId: req.user._id }); // ← was: { refreshToken }
 
   res.clearCookie("accessToken", cookieOptions);
   res.clearCookie("refreshToken", cookieOptions);
@@ -185,8 +184,12 @@ export const updateAvatarController = asyncHandler(async (req, res) => {
 
   const newAvatarUrl = cloudinaryResult.secure_url;
 
-  if (user.avatar && user.avatar !== "") {
-    await deleteFromCloudinary(user.avatar);
+  if (user.avatar && user.avatar.trim() !== "") {
+    try {
+      await deleteFromCloudinary(user.avatar);
+    } catch (err) {
+      console.error("Cloudinary deletion failed:", err);
+    }
   }
 
   user.avatar = newAvatarUrl;
@@ -243,14 +246,26 @@ export const forgotPasswordController = asyncHandler(async (req, res) => {
   const { email } = req.body;
   if (!email) throw new ApiError(400, "Email is required");
 
+  // Swallow USER_NOT_FOUND silently — never reveal if email exists
   try {
-    await userService.forgotPassword(email);
-    return res
-      .status(200)
-      .json(new ApiResponse(200, null, "OTP sent to your email"));
+    await userService.forgotPassword({ email });
   } catch (error) {
-    throw new ApiError(400, "User not available");
+    if (error.message !== "USER_NOT_FOUND") {
+      throw new ApiError(500, "Failed to send OTP");
+    }
+    // USER_NOT_FOUND → fall through silently
   }
+
+  // Always return the same response regardless of whether user exists
+  return res
+    .status(200)
+    .json(
+      new ApiResponse(
+        200,
+        null,
+        "If that email is registered, an OTP has been sent.",
+      ),
+    );
 });
 
 /**
@@ -258,17 +273,30 @@ export const forgotPasswordController = asyncHandler(async (req, res) => {
  * @route   POST /api/v1/users/verify-otp
  * @access  Public
  */
-export const verifyForgotPasswordOtpController = asyncHandler(async (req, res) => {
-  const { email, otp } = req.body;
-  if (!email || !otp) throw new ApiError(400, "Email and otp are required");
+export const verifyForgotPasswordOtpController = asyncHandler(
+  async (req, res) => {
+    const { email, otp } = req.body;
+    if (!email || !otp) throw new ApiError(400, "Email and otp are required");
 
-  try {
-    await userService.verifyOtp({ email, otp });
-    return res.status(200).json(new ApiResponse(200, null, "OTP verified successfully. Proceed to reset."));
-  } catch (error) {
-    throw new ApiError(400, error.message === "OTP_EXPIRED" ? "OTP expired." : "Invalid OTP");
-  }
-});
+    try {
+      await userService.verifyOtp({ email, otp });
+      return res
+        .status(200)
+        .json(
+          new ApiResponse(
+            200,
+            null,
+            "OTP verified successfully. Proceed to reset.",
+          ),
+        );
+    } catch (error) {
+      throw new ApiError(
+        400,
+        error.message === "OTP_EXPIRED" ? "OTP expired." : "Invalid OTP",
+      );
+    }
+  },
+);
 
 /**
  * @desc    Overwrite existing password credentials using verified multi-stage validation checks
@@ -280,17 +308,28 @@ export const resetPasswordController = asyncHandler(async (req, res) => {
   if (!email || !otp || !newPassword || !confirmPassword) {
     throw new ApiError(400, "All parameters are required");
   }
-  if (newPassword !== confirmPassword) throw new ApiError(400, "Passwords do not match");
-  if (newPassword.length < 8) throw new ApiError(400, "Password must be at least 8 characters long");
+  if (newPassword !== confirmPassword)
+    throw new ApiError(400, "Passwords do not match");
+  if (newPassword.length < 8)
+    throw new ApiError(400, "Password must be at least 8 characters long");
 
   try {
     await userService.resetPassword({ email, otp, newPassword });
-    return res.status(200).json(new ApiResponse(200, null, "Password reset successfully"));
+    return res
+      .status(200)
+      .json(new ApiResponse(200, null, "Password reset successfully"));
   } catch (error) {
-    throw new ApiError(400, error.message);
+    const errorMap = {
+      OTP_EXPIRED: "OTP has expired. Please request a new one.",
+      INVALID_OTP: "Invalid OTP.",
+      USER_NOT_FOUND: "Password reset failed.", // don't reveal
+    };
+    throw new ApiError(
+      400,
+      errorMap[error.message] || "Password reset failed.",
+    );
   }
 });
-
 
 /**
  * @desc    Validate active refresh JSON web tokens and issue rotational access tokens
@@ -299,13 +338,29 @@ export const resetPasswordController = asyncHandler(async (req, res) => {
  * @note    FUTURE: Implement token reuse detection (Automatic family revocation) to protect compromised refresh keys.
  */
 export const refreshTokenController = asyncHandler(async (req, res) => {
-  const refreshToken = req?.cookies?.refreshToken || req.header("Authorization")?.replace("Bearer ", "");
+  const refreshToken =
+    req?.cookies?.refreshToken ||
+    req.header("Authorization")?.replace("Bearer ", "");
   if (!refreshToken) throw new ApiError(401, "Refresh token is missing");
 
   try {
-    const newAccessToken = await userService.refreshSession(refreshToken);
-    res.cookie("accessToken", newAccessToken, { ...cookieOptions, maxAge: 5 * 60 * 60 * 1000 });
-    return res.status(200).json(new ApiResponse(200, { accessToken: newAccessToken }, "Token rotated"));
+    const { accessToken: newAccessToken, refreshToken: newRefreshToken } =
+      await userService.refreshSession(refreshToken);
+
+    res.cookie("accessToken", newAccessToken, {
+      ...cookieOptions,
+      maxAge: 5 * 60 * 60 * 1000,
+    });
+    res.cookie("refreshToken", newRefreshToken, {
+      // ← also update the rotated refresh token cookie
+      ...cookieOptions,
+      maxAge: 7 * 24 * 60 * 60 * 1000,
+    });
+    return res
+      .status(200)
+      .json(
+        new ApiResponse(200, { accessToken: newAccessToken }, "Token rotated"),
+      );
   } catch (error) {
     throw new ApiError(401, error.message);
   }
