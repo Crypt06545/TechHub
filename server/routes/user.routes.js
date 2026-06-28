@@ -12,11 +12,6 @@ import {
   verifyEmailController,
   verifyForgotPasswordOtpController,
 } from "../controllers/user.controller.js";
-import {
-  placeCodOrderController,
-  getUserOrdersController,
-  getSingleOrderController,
-} from "../controllers/order.controller.js";
 import authMiddleware from "../middleware/authMiddleware.js";
 import { upload } from "../middleware/multerMiddleware.js";
 import { otpRateLimiter } from "../middleware/otpRateLimiter.js";
@@ -52,10 +47,6 @@ userRouter.patch(
   updateAvatarController,
 );
 
-// ─── Orders ───────────────────────────────────────────────────────────────────
 
-userRouter.post("/orders/cod", authMiddleware, placeCodOrderController);
-userRouter.get("/orders", authMiddleware, getUserOrdersController);
-userRouter.get("/orders/:id", authMiddleware, getSingleOrderController);
 
 export default userRouter;

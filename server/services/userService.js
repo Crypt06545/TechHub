@@ -130,6 +130,7 @@ const userService = {
     //send email
     sendEmail({
       sendTo: user.email,
+      
       subject: "Your Password Reset OTP - SENZP",
       html: verifyOtpTemplate({ name: user.name, otp }),
     }).catch((err) => console.error("OTP email failed:", err));

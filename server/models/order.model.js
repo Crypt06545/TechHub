@@ -4,7 +4,7 @@ const orderItemSchema = new mongoose.Schema(
   {
     productId: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "product",
+      ref: "Product",
       required: true,
     },
     name: {
@@ -37,7 +37,12 @@ const addressSnapshotSchema = new mongoose.Schema(
     city: { type: String, required: true, trim: true },
     state: { type: String, required: true, trim: true },
     pincode: { type: String, required: true, trim: true },
-    country: { type: String, required: true, trim: true, default: "Bangladesh" },
+    country: {
+      type: String,
+      required: true,
+      trim: true,
+      default: "Bangladesh",
+    },
     mobile: { type: String, required: true, trim: true },
   },
   { _id: false },
@@ -47,7 +52,7 @@ const orderSchema = new mongoose.Schema(
   {
     userId: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "user",
+      ref: "User",
       required: true,
     },
     orderId: {
@@ -108,6 +113,7 @@ const orderSchema = new mongoose.Schema(
       required: true,
       min: 0,
     },
+    shippingCharge: { type: Number, required: true, min: 0, default: 0 },
     invoice_receipt: {
       type: String,
       default: "",
