@@ -3,6 +3,8 @@ import MegaMenuSidebar from "@/components/common/navbar/Megamenusidebar";
 import StoreFeatures from "@/components/common/navbar/Storefeatures";
 import FeaturedProducts from "@/components/FeaturedProducts";
 import HomeCategories from "@/components/HomeCategories";
+import AddProduct from "./Dashboard/AddProduct";
+import CheckoutPage from "./Checkout";
 
 const Home = () => {
   return (
@@ -21,6 +23,8 @@ const Home = () => {
       {/* Rest of home page */}
       <HomeCategories />
       <FeaturedProducts />
+      <AddProduct />
+      <CheckoutPage />
     </div>
   );
 };
