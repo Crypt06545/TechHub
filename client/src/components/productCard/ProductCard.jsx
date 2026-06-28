@@ -25,7 +25,6 @@ const ProductCard = ({
     <div className="group relative w-full rounded-xl border border-gray-200 bg-white p-3 sm:p-4 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-md overflow-hidden flex flex-col">
       <ProductBadge badge={badge} isWishlisted={isWishlisted} />
 
-      {/* FIXED: Changed href to 'to' for React Router Navigation */}
       <Link to={`/products/${slug}`} className="block">
         <div className="relative mb-3 flex h-[120px] sm:h-[140px] md:h-[150px] items-center justify-center overflow-hidden bg-gray-50 rounded-lg p-2">
           <img
@@ -38,7 +37,6 @@ const ProductCard = ({
       </Link>
 
       <div className="flex flex-col flex-1 gap-2">
-        {/* FIXED: Changed href to 'to' here as well */}
         <Link to={`/products/${slug}`} className="block">
           <h3 className="line-clamp-2 text-sm sm:text-[15px] font-semibold leading-snug text-gray-900 break-words hover:text-gray-600 transition-colors">
             {title}
@@ -54,13 +52,15 @@ const ProductCard = ({
 
         <div className="mt-auto">
           <AddToCartButton
-            outOfStock={outOfStock}
-            stock={stock}
             productId={productId}
+            stock={stock}
+            outOfStock={outOfStock}
             image={image}
             title={title}
-            slug={slug}
+            subtitle={subtitle}
             price={price}
+            oldPrice={oldPrice}
+            slug={slug}
           />
         </div>
       </div>
