@@ -90,7 +90,6 @@ const AddToCartButton = ({
 
       {/* qty + check */}
       <div className="flex flex-1 items-center justify-center gap-1 select-none">
-        <Check size={11} className="text-orange-500" strokeWidth={3} />
         <span className="text-xs font-semibold text-gray-800">{quantity}</span>
       </div>
 

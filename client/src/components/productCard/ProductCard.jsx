@@ -49,6 +49,7 @@ const ProductCard = ({
         <ProductRating rating={rating} reviews={reviews} />
 
         <ProductPrice price={price} oldPrice={oldPrice} stock={stock} />
+        
 
         <div className="mt-auto">
           <AddToCartButton

@@ -11,7 +11,7 @@ import { Separator } from "@/components/ui/separator";
 import { useCartStore } from "@/store/cartStore"; // adjust path if needed
 
 /* ── free shipping threshold ── */
-const FREE_SHIPPING_AT = 5000;
+const FREE_SHIPPING_AT = 2000;
 const SHIPPING_FEE = 120;
 
 /* ─────────────────────────────────────────────────────────────────────
@@ -40,67 +40,73 @@ const CartRow = ({ item, onRemove, onQty }) => {
 
   return (
     <div className="flex gap-3 py-3.5">
-      {/* image */}
+      {/* Product Image */}
       <img
         src={item.image}
         alt={item.name}
-        className="w-14 h-14 rounded-xl object-cover bg-gray-50 shrink-0 border border-gray-100"
+        className="h-14 w-14 shrink-0 rounded-xl border border-gray-100 bg-gray-50 object-cover"
       />
 
-      {/* body */}
-      <div className="flex-1 min-w-0 flex flex-col justify-between">
-        {/* top row: name + remove */}
+      {/* Content */}
+      <div className="flex min-w-0 flex-1 flex-col justify-between">
+        {/* Name + Trash */}
         <div className="flex items-start justify-between gap-2">
           <div className="min-w-0">
-            <p className="text-xs font-semibold text-gray-900 truncate leading-snug">
+            <p className="truncate text-xs font-semibold text-gray-900">
               {item.name}
             </p>
+
             {item.variant && (
-              <p className="text-[11px] text-gray-400 mt-0.5 truncate">
+              <p className="mt-0.5 truncate text-[11px] text-gray-400">
                 {item.variant}
               </p>
             )}
           </div>
+
           <button
+            type="button"
             onClick={() => onRemove(item._id)}
-            className="shrink-0 p-1 rounded-md text-gray-300 hover:text-red-400 hover:bg-red-50 transition-colors"
-            aria-label="Remove"
+            className="flex h-8 w-8 items-center justify-center rounded-lg text-gray-400 transition-all hover:bg-red-50 hover:text-red-600"
+            aria-label="Remove item"
           >
-            <X size={13} />
+            <Trash2 size={16} strokeWidth={2.2} />
           </button>
         </div>
 
-        {/* bottom row: qty controls + price */}
-        <div className="flex items-center justify-between mt-2">
-          {/* qty pill */}
-          <div className="flex items-center gap-1 border border-gray-200 rounded-lg overflow-hidden bg-gray-50">
+        {/* Qty + Price */}
+        <div className="mt-3 flex items-center justify-between">
+          <div className="flex items-center overflow-hidden rounded-lg border border-gray-200 bg-gray-50">
+            {/* Minus */}
             <button
               onClick={() => onQty(item._id, item.quantity - 1)}
-              disabled={item.quantity <= 1}
-              className="w-6 h-6 flex items-center justify-center text-gray-400 hover:text-orange-600 disabled:opacity-30 transition-colors"
+              className="flex h-8 w-8 items-center justify-center text-gray-500 transition-colors hover:bg-red-50 hover:text-red-600"
             >
-              <Minus size={10} />
+              <Minus size={14} />
             </button>
-            <span className="w-5 text-center text-[11px] font-semibold text-gray-800">
+
+            {/* Qty */}
+            <span className="flex h-8 w-8 items-center justify-center border-x border-gray-200 text-xs font-semibold">
               {item.quantity}
             </span>
+
+            {/* Plus */}
             <button
               onClick={() => onQty(item._id, item.quantity + 1)}
-              className="w-6 h-6 flex items-center justify-center text-gray-400 hover:text-orange-600 transition-colors"
+              className="flex h-8 w-8 items-center justify-center text-gray-500 transition-colors hover:bg-orange-50 hover:text-orange-600"
             >
-              <Plus size={10} />
+              <Plus size={14} />
             </button>
           </div>
 
-          {/* price */}
           <div className="text-right">
-            <span className="text-xs font-bold text-gray-900">
+            <p className="text-xs font-bold text-gray-900">
               ৳{lineTotal.toLocaleString()}
-            </span>
+            </p>
+
             {originalLine && (
-              <span className="block text-[10px] text-gray-400 line-through">
+              <p className="text-[10px] text-gray-400 line-through">
                 ৳{originalLine.toLocaleString()}
-              </span>
+              </p>
             )}
           </div>
         </div>
