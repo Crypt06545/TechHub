@@ -1,6 +1,5 @@
-// PATH: src/components/products/productCard/AddToCartButton.jsx
-import React from "react";
-import { ShoppingCart, Minus, Plus, Check } from "lucide-react";
+import React, { useState } from "react";
+import { ShoppingCart, Minus, Plus } from "lucide-react";
 import { useCartStore } from "@/store/cartStore";
 
 const AddToCartButton = ({
@@ -14,36 +13,41 @@ const AddToCartButton = ({
   oldPrice,
   slug,
 }) => {
-  const items = useCartStore((s) => s.items);
   const addItem = useCartStore((s) => s.addItem);
   const updateQty = useCartStore((s) => s.updateQty);
   const removeItem = useCartStore((s) => s.removeItem);
 
-  const cartItem = items.find((i) => i._id === productId);
-  const quantity = cartItem?.quantity ?? 0;
+  // Local state only — never reads from persisted cart on mount
+  const [quantity, setQuantity] = useState(0);
 
   const handleAdd = () => {
     addItem({
       _id: productId,
       name: title,
       variant: subtitle ?? null,
-      image: image,
-      price: price,
+      image,
+      price,
       originalPrice: oldPrice ?? null,
-      slug: slug,
+      slug,
     });
+    setQuantity(1);
   };
 
   const handleIncrease = () => {
     if (quantity >= stock) return;
-    updateQty(productId, quantity + 1);
+    const next = quantity + 1;
+    updateQty(productId, next);
+    setQuantity(next);
   };
 
   const handleDecrease = () => {
     if (quantity <= 1) {
       removeItem(productId);
+      setQuantity(0);
     } else {
-      updateQty(productId, quantity - 1);
+      const next = quantity - 1;
+      updateQty(productId, next);
+      setQuantity(next);
     }
   };
 
@@ -78,7 +82,6 @@ const AddToCartButton = ({
 
   return (
     <div className="mt-1 flex h-9 w-full items-center rounded-lg border border-gray-200 overflow-hidden bg-white">
-      {/* minus / remove */}
       <button
         type="button"
         onClick={handleDecrease}
@@ -88,12 +91,10 @@ const AddToCartButton = ({
         <Minus size={13} strokeWidth={2.5} />
       </button>
 
-      {/* qty + check */}
       <div className="flex flex-1 items-center justify-center gap-1 select-none">
         <span className="text-xs font-semibold text-gray-800">{quantity}</span>
       </div>
 
-      {/* plus */}
       <button
         type="button"
         onClick={handleIncrease}
