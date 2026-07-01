@@ -4,7 +4,6 @@ import { productRepository } from "../repositories/product.repository.js";
 import { Product } from "../models/product.model.js";
 import Category from "../models/category.mode.js";
 
-
 // ─── TTLs ─────────────────────────────────────────────────────────────────────
 
 const PRODUCT_LIST_TTL = 3_600; // 1h
@@ -59,8 +58,7 @@ const buildSlug = async (title, excludeId = null) => {
 
 const invalidateProductCache = async (slug = null) => {
   try {
-    const listKeys = await redis.keys("products:*");
-    const keysToDelete = [featuredKey(), ...listKeys];
+    const keysToDelete = [featuredKey(), "product:filters:facets"];
     if (slug) keysToDelete.push(singleKey(slug));
     if (keysToDelete.length) await redis.del(...keysToDelete);
   } catch (err) {
@@ -72,26 +70,40 @@ const invalidateProductCache = async (slug = null) => {
 
 export const productService = {
   // ─── Public ───────────────────────────────────────────────────────────────
+  // productService.js - getProducts মেথড পুরোটা রিপ্লেস করে দাও
 
   async getProducts({
     limit = 12,
     cursor,
-    category, // ekhon eta slug comma-separated string, jemon "laptops,headphones"
+    category,
     brand,
     minPrice,
     maxPrice,
     search,
     sort,
   }) {
+    // ১. Redis Cache Check যোগ করা হলো
+    const cacheKey = productListKey({
+      limit,
+      cursor,
+      category,
+      brand,
+      minPrice,
+      maxPrice,
+      search,
+      sort,
+    });
+    const cached = await safeRedisGet(cacheKey);
+    if (cached) return cached;
+
     const query = { isPublished: true, isArchived: false };
 
     if (category) {
       const slugs = category.split(",");
-      const categoryDocs = await Category.find({ slug: { $in: slugs } }).select(
-        "_id",
-      );
+      const categoryDocs = await Category.find({ slug: { $in: slugs } })
+        .select("_id")
+        .lean();
       if (categoryDocs.length === 0) {
-        // kono match nai, fole ekta empty result nishchit koro
         return { products: [], nextCursor: null, hasMore: false };
       }
       query.category = { $in: categoryDocs.map((c) => c._id) };
@@ -110,27 +122,38 @@ export const productService = {
     if (sort === "price_desc") sortSpec = { price: -1, _id: -1 };
 
     if (cursor) {
+      let cursorData;
+      try {
+        cursorData = JSON.parse(cursor);
+      } catch (error) {
+        throw new ApiError(400, "Invalid pagination cursor");
+      }
+
       if (sort === "price_asc") {
         query.price = {
           ...(query.price || {}),
-          $gte: JSON.parse(cursor).price,
+          $gte: cursorData.price,
         };
-        query._id = { $gt: JSON.parse(cursor)._id };
+        query._id = { $gt: cursorData._id };
       } else if (sort === "price_desc") {
         query.price = {
           ...(query.price || {}),
-          $lte: JSON.parse(cursor).price,
+          $lte: cursorData.price,
         };
-        query._id = { $lt: JSON.parse(cursor)._id };
+        query._id = { $lt: cursorData._id };
       } else {
         query._id = { $lt: cursor };
       }
     }
 
     const products = await Product.find(query)
+      .select(
+        "title slug price compareAtPrice images stock ratingAverage category",
+      )
       .populate("category", "name slug")
       .sort(sortSpec)
-      .limit(limit + 1);
+      .limit(limit + 1)
+      .lean();
 
     let nextCursor = null;
     if (products.length > limit) {
@@ -140,9 +163,14 @@ export const productService = {
         : nextItem._id;
     }
 
-    return { products, nextCursor, hasMore: Boolean(nextCursor) };
-  },
+    const result = { products, nextCursor, hasMore: Boolean(nextCursor) };
 
+    redis
+      .set(cacheKey, JSON.stringify(result), { ex: PRODUCT_LIST_TTL })
+      .catch((err) => console.error("[Redis] list cache failed:", err.message));
+
+    return result;
+  },
   async getFilterFacets() {
     const cacheKey = "product:filters:facets";
     const cached = await safeRedisGet(cacheKey);

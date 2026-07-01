@@ -1,41 +1,103 @@
 import { Product } from "../models/product.model.js";
 
+const LIST_PROJECTION = `
+title
+slug
+description
+price
+compareAtPrice
+images
+category
+brand
+stock
+ratingAverage
+ratingCount
+isFeatured
+createdAt
+`;
+
+const DETAIL_PROJECTION = `
+title
+slug
+description
+price
+compareAtPrice
+images
+category
+brand
+stock
+ratingAverage
+ratingCount
+vendorId
+isFeatured
+createdAt
+updatedAt
+`;
+
 export const productRepository = {
-  async findWithFilters(query, limit) {
+  // ---------------------------------------------------------------------------
+  // Product List
+  // ---------------------------------------------------------------------------
+
+  async findProducts(query, sort, limit) {
     return Product.find(query)
-      .select("title slug price compareAtPrice images category stock ratingAverage")
-      .lean()
-      .sort({ _id: -1 })
-      .limit(limit + 1);
+      .select(LIST_PROJECTION)
+      .populate("category", "name slug")
+      .sort(sort)
+      .limit(limit)
+      .lean();
   },
+
+  // ---------------------------------------------------------------------------
+  // Featured Products
+  // ---------------------------------------------------------------------------
 
   async findFeatured() {
-    return Product.find({ isFeatured: true }).lean();
+    return Product.find({
+      isFeatured: true,
+      isPublished: true,
+      isArchived: false,
+    })
+      .select(LIST_PROJECTION)
+      .populate("category", "name slug")
+      .lean();
   },
 
-  /**
-   * Used for both public single-product fetch and slug uniqueness check.
-   * excludeId — skips self during update slug conflict check.
-   */
+  // ---------------------------------------------------------------------------
+  // Single Product
+  // ---------------------------------------------------------------------------
+
   async findBySlug(slug, excludeId = null) {
     const query = { slug };
-    if (!excludeId) {
-      // Public fetch — enforce published/not-archived
-      query.isPublished = true;
-      query.isArchived  = false;
-    } else {
-      // Slug conflict check during update — scope to excludeId
+
+    if (excludeId) {
       query._id = { $ne: excludeId };
+    } else {
+      query.isPublished = true;
+      query.isArchived = false;
     }
-    return Product.findOne(query).lean();
+
+    return Product.findOne(query)
+      .select(DETAIL_PROJECTION)
+      .populate("category", "name slug")
+      .lean();
   },
 
+  // ---------------------------------------------------------------------------
+  // Admin
+  // ---------------------------------------------------------------------------
+
   async findById(productId) {
-    return Product.findById(productId);
+    return Product.findById(productId).populate("category", "name slug");
   },
 
   async findByIds(productIds) {
-    return Product.find({ _id: { $in: productIds } }).lean();
+    return Product.find({
+      _id: { $in: productIds },
+    })
+      .select(LIST_PROJECTION)
+      .populate("category", "name slug")
+      .lean();
   },
 
   async create(data) {
@@ -53,8 +115,26 @@ export const productRepository = {
   async decrementStock(productId, quantity) {
     return Product.findByIdAndUpdate(
       productId,
-      { $inc: { stock: -quantity } },
-      { new: true },
+      {
+        $inc: {
+          stock: -quantity,
+        },
+      },
+      {
+        new: true,
+      },
     );
+  },
+
+  // ---------------------------------------------------------------------------
+  // Exists
+  // ---------------------------------------------------------------------------
+
+  async exists(query) {
+    return Product.exists(query);
+  },
+
+  async count(query = {}) {
+    return Product.countDocuments(query);
   },
 };
