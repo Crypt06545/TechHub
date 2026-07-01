@@ -1,6 +1,9 @@
 import { redis } from "../config/redis.js";
 import { ApiError } from "../utils/ApiError.js";
 import { productRepository } from "../repositories/product.repository.js";
+import { Product } from "../models/product.model.js";
+import Category from "../models/category.mode.js";
+
 
 // ─── TTLs ─────────────────────────────────────────────────────────────────────
 
@@ -70,41 +73,116 @@ const invalidateProductCache = async (slug = null) => {
 export const productService = {
   // ─── Public ───────────────────────────────────────────────────────────────
 
-  async getProducts({ limit, cursor, category, featured, search }) {
+  async getProducts({
+    limit = 12,
+    cursor,
+    category, // ekhon eta slug comma-separated string, jemon "laptops,headphones"
+    brand,
+    minPrice,
+    maxPrice,
+    search,
+    sort,
+  }) {
     const query = { isPublished: true, isArchived: false };
-    if (category) query.category = category;
-    if (featured === "true") query.isFeatured = true;
+
+    if (category) {
+      const slugs = category.split(",");
+      const categoryDocs = await Category.find({ slug: { $in: slugs } }).select(
+        "_id",
+      );
+      if (categoryDocs.length === 0) {
+        // kono match nai, fole ekta empty result nishchit koro
+        return { products: [], nextCursor: null, hasMore: false };
+      }
+      query.category = { $in: categoryDocs.map((c) => c._id) };
+    }
+
+    if (brand) query.brand = { $in: brand.split(",") };
+    if (minPrice || maxPrice) {
+      query.price = {};
+      if (minPrice) query.price.$gte = Number(minPrice);
+      if (maxPrice) query.price.$lte = Number(maxPrice);
+    }
     if (search) query.title = { $regex: search, $options: "i" };
-    if (cursor) query._id = { $lt: cursor };
 
-    const cacheKey = productListKey({
-      limit,
-      cursor,
-      category,
-      featured,
-      search,
-    });
+    let sortSpec = { _id: -1 };
+    if (sort === "price_asc") sortSpec = { price: 1, _id: 1 };
+    if (sort === "price_desc") sortSpec = { price: -1, _id: -1 };
 
-    const cached = await safeRedisGet(cacheKey);
-    if (cached?.products) return cached;
+    if (cursor) {
+      if (sort === "price_asc") {
+        query.price = {
+          ...(query.price || {}),
+          $gte: JSON.parse(cursor).price,
+        };
+        query._id = { $gt: JSON.parse(cursor)._id };
+      } else if (sort === "price_desc") {
+        query.price = {
+          ...(query.price || {}),
+          $lte: JSON.parse(cursor).price,
+        };
+        query._id = { $lt: JSON.parse(cursor)._id };
+      } else {
+        query._id = { $lt: cursor };
+      }
+    }
 
-    const products = await productRepository.findWithFilters(query, limit);
+    const products = await Product.find(query)
+      .populate("category", "name slug")
+      .sort(sortSpec)
+      .limit(limit + 1);
 
     let nextCursor = null;
     if (products.length > limit) {
       const nextItem = products.pop();
-      nextCursor = nextItem._id;
+      nextCursor = sort?.startsWith("price")
+        ? JSON.stringify({ price: nextItem.price, _id: nextItem._id })
+        : nextItem._id;
     }
 
-    const responseData = { products, nextCursor, hasMore: Boolean(nextCursor) };
+    return { products, nextCursor, hasMore: Boolean(nextCursor) };
+  },
+
+  async getFilterFacets() {
+    const cacheKey = "product:filters:facets";
+    const cached = await safeRedisGet(cacheKey);
+    if (cached) return cached;
+
+    const [result] = await Product.aggregate([
+      { $match: { isPublished: true, isArchived: false } },
+      {
+        $facet: {
+          brands: [
+            { $group: { _id: "$brand" } },
+            { $match: { _id: { $ne: "" } } },
+            { $sort: { _id: 1 } },
+            { $project: { _id: 0, name: "$_id" } },
+          ],
+          priceRange: [
+            {
+              $group: {
+                _id: null,
+                min: { $min: "$price" },
+                max: { $max: "$price" },
+              },
+            },
+          ],
+        },
+      },
+    ]);
+
+    const facets = {
+      brands: result.brands.map((b) => b.name),
+      priceRange: result.priceRange[0] || { min: 0, max: 1000 },
+    };
 
     redis
-      .set(cacheKey, JSON.stringify(responseData), { ex: PRODUCT_LIST_TTL })
+      .set(cacheKey, JSON.stringify(facets), { ex: 3600 })
       .catch((err) =>
-        console.error("[Redis] product list cache failed:", err.message),
+        console.error("[Redis] filters cache failed:", err.message),
       );
 
-    return responseData;
+    return facets;
   },
 
   async getFeaturedProducts() {
@@ -250,7 +328,6 @@ export const productService = {
     return updated;
   },
 
-  
   /**
    * Returns images array so controller can clean up Cloudinary after DB delete.
    */

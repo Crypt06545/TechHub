@@ -9,13 +9,22 @@ export const getProductController = asyncHandler(async (req, res) => {
     limit,
     cursor: req.query.cursor,
     category: req.query.category,
-    featured: req.query.featured,
+    brand: req.query.brand,
+    minPrice: req.query.minPrice,
+    maxPrice: req.query.maxPrice,
     search: req.query.search,
   });
 
   return res
     .status(200)
     .json(new ApiResponse(200, data, "Products fetched successfully"));
+});
+
+export const getProductFiltersController = asyncHandler(async (req, res) => {
+  const data = await productService.getFilterFacets();
+  return res
+    .status(200)
+    .json(new ApiResponse(200, data, "Filters fetched successfully"));
 });
 
 export const getFeaturedProductConroller = asyncHandler(async (req, res) => {
