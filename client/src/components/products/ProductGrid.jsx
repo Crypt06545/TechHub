@@ -1,7 +1,7 @@
-import ProductCard from "./ProductCard";
-import ProductCardSkeleton from "./ProductCardSkeleton";
 import { Button } from "@/components/ui/button";
 import { useFilterStore } from "@/store/useFilterStore";
+import ProductCardSkeleton from "../productCard/ProductCardSkeleton";
+import ProductCard from "../productCard/ProductCard";
 
 const mapProductToCard = (product) => ({
   productId: product._id,
@@ -40,7 +40,7 @@ const ProductGrid = ({ data, isLoading, isError, isFetching }) => {
     );
   }
 
-  const products = data?.products || [];
+  const products = data?.data?.products || [];
 
   if (products.length === 0) {
     return (
@@ -53,7 +53,7 @@ const ProductGrid = ({ data, isLoading, isError, isFetching }) => {
   return (
     <>
       <div
-        className={`grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6 transition-opacity ${isFetching ? "opacity-60" : "opacity-100"}`}
+        className={`grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-6 transition-opacity ${isFetching ? "opacity-60" : "opacity-100"}`}
       >
         {products.map((product) => (
           <ProductCard key={product._id} {...mapProductToCard(product)} />
@@ -70,8 +70,8 @@ const ProductGrid = ({ data, isLoading, isError, isFetching }) => {
         </Button>
         <Button
           variant="outline"
-          onClick={() => goNextPage(data?.nextCursor)}
-          disabled={!data?.hasMore || isFetching}
+          onClick={() => goNextPage(data?.data?.nextCursor)}
+          disabled={!data?.data?.hasMore || isFetching}
         >
           Next
         </Button>
