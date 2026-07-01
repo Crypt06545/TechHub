@@ -20,7 +20,9 @@ const ProductDetailsSkeleton = () => (
       <div>
         <Skeleton className="aspect-[4/3] w-full rounded-xl mb-3" />
         <div className="flex gap-2">
-          {[...Array(4)].map((_, i) => <Skeleton key={i} className="w-16 h-16 rounded-lg" />)}
+          {[...Array(4)].map((_, i) => (
+            <Skeleton key={i} className="w-16 h-16 rounded-lg" />
+          ))}
         </div>
       </div>
       <div className="flex flex-col gap-5">
@@ -62,36 +64,45 @@ const ProductDetails = () => {
   const { slug } = useParams();
   const { data, isLoading, isError, error } = useProductDetails(slug);
 
-
   if (isLoading) return <ProductDetailsSkeleton />;
-  if (isError) return <div className="text-center py-20 text-red-500">{error.message}</div>;
-  if (!data) return <div className="text-center py-20 text-gray-400">Product not found.</div>;
+  if (isError)
+    return (
+      <div className="text-center py-20 text-red-500">{error.message}</div>
+    );
+  if (!data)
+    return (
+      <div className="text-center py-20 text-gray-400">Product not found.</div>
+    );
 
   const product = data.data.product;
 
-
   return (
     <div className="container mx-auto px-4 lg:px-6 py-6">
-
       {/* Breadcrumb */}
-      <ProductBreadcrumb category={product.category} title={product.title}/>
+      <ProductBreadcrumb
+        categoryName={product.category?.name}
+        categorySlug={product.category?.slug}
+        title={product.title}
+      />
 
       {/* Main grid */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 mb-14">
-
         {/* Left — images */}
-        <ProductGallery images={product.images} title={product.title}/>
+        <ProductGallery images={product.images} title={product.title} />
 
         {/* Right — info */}
-        <ProductInfo product={product}/>
+        <ProductInfo product={product} />
       </div>
 
       {/* Related products placeholder */}
       <div>
-        <h2 className="text-lg font-semibold text-gray-900 mb-4">Related Products</h2>
-        <p className="text-sm text-gray-400">Related products will appear here.</p>
+        <h2 className="text-lg font-semibold text-gray-900 mb-4">
+          Related Products
+        </h2>
+        <p className="text-sm text-gray-400">
+          Related products will appear here.
+        </p>
       </div>
-
     </div>
   );
 };

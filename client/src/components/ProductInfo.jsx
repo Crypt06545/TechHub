@@ -240,10 +240,10 @@ export const ProductInfo = ({ product }) => {
       <div className="text-sm text-gray-500">
         Category:{" "}
         <Link
-          to={`/products?category=${product.category}`}
+          to={`/products?categories=${product.category?.slug}`}
           className="text-gray-700 hover:underline"
         >
-          {product.category}
+          {product.category?.name}
         </Link>
       </div>
     </div>

@@ -1,17 +1,24 @@
 import { Link } from "react-router-dom";
 
-export const ProductBreadcrumb = ({ category, title }) => {
+export const ProductBreadcrumb = ({ categoryName, categorySlug, title }) => {
   return (
-    <nav className="flex items-center gap-1.5 text-sm text-gray-400 mb-6">
-      <Link to="/" className="hover:text-gray-700 transition-colors">
+    <nav className="mb-6 flex items-center gap-1.5 text-sm text-gray-500">
+      <Link to="/" className="transition-colors hover:text-gray-900">
         Home
       </Link>
+
       <span>/</span>
-      <Link to={`/products?category=${category}`} className="hover:text-gray-700 transition-colors">
-        {category}
+
+      <Link
+        to={`/products?categories=${categorySlug}`}
+        className="transition-colors hover:text-gray-900"
+      >
+        {categoryName}
       </Link>
+
       <span>/</span>
-      <span className="text-gray-700 truncate max-w-50">{title}</span>
+
+      <span className="max-w-[220px] truncate text-gray-900">{title}</span>
     </nav>
   );
 };
