@@ -19,7 +19,7 @@ import { useCartStore } from "@/store/cartStore";
 
 export const ProductInfo = ({ product }) => {
   const navigate = useNavigate();
-  const { addItem, setItemQuantity, items } = useCartStore();
+  const { setItemQuantity, items } = useCartStore();
 
   const cartItem = items.find((i) => i._id === product._id);
 

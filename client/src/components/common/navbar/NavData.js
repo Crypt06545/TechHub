@@ -21,15 +21,42 @@ export const CATEGORIES = [
 ];
 
 export const NAV_LINKS = [
-  "Home",
-  "Products",
-  "PC Builder",
-  "Deals",
-  "New Arrivals",
-  "Brands",
-  "Blogs",
-  "About Us",
-  "Contact Us",
+  {
+    name: "Home",
+    path: "/",
+  },
+  {
+    name: "Products",
+    path: "/products",
+  },
+  {
+    name: "PC Builder",
+    path: "/pc-builder",
+  },
+  {
+    name: "Deals",
+    path: "/deals",
+  },
+  {
+    name: "New Arrivals",
+    path: "/new-arrivals",
+  },
+  {
+    name: "Brands",
+    path: "/brands",
+  },
+  {
+    name: "Blogs",
+    path: "/blogs",
+  },
+  {
+    name: "About Us",
+    path: "/about",
+  },
+  {
+    name: "Contact Us",
+    path: "/contact",
+  },
 ];
 
 export const SIDEBAR_DATA = {
