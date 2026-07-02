@@ -6,7 +6,7 @@ import FilterItemSkeleton from "./FilterItemSkeleton";
 const CategoryFilter = () => {
   const { data, isLoading } = useGetCategories();
   const categories = data?.data?.categories || [];
-  console.log("Categories:", categories.length, categories);
+  // console.log("Categories:", categories.length, categories);
   const selected = useFilterStore((s) => s.filters.categories);
   const toggleCategory = useFilterStore((s) => s.toggleCategory);
 

@@ -1,4 +1,3 @@
-// src/components/ui/accordion.jsx
 import * as React from "react";
 import * as AccordionPrimitive from "@radix-ui/react-accordion";
 import { ChevronDownIcon } from "lucide-react";
@@ -41,10 +40,6 @@ function AccordionContent({ className, children, ...props }) {
   return (
     <AccordionPrimitive.Content
       data-slot="accordion-content"
-      // ⚠️ FIX: আগে এখানে "overflow-hidden" ছিল, সেটাই bug এর কারণ ছিল।
-      // Radix মাউন্ট হওয়ার সময় (তখন CategoryFilter এর skeleton, মাত্র ৫টা item) content height measure করে
-      // animation var এ lock করে ফেলত। পরে data লোড হয়ে ১১টা category হলেও
-      // overflow-hidden থাকায় বাকিগুলো visually clip হয়ে যাচ্ছিল।
       className="data-[state=closed]:animate-accordion-up data-[state=open]:animate-accordion-down text-sm"
       {...props}
     >
