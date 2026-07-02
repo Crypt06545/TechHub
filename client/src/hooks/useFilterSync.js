@@ -12,8 +12,9 @@ const parseFiltersFromParams = (params) => {
       Number(params.get("minPrice")) || 0,
       Number(params.get("maxPrice")) || 1000,
     ],
-    priceTouched: hasMinPrice || hasMaxPrice, // <-- URL e price param thakle touched dhorbe
+    priceTouched: hasMinPrice || hasMaxPrice,
     sort: params.get("sort") || "newest",
+    search: params.get("search") || "",
   };
 };
 
@@ -27,6 +28,7 @@ const filtersToParams = (filters) => {
     params.set("maxPrice", filters.priceRange[1]);
   }
   if (filters.sort !== "newest") params.set("sort", filters.sort);
+  if (filters.search) params.set("search", filters.search);
   return params;
 };
 
@@ -38,8 +40,9 @@ export const useFilterSync = () => {
 
   useEffect(() => {
     setAllFilters(parseFiltersFromParams(searchParams));
-  }, []);
+  }, [searchParams.toString()]);
 
+  // store -> URL
   useEffect(() => {
     if (isFirstRun.current) {
       isFirstRun.current = false;

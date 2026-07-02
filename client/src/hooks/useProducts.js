@@ -15,10 +15,10 @@ export const useProducts = (filters = {}, cursor = null) => {
       ? filters.categories.join(",")
       : undefined,
     brand: filters.brands?.length ? filters.brands.join(",") : undefined,
-
     minPrice: filters.priceTouched ? filters.priceRange?.[0] : undefined,
     maxPrice: filters.priceTouched ? filters.priceRange?.[1] : undefined,
     sort: filters.sort !== "newest" ? filters.sort : undefined,
+    search: filters.search || undefined,
   };
 
   return useQuery({

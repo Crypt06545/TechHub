@@ -6,6 +6,7 @@ const initialFilters = {
   priceRange: [0, 1000],
   priceTouched: false,
   sort: "newest",
+  search: "",
 };
 
 export const useFilterStore = create((set) => ({
@@ -49,6 +50,12 @@ export const useFilterStore = create((set) => ({
   setSort: (sort) =>
     set((state) => ({
       filters: { ...state.filters, sort },
+      cursorStack: [null],
+    })),
+
+  setSearch: (search) =>
+    set((state) => ({
+      filters: { ...state.filters, search },
       cursorStack: [null],
     })),
 
