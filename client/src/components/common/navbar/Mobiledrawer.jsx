@@ -211,15 +211,17 @@ const MobileDrawer = ({ isOpen, onClose }) => {
               )}
 
               {/* General nav links — always visible */}
-              {NAV_LINKS.map((link, idx) => (
-                <a
-                  key={idx}
-                  href="#"
+              {NAV_LINKS.map((link) => (
+                <Link
+                  key={link.path}
+                  to={link.path}
+                  onClick={onClose}
                   className="px-5 py-3.5 text-[15px] font-semibold text-gray-700 hover:text-orange-600 hover:bg-gray-50 border-b border-gray-50 transition-colors flex justify-between items-center"
                 >
-                  {link}
+                  <span>{link.name}</span>
+
                   <ChevronRight size={16} className="text-gray-300" />
-                </a>
+                </Link>
               ))}
             </div>
           )}

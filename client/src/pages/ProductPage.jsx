@@ -24,7 +24,7 @@ const ProductPage = () => {
     filters,
     currentCursor,
   );
-  console.log(data);
+  // console.log(data);
 
   return (
     <div className="min-h-screen bg-slate-50/50 dark:bg-slate-950">

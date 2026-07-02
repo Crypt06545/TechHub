@@ -13,6 +13,7 @@ import Dashboard from "@/pages/Dashboard";
 import Analytics from "@/pages/Dashboard/Analytics";
 import DashLayout from "@/pages/Dashboard/DashLayout";
 import UserProfile from "@/pages/UserProfile";
+import AdminProducts from "@/pages/Dashboard/AdminProducts";
 
 const router = createBrowserRouter([
   {
@@ -35,6 +36,7 @@ const router = createBrowserRouter([
     children: [
       { index: true, element: <Dashboard /> },
       { path: "analytics", element: <Analytics /> },
+      { path: "products", element: <AdminProducts /> },
     ],
   },
   // 2. Full-screen catch-all outside of <App />

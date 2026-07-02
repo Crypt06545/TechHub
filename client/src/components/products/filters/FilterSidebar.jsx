@@ -14,6 +14,8 @@ const FilterSidebar = () => {
   const resetFilters = useFilterStore((s) => s.resetFilters);
   const { data, isLoading } = useGetFilterFacets();
   const facets = data?.data;
+  // console.log(facets);
+
 
   return (
     <div className="space-y-6">
