@@ -43,10 +43,68 @@ export const orderRepository = {
 
   // ─── Analytics ──────────────────────────────────────────────────────────────
 
+  async revenueByRange(range = "week") {
+    const now = new Date();
+    const since = new Date(now);
+    let dateFormat;
+
+    switch (range) {
+      case "day":
+        since.setHours(now.getHours() - 24);
+        dateFormat = "%Y-%m-%dT%H:00:00";
+        break;
+      case "week":
+        since.setDate(now.getDate() - 7);
+        dateFormat = "%Y-%m-%d";
+        break;
+      case "month":
+        since.setDate(now.getDate() - 30);
+        dateFormat = "%Y-%m-%d";
+        break;
+      case "3month":
+        since.setMonth(now.getMonth() - 3);
+        dateFormat = "%Y-%m-%d";
+        break;
+      default:
+        since.setDate(now.getDate() - 7);
+        dateFormat = "%Y-%m-%d";
+    }
+
+    return Order.aggregate([
+      {
+        $match: {
+          order_status: { $ne: "Cancelled" },
+          createdAt: { $gte: since },
+        },
+      },
+      {
+        $group: {
+          _id: { $dateToString: { format: dateFormat, date: "$createdAt" } },
+          revenue: { $sum: "$totalAmt" },
+          orders: { $sum: 1 },
+        },
+      },
+      { $sort: { _id: 1 } },
+      {
+        $project: {
+          _id: 0,
+          date: "$_id",
+          revenue: 1,
+          orders: 1,
+        },
+      },
+    ]);
+  },
+  
   async revenueByDay(days = 30) {
     const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
     return Order.aggregate([
-      { $match: { payment_status: "Paid", createdAt: { $gte: since } } },
+      {
+        $match: {
+          order_status: { $ne: "Cancelled" },
+          createdAt: { $gte: since },
+        },
+      },
       {
         $group: {
           _id: { $dateToString: { format: "%Y-%m-%d", date: "$createdAt" } },
@@ -59,9 +117,16 @@ export const orderRepository = {
   },
 
   async revenueByMonth(months = 12) {
-    const since = new Date(Date.now() - months * 30 * 24 * 60 * 60 * 1000);
+    const since = new Date();
+    since.setMonth(since.getMonth() - months);
+
     return Order.aggregate([
-      { $match: { payment_status: "Paid", createdAt: { $gte: since } } },
+      {
+        $match: {
+          order_status: { $ne: "Cancelled" },
+          createdAt: { $gte: since },
+        },
+      },
       {
         $group: {
           _id: { $dateToString: { format: "%Y-%m", date: "$createdAt" } },
@@ -103,7 +168,7 @@ export const orderRepository = {
 
   async totalRevenue() {
     const result = await Order.aggregate([
-      { $match: { payment_status: "Paid" } },
+      { $match: { order_status: { $ne: "Cancelled" } } },
       { $group: { _id: null, total: { $sum: "$totalAmt" } } },
     ]);
     return result[0]?.total ?? 0;

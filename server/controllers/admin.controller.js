@@ -4,7 +4,10 @@ import User from "../models/user.model.js";
 import { ApiError } from "../utils/ApiError.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import asyncHandler from "../utils/asyncHandler.js";
-import { deleteFromCloudinary, uploadOnCloudinary } from "../utils/cloudinary.js";
+import {
+  deleteFromCloudinary,
+  uploadOnCloudinary,
+} from "../utils/cloudinary.js";
 import { orderRepository } from "../repositories/order.repository.js";
 import orderService from "../services/orderService.js";
 import { productService } from "../services/productService.js";
@@ -33,7 +36,9 @@ const safeRedisGet = async (key) => {
 
 export const getAllUserController = asyncHandler(async (req, res) => {
   const users = await User.find()
-    .select("-password -refresh_token -email_verify_token -email_verify_expiry -__v")
+    .select(
+      "-password -refresh_token -email_verify_token -email_verify_expiry -__v",
+    )
     .sort({ createdAt: -1 });
 
   if (!users.length) throw new ApiError(404, "No users found");
@@ -52,7 +57,15 @@ export const getAllUserController = asyncHandler(async (req, res) => {
 // ─── Products ─────────────────────────────────────────────────────────────────
 
 export const addProductController = asyncHandler(async (req, res) => {
-  const { title, description, price, compareAtPrice, category, stock, isPublished } = req.body;
+  const {
+    title,
+    description,
+    price,
+    compareAtPrice,
+    category,
+    stock,
+    isPublished,
+  } = req.body;
 
   if (!title || !price || !category || stock === undefined) {
     throw new ApiError(400, "title, price, category and stock are required");
@@ -62,7 +75,10 @@ export const addProductController = asyncHandler(async (req, res) => {
   if (req.files?.length) {
     const uploads = await Promise.all(
       req.files.map((file) =>
-        uploadOnCloudinary(file.buffer, file.originalname || `product-${Date.now()}`),
+        uploadOnCloudinary(
+          file.buffer,
+          file.originalname || `product-${Date.now()}`,
+        ),
       ),
     );
     images = uploads
@@ -71,8 +87,14 @@ export const addProductController = asyncHandler(async (req, res) => {
   }
 
   const product = await productService.createProduct({
-    title, description, price, compareAtPrice,
-    category, stock, isPublished, images,
+    title,
+    description,
+    price,
+    compareAtPrice,
+    category,
+    stock,
+    isPublished,
+    images,
     vendorId: req.user._id,
   });
 
@@ -83,7 +105,16 @@ export const addProductController = asyncHandler(async (req, res) => {
 
 export const updateProductController = asyncHandler(async (req, res) => {
   const { id } = req.params;
-  const { title, description, price, compareAtPrice, category, stock, isPublished, removeImages } = req.body;
+  const {
+    title,
+    description,
+    price,
+    compareAtPrice,
+    category,
+    stock,
+    isPublished,
+    removeImages,
+  } = req.body;
 
   let imagesToRemove = [];
   if (removeImages) {
@@ -95,7 +126,10 @@ export const updateProductController = asyncHandler(async (req, res) => {
   if (req.files?.length) {
     const uploads = await Promise.all(
       req.files.map((file) =>
-        uploadOnCloudinary(file.buffer, file.originalname || `product-${Date.now()}`),
+        uploadOnCloudinary(
+          file.buffer,
+          file.originalname || `product-${Date.now()}`,
+        ),
       ),
     );
     newImages = uploads
@@ -104,9 +138,15 @@ export const updateProductController = asyncHandler(async (req, res) => {
   }
 
   const product = await productService.updateProduct(id, {
-    title, description, price, compareAtPrice,
-    category, stock, isPublished,
-    imagesToRemove, newImages,
+    title,
+    description,
+    price,
+    compareAtPrice,
+    category,
+    stock,
+    isPublished,
+    imagesToRemove,
+    newImages,
   });
 
   return res
@@ -134,13 +174,19 @@ export const toggleFeaturedProduct = asyncHandler(async (req, res) => {
 
   const product = await productService.toggleFeatured(id);
 
-  return res.status(200).json(
-    new ApiResponse(
-      200,
-      { productId: product._id, title: product.title, isFeatured: product.isFeatured },
-      `Product ${product.isFeatured ? "marked as featured" : "removed from featured"} successfully`,
-    ),
-  );
+  return res
+    .status(200)
+    .json(
+      new ApiResponse(
+        200,
+        {
+          productId: product._id,
+          title: product.title,
+          isFeatured: product.isFeatured,
+        },
+        `Product ${product.isFeatured ? "marked as featured" : "removed from featured"} successfully`,
+      ),
+    );
 });
 
 // ─── Categories ───────────────────────────────────────────────────────────────
@@ -156,17 +202,20 @@ export const AddCategoryController = asyncHandler(async (req, res) => {
     file.originalname || `${name}-${Date.now()}`,
   );
 
-  if (!result?.secure_url) throw new ApiError(500, "Failed to upload image to Cloudinary");
+  if (!result?.secure_url)
+    throw new ApiError(500, "Failed to upload image to Cloudinary");
 
   const newCategory = await Category.create({
     name,
-    image:         result.secure_url,
+    image: result.secure_url,
     imagePublicId: result.public_id,
   });
 
   redis
     .del("all_categories")
-    .catch((err) => console.error("[Redis] category cache clear failed:", err.message));
+    .catch((err) =>
+      console.error("[Redis] category cache clear failed:", err.message),
+    );
 
   return res
     .status(201)
@@ -193,7 +242,7 @@ export const updateCategoryController = asyncHandler(async (req, res) => {
 
     if (!result?.secure_url) throw new ApiError(500, "Failed to upload image");
 
-    category.image         = result.secure_url;
+    category.image = result.secure_url;
     category.imagePublicId = result.public_id;
   }
 
@@ -201,7 +250,9 @@ export const updateCategoryController = asyncHandler(async (req, res) => {
 
   redis
     .del("all_categories")
-    .catch((err) => console.error("[Redis] category cache clear failed:", err.message));
+    .catch((err) =>
+      console.error("[Redis] category cache clear failed:", err.message),
+    );
 
   return res
     .status(200)
@@ -212,13 +263,15 @@ export const getAllCategoryController = asyncHandler(async (req, res) => {
   const cached = await safeRedisGet("all_categories");
 
   if (cached) {
-    return res.status(200).json(
-      new ApiResponse(
-        200,
-        { totalCategories: cached.length, categories: cached },
-        "Categories fetched successfully",
-      ),
-    );
+    return res
+      .status(200)
+      .json(
+        new ApiResponse(
+          200,
+          { totalCategories: cached.length, categories: cached },
+          "Categories fetched successfully",
+        ),
+      );
   }
 
   const categories = await Category.find();
@@ -226,15 +279,19 @@ export const getAllCategoryController = asyncHandler(async (req, res) => {
 
   redis
     .set("all_categories", JSON.stringify(categories), { ex: 86_400 })
-    .catch((err) => console.error("[Redis] category cache set failed:", err.message));
+    .catch((err) =>
+      console.error("[Redis] category cache set failed:", err.message),
+    );
 
-  return res.status(200).json(
-    new ApiResponse(
-      200,
-      { totalCategories: categories.length, categories },
-      "Categories fetched successfully",
-    ),
-  );
+  return res
+    .status(200)
+    .json(
+      new ApiResponse(
+        200,
+        { totalCategories: categories.length, categories },
+        "Categories fetched successfully",
+      ),
+    );
 });
 
 // ─── Orders ───────────────────────────────────────────────────────────────────
@@ -245,7 +302,7 @@ export const adminGetAllOrdersController = asyncHandler(async (req, res) => {
   const data = await orderService.adminGetAllOrders({
     payment_status,
     order_status,
-    page:  parseInt(page  || "1",  10),
+    page: parseInt(page || "1", 10),
     limit: parseInt(limit || "20", 10),
   });
 
@@ -254,19 +311,21 @@ export const adminGetAllOrdersController = asyncHandler(async (req, res) => {
     .json(new ApiResponse(200, data, "Orders fetched successfully"));
 });
 
-export const adminUpdateOrderStatusController = asyncHandler(async (req, res) => {
-  const { order_status, payment_status } = req.body;
+export const adminUpdateOrderStatusController = asyncHandler(
+  async (req, res) => {
+    const { order_status, payment_status } = req.body;
 
-  const order = await orderService.adminUpdateOrderStatus({
-    orderId: req.params.id,
-    order_status,
-    payment_status,
-  });
+    const order = await orderService.adminUpdateOrderStatus({
+      orderId: req.params.id,
+      order_status,
+      payment_status,
+    });
 
-  return res
-    .status(200)
-    .json(new ApiResponse(200, order, "Order status updated successfully"));
-});
+    return res
+      .status(200)
+      .json(new ApiResponse(200, order, "Order status updated successfully"));
+  },
+);
 
 // ─── Analytics ────────────────────────────────────────────────────────────────
 
@@ -279,22 +338,23 @@ export const getDashboardController = asyncHandler(async (req, res) => {
       orderRepository.orderStatusBreakdown(),
     ]);
 
-  return res.status(200).json(
-    new ApiResponse(
-      200,
-      { totalRevenue, totalOrders, totalUsers, orderStatusBreakdown },
-      "Dashboard stats fetched successfully",
-    ),
-  );
+  return res
+    .status(200)
+    .json(
+      new ApiResponse(
+        200,
+        { totalRevenue, totalOrders, totalUsers, orderStatusBreakdown },
+        "Dashboard stats fetched successfully",
+      ),
+    );
 });
 
 export const getRevenueAnalyticsController = asyncHandler(async (req, res) => {
-  const { period = "daily" } = req.query;
+  const range = ["day", "week", "month", "3month"].includes(req.query.range)
+    ? req.query.range
+    : "week";
 
-  const data =
-    period === "monthly"
-      ? await orderRepository.revenueByMonth(12)
-      : await orderRepository.revenueByDay(30);
+  const data = await orderRepository.revenueByRange(range);
 
   return res
     .status(200)
@@ -312,14 +372,14 @@ export const getTopProductsController = asyncHandler(async (req, res) => {
 });
 
 export const getNewUsersAnalyticsController = asyncHandler(async (req, res) => {
-  const days  = Math.min(parseInt(req.query.days || "30", 10), 365);
+  const days = Math.min(parseInt(req.query.days || "30", 10), 365);
   const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
 
   const data = await User.aggregate([
     { $match: { createdAt: { $gte: since } } },
     {
       $group: {
-        _id:   { $dateToString: { format: "%Y-%m-%d", date: "$createdAt" } },
+        _id: { $dateToString: { format: "%Y-%m-%d", date: "$createdAt" } },
         count: { $sum: 1 },
       },
     },
@@ -328,5 +388,7 @@ export const getNewUsersAnalyticsController = asyncHandler(async (req, res) => {
 
   return res
     .status(200)
-    .json(new ApiResponse(200, data, "New users analytics fetched successfully"));
+    .json(
+      new ApiResponse(200, data, "New users analytics fetched successfully"),
+    );
 });
