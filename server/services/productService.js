@@ -82,7 +82,6 @@ export const productService = {
     search,
     sort,
   }) {
-    // ১. Redis Cache Check যোগ করা হলো
     const cacheKey = productListKey({
       limit,
       cursor,
@@ -122,26 +121,29 @@ export const productService = {
     if (sort === "price_desc") sortSpec = { price: -1, _id: -1 };
 
     if (cursor) {
-      let cursorData;
-      try {
-        cursorData = JSON.parse(cursor);
-      } catch (error) {
-        throw new ApiError(400, "Invalid pagination cursor");
-      }
+      if (sort === "price_asc" || sort === "price_desc") {
+        let cursorData;
+        try {
+          cursorData = JSON.parse(cursor);
+        } catch (error) {
+          throw new ApiError(400, "Invalid pagination cursor");
+        }
 
-      if (sort === "price_asc") {
-        query.price = {
-          ...(query.price || {}),
-          $gte: cursorData.price,
-        };
-        query._id = { $gt: cursorData._id };
-      } else if (sort === "price_desc") {
-        query.price = {
-          ...(query.price || {}),
-          $lte: cursorData.price,
-        };
-        query._id = { $lt: cursorData._id };
+        if (sort === "price_asc") {
+          query.price = {
+            ...(query.price || {}),
+            $gte: cursorData.price,
+          };
+          query._id = { $gt: cursorData._id };
+        } else {
+          query.price = {
+            ...(query.price || {}),
+            $lte: cursorData.price,
+          };
+          query._id = { $lt: cursorData._id };
+        }
       } else {
+        // default sort: nextCursor is just the raw _id string, not JSON
         query._id = { $lt: cursor };
       }
     }
@@ -171,6 +173,7 @@ export const productService = {
 
     return result;
   },
+  
   async getFilterFacets() {
     const cacheKey = "product:filters:facets";
     const cached = await safeRedisGet(cacheKey);

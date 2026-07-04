@@ -3,7 +3,8 @@ import { ApiResponse } from "../utils/ApiResponse.js";
 import asyncHandler from "../utils/asyncHandler.js";
 
 export const getProductController = asyncHandler(async (req, res) => {
-  const limit = Math.min(parseInt(req.query.limit || "12", 20), 50);
+  const parsedLimit = parseInt(req.query.limit, 10);
+  const limit = Math.min(Number.isNaN(parsedLimit) ? 12 : parsedLimit, 50);
 
   const data = await productService.getProducts({
     limit,
