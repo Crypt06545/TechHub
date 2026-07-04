@@ -1,6 +1,6 @@
 import React from "react";
 import { Menu } from "lucide-react";
-import senzo from '@/assets/senzo.png';
+import senzo from "@/assets/senzo.png"; // new transparent version
 
 const NavBrand = ({ onMobileMenuOpen }) => (
   <div className="flex items-center gap-3 lg:gap-4">
@@ -16,7 +16,7 @@ const NavBrand = ({ onMobileMenuOpen }) => (
       <img
         src={senzo}
         alt="Senzo Brand Logo"
-        className="h-20 sm:h-24 w-auto object-contain mix-blend-multiply"
+        className="h-20 sm:h-24 w-auto object-contain"
       />
     </div>
   </div>

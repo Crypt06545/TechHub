@@ -25,6 +25,7 @@ const SearchBar = ({ selectedCategory, onCategoryChange }) => {
     }
 
     navigate(`/products?${params.toString()}`);
+    setQuery(""); // clear after search
   };
 
   const handleKeyDown = (e) => {

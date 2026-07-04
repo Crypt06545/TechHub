@@ -11,20 +11,39 @@ import {
   Package,
   LayoutDashboard,
 } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { SIDEBAR_DATA, NAV_LINKS } from "./NavData";
 import { useUserStore } from "../../../store/userStore";
 
 const MobileDrawer = ({ isOpen, onClose }) => {
   const [navView, setNavView] = useState("categories");
   const [expandedCat, setExpandedCat] = useState(null);
+  const [searchQuery, setSearchQuery] = useState("");
 
+  const navigate = useNavigate();
   const user = useUserStore((s) => s.user);
   const clearUser = useUserStore((s) => s.clearUser);
   const isAdmin = user?.role === "Admin";
 
   const toggleCat = (name) =>
     setExpandedCat((prev) => (prev === name ? null : name));
+  const handleSearch = () => {
+    const trimmed = searchQuery.trim();
+    if (!trimmed) return;
+
+    const params = new URLSearchParams();
+    params.set("search", trimmed);
+
+    navigate(`/products?${params.toString()}`);
+    setSearchQuery(""); // clear after search
+    onClose(); // close drawer since we navigated away
+  };
+
+  const handleSearchKeyDown = (e) => {
+    if (e.key === "Enter") {
+      handleSearch();
+    }
+  };
 
   const handleSignOut = () => {
     clearUser();
@@ -76,9 +95,18 @@ const MobileDrawer = ({ isOpen, onClose }) => {
         {/* Search */}
         <div className="px-5 py-4 border-b border-gray-100 bg-gray-50/50">
           <div className="flex items-center bg-white border border-gray-200 rounded-xl px-3 py-2.5 shadow-sm">
-            <Search size={18} className="text-gray-400 mr-2" />
+            <button
+              onClick={handleSearch}
+              aria-label="Search"
+              className="mr-2 text-gray-400 hover:text-orange-600 transition-colors"
+            >
+              <Search size={18} />
+            </button>
             <input
               type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              onKeyDown={handleSearchKeyDown}
               placeholder="Search products..."
               className="w-full text-[14px] bg-transparent outline-none placeholder:text-gray-400 text-gray-800"
             />

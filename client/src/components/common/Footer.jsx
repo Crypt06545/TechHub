@@ -1,143 +1,191 @@
-import { Input } from "@/components/ui/input";
+import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { ScanFace } from "lucide-react";
+import { Input } from "@/components/ui/input";
 
-const footerSections = [
-  {
-    title: "Shop",
-    links: ["Laptops", "Phones", "Audio", "Accessories"],
-  },
-  {
-    title: "Customer Service",
-    links: ["Contact Us", "Shipping & Delivery", "Returns", "FAQ"],
-  },
-  {
-    title: "Company",
-    links: ["About Us", "Careers", "Blog", "Privacy Policy"],
-  },
-  {
-    title: "Support",
-    links: ["Help Center", "Terms & Conditions"],
-  },
+const collections = [
+  { label: "Senzo Oud", to: "/collections/oud" },
+  { label: "Senzo Air", to: "/collections/air" },
+  { label: "Senzo Sound", to: "/collections/sound" },
 ];
 
-const socialLinks = [
-  { icon: ScanFace, label: "Facebook" },
-  { icon: ScanFace, label: "Twitter" },
-  { icon: ScanFace, label: "Instagram" },
-  { icon: ScanFace, label: "YouTube" },
-  { icon: ScanFace, label: "LinkedIn" },
+const shopLinks = [
+  { label: "All Fragrances", to: "/shop" },
+  { label: "Best Sellers", to: "/shop?sort=popular" },
+  { label: "Gift Sets", to: "/shop/gift-sets" },
+  { label: "New Arrivals", to: "/shop?sort=newest" },
 ];
 
-function FooterColumn({ title, links }) {
-  return (
-    <div>
-      <h3 className="mb-4 text-sm font-semibold text-white">{title}</h3>
-      <ul className="space-y-2.5">
-        {links.map((link) => (
-          <li key={link}>
-            <button className="text-sm text-gray-400 transition-colors hover:text-white">
-              {link}
-            </button>
-          </li>
-        ))}
-      </ul>
-    </div>
-  );
-}
+const supportLinks = [
+  { label: "Track Order", to: "/orders/track" },
+  { label: "Shipping & Delivery", to: "/shipping" },
+  { label: "Return Policy", to: "/returns" },
+  { label: "Contact Us", to: "https://facebook.com/SenzoBD" },
+];
 
-function SocialIcon({ icon: Icon, label }) {
+const Footer = () => {
   return (
-    <button
-      aria-label={label}
-      className="flex h-9 w-9 items-center justify-center rounded-full border border-white/10 bg-white/5 text-gray-300 transition-all hover:border-orange-500/50 hover:text-white"
-    >
-      <Icon size={16} />
-    </button>
-  );
-}
+    <footer className="bg-zinc-950 text-zinc-200 border-t border-zinc-900">
+      <div className="max-w-[1300px] mx-auto px-6 lg:px-10 pt-16 pb-10">
+        {/* Ornamental divider */}
+        <div className="flex items-center justify-center gap-3 mb-14">
+          <span className="h-px w-16 bg-zinc-800" />
+          <span className="h-2 w-2 rotate-45 border border-zinc-700" />
+          <span className="h-px w-16 bg-zinc-800" />
+        </div>
 
-function PaymentBadge({ children }) {
-  return (
-    <div className="text-sm font-medium tracking-wide text-white/90">
-      {children}
-    </div>
-  );
-}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-[1.3fr_1fr_1fr_1.3fr] gap-10 pb-12 border-b border-zinc-900">
+          {/* Brand */}
+          <div>
+            <Link to="/" className="inline-block">
+              <span className="text-3xl tracking-wide text-white font-bold font-serif">
+                Senzo
+              </span>
+            </Link>
+            <p className="mt-4 text-sm leading-relaxed max-w-xs text-zinc-300">
+              Fragrance made for warmer air and longer evenings — crafted in
+              small batches, worn across Bangladesh.
+            </p>
 
-export default function Footer() {
-  return (
-    <footer className="w-full bg-[#0B0D12] text-white">
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        {/* Newsletter */}
-        <div className="border-b border-white/10 py-8">
-          <div className="grid gap-6 lg:grid-cols-[1fr_auto] lg:items-center">
-            <div>
-              <h2 className="text-xl font-semibold sm:text-2xl">
-                Get the latest updates and offers
-              </h2>
-              <p className="mt-2 text-sm text-gray-400">
-                Subscribe to our newsletter for exclusive news and special
-                deals.
-              </p>
+            {/* MapPin Placeholder */}
+            <div className="flex items-center gap-2 mt-5 text-sm text-zinc-300">
+              <span className="text-xs text-zinc-400 font-bold">[📍]</span>
+              <span>Bogura, Bangladesh</span>
             </div>
 
-            <form className="flex w-full flex-col gap-3 sm:flex-row lg:w-auto">
+            {/* Social Icons Placeholders */}
+            <div className="flex items-center gap-3 mt-5">
+              <a
+                href="https://facebook.com/SenzoBD"
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label="Senzo on Facebook"
+                className="h-9 w-9 text-xs rounded-full border border-zinc-700 flex items-center justify-center text-zinc-300 hover:border-white hover:text-white hover:bg-zinc-900 transition-colors"
+              >
+                FB
+              </a>
+
+              <a
+                href="https://instagram.com/senzobd"
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label="Senzo on Instagram"
+                className="h-9 w-9 text-xs rounded-full border border-zinc-700 flex items-center justify-center text-zinc-300 hover:border-white hover:text-white hover:bg-zinc-900 transition-colors"
+              >
+                IG
+              </a>
+            </div>
+          </div>
+
+          {/* Collections */}
+          <div>
+            <h3 className="text-sm font-semibold text-white tracking-wide uppercase mb-4">
+              Collections
+            </h3>
+            <ul className="space-y-3 text-sm">
+              {collections.map((item) => (
+                <li key={item.label}>
+                  <Link
+                    to={item.to}
+                    className="hover:text-white hover:underline decoration-zinc-600 underline-offset-4 transition-all"
+                  >
+                    {item.label}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          {/* Shop */}
+          <div>
+            <h3 className="text-sm font-semibold text-white tracking-wide uppercase mb-4">
+              Shop
+            </h3>
+            <ul className="space-y-3 text-sm">
+              {shopLinks.map((item) => (
+                <li key={item.label}>
+                  <Link
+                    to={item.to}
+                    className="hover:text-white hover:underline decoration-zinc-600 underline-offset-4 transition-all"
+                  >
+                    {item.label}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          {/* Support + Newsletter */}
+          <div>
+            <h3 className="text-sm font-semibold text-white tracking-wide uppercase mb-4">
+              Support
+            </h3>
+            <ul className="space-y-3 text-sm mb-6">
+              {supportLinks.map((item) => (
+                <li key={item.label}>
+                  {item.to.startsWith("http") ? (
+                    <a
+                      href={item.to}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="hover:text-white hover:underline decoration-zinc-600 underline-offset-4 transition-all"
+                    >
+                      {item.label}
+                    </a>
+                  ) : (
+                    <Link
+                      to={item.to}
+                      className="hover:text-white hover:underline decoration-zinc-600 underline-offset-4 transition-all"
+                    >
+                      {item.label}
+                    </Link>
+                  )}
+                </li>
+              ))}
+            </ul>
+
+            <h3 className="text-sm font-semibold text-white tracking-wide uppercase mb-3">
+              New blend drops
+            </h3>
+            <form className="flex gap-2" onSubmit={(e) => e.preventDefault()}>
               <Input
                 type="email"
-                placeholder="Enter your email"
-                className="h-11 min-w-[280px] border-white/10 bg-white text-black placeholder:text-gray-500 focus-visible:ring-orange-500"
+                placeholder="Your email"
+                className="bg-transparent border-zinc-700 text-white placeholder:text-zinc-500 focus-visible:ring-zinc-500"
               />
-              <Button className="h-11 rounded-md bg-orange-500 px-6 font-medium text-white hover:bg-orange-600">
-                Subscribe
+              <Button
+                type="submit"
+                size="icon"
+                className="bg-white hover:bg-zinc-200 text-zinc-950 shrink-0 font-bold"
+                aria-label="Subscribe"
+              >
+                →
               </Button>
             </form>
           </div>
         </div>
 
-        {/* Main Footer */}
-        <div className="grid gap-10 py-10 md:grid-cols-2 lg:grid-cols-[1.2fr_repeat(4,1fr)]">
-          <div>
-            <div className="mb-4 flex items-center gap-2">
-              <div className="text-lg font-bold tracking-tight">TechHub</div>
-            </div>
-
-            <p className="max-w-xs text-sm leading-6 text-gray-400">
-              Your one-stop shop for the latest tech gadgets.
-            </p>
-
-            <div className="mt-6 flex flex-wrap gap-3">
-              {socialLinks.map((item) => (
-                <SocialIcon
-                  key={item.label}
-                  icon={item.icon}
-                  label={item.label}
-                />
-              ))}
-            </div>
+        {/* Bottom bar */}
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-6 text-xs text-zinc-400">
+          <p>© {new Date().getFullYear()} Senzo. Crafted in Bangladesh.</p>
+          <div className="flex items-center gap-3 text-zinc-300">
+            <span>Cash on Delivery</span>
+            <span className="text-zinc-700">·</span>
+            <span>bKash</span>
+            <span className="text-zinc-700">·</span>
+            <span>Nagad</span>
           </div>
-
-          {footerSections.map((section) => (
-            <FooterColumn
-              key={section.title}
-              title={section.title}
-              links={section.links}
-            />
-          ))}
-        </div>
-
-        {/* Bottom Bar */}
-        <div className="flex flex-col gap-4 border-t border-white/10 py-6 text-sm text-gray-400 md:flex-row md:items-center md:justify-between">
-          <p>© 2024 TechHub. All rights reserved.</p>
-
-          <div className="flex flex-wrap items-center gap-6">
-            <PaymentBadge>VISA</PaymentBadge>
-            <PaymentBadge>Mastercard</PaymentBadge>
-            <PaymentBadge>PayPal</PaymentBadge>
-            <PaymentBadge>Apple Pay</PaymentBadge>
+          <div className="flex items-center gap-4">
+            <Link to="/privacy" className="hover:text-white transition-colors">
+              Privacy
+            </Link>
+            <Link to="/terms" className="hover:text-white transition-colors">
+              Terms
+            </Link>
           </div>
         </div>
       </div>
     </footer>
   );
-}
+};
+
+export default Footer;
