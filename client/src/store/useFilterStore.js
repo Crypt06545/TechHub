@@ -72,4 +72,11 @@ export const useFilterStore = create((set) => ({
           ? state.cursorStack.slice(0, -1)
           : state.cursorStack,
     })),
+
+  // page is 1-indexed; keeps the first `page` cursors so jumping back
+  // to page N restores exactly the cursor state that produced it
+  goToPage: (page) =>
+    set((state) => ({
+      cursorStack: state.cursorStack.slice(0, page),
+    })),
 }));
