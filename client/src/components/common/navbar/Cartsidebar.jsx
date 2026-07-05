@@ -100,12 +100,12 @@ const CartRow = ({ item, onRemove, onQty }) => {
 
           <div className="text-right">
             <p className="text-xs font-bold text-gray-900">
-              ৳{lineTotal.toLocaleString()}
+              ৳ {lineTotal.toLocaleString()}
             </p>
 
             {originalLine && (
               <p className="text-[10px] text-gray-400 line-through">
-                ৳{originalLine.toLocaleString()}
+                ৳ {originalLine.toLocaleString()}
               </p>
             )}
           </div>
@@ -209,7 +209,7 @@ const CartSidebar = ({ open, onOpenChange }) => {
               <div className="flex justify-between">
                 <span>Subtotal</span>
                 <span className="text-gray-900 font-medium">
-                  ৳{subtotal.toLocaleString()}
+                  ৳ {subtotal.toLocaleString()}
                 </span>
               </div>
               <div className="flex justify-between">

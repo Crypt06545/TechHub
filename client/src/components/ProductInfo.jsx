@@ -120,12 +120,12 @@ export const ProductInfo = ({ product }) => {
       <div>
         <div className="flex items-baseline gap-3 mb-3">
           <span className="text-3xl font-bold text-gray-900">
-            ৳{product.price.toLocaleString()}
+            ৳ {product.price.toLocaleString()}
           </span>
           {product.compareAtPrice && (
             <>
               <span className="text-base text-gray-400 line-through">
-                ৳{product.compareAtPrice.toLocaleString()}
+                ৳ {product.compareAtPrice.toLocaleString()}
               </span>
               {discount && (
                 <Badge className="bg-red-50 text-red-600 border-0 font-medium text-xs">

@@ -1,5 +1,11 @@
-import { getUser, loginUser, registerUser } from "@/api/user.api";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import {
+  getUser,
+  loginUser,
+  logoutUser,
+  registerUser,
+  updateUserProfile,
+} from "@/api/user.api";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 export const useRegisterUser = () => {
   return useMutation({
@@ -14,7 +20,11 @@ export const useLoginUser = () => {
 };
 
 export const useUpdateProfile = () => {
-  return useMutation({});
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: updateUserProfile,
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["getUser"] }),
+  });
 };
 
 export const useGetProfile = (enabled = true) => {
@@ -23,5 +33,20 @@ export const useGetProfile = (enabled = true) => {
     enabled,
     queryKey: ["getUser"],
     retry: false,
+  });
+};
+
+export const useLogout = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: logoutUser,
+    onSuccess: () => {
+      queryClient.setQueryData(["getUser"], null);
+      queryClient.clear();
+    },
+    onError: () => {
+      queryClient.setQueryData(["getUser"], null);
+      queryClient.clear();
+    },
   });
 };

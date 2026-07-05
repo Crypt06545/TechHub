@@ -1,4 +1,3 @@
-// router.jsx
 import { createBrowserRouter } from "react-router-dom";
 
 import App from "@/App";
@@ -16,6 +15,10 @@ import UserProfile from "@/pages/UserProfile";
 import Orders from "@/pages/Dashboard/Orders";
 import Customer from "@/pages/Dashboard/Customer";
 import AllProducts from "@/pages/Dashboard/AllProducts";
+import ForgotPasswordForm from "@/pages/Auth/ForgotPasswordForm";
+import VerifyOtpForm from "@/pages/Auth/VerifyOtpForm";
+import ResetPasswordForm from "@/pages/Auth/ResetPasswordForm";
+import ProtectedRoute from "./ProtectedRoute";
 
 const router = createBrowserRouter([
   {
@@ -30,17 +33,25 @@ const router = createBrowserRouter([
   },
   { path: "login", element: <Login /> },
   { path: "register", element: <Register /> },
+  { path: "forgot-password", element: <ForgotPasswordForm /> },
+  { path: "verify-otp", element: <VerifyOtpForm /> },
+  { path: "reset-password", element: <ResetPasswordForm /> },
 
   // ── Dashboard ────────────────────────────────────
   {
-    path: "dashboard",
-    element: <DashLayout />,
+    element: <ProtectedRoute roles={["Admin"]} />,
     children: [
-      { index: true, element: <Dashboard /> },
-      { path: "analytics", element: <Analytics /> },
-      { path: "products", element: <AllProducts /> },
-      { path: "orders", element: <Orders /> },
-      { path: "customers", element: <Customer /> },
+      {
+        path: "dashboard",
+        element: <DashLayout />,
+        children: [
+          { index: true, element: <Dashboard /> },
+          { path: "analytics", element: <Analytics /> },
+          { path: "products", element: <AllProducts /> },
+          { path: "orders", element: <Orders /> },
+          { path: "customers", element: <Customer /> },
+        ],
+      },
     ],
   },
   // 2. Full-screen catch-all outside of <App />
