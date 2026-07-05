@@ -14,27 +14,37 @@ import {
 } from "../controllers/user.controller.js";
 import authMiddleware from "../middleware/authMiddleware.js";
 import { upload } from "../middleware/multerMiddleware.js";
-import { otpRateLimiter } from "../middleware/otpRateLimiter.js";
+import {
+  registerLimiter,
+  loginLimiter,
+  otpRequestLimiter,
+  otpVerifyLimiter,
+} from "../middleware/rateLimiter.js";
+import { checkAccountLock } from "../middleware/loginLockout.js";
 
 const userRouter = Router();
 
 // ─── Auth ─────────────────────────────────────────────────────────────────────
 
-userRouter.post("/register", registerUserController);
-userRouter.post("/verify-email", otpRateLimiter, verifyEmailController);
-userRouter.post("/login", loginUserController);
+userRouter.post("/register", registerLimiter, registerUserController);
+userRouter.post("/verify-email", otpVerifyLimiter, verifyEmailController);
+userRouter.post("/login", loginLimiter, checkAccountLock, loginUserController);
 userRouter.post("/refresh-token", refreshTokenController);
 userRouter.post("/logout", authMiddleware, logoutUserController);
 
 // ─── Password ─────────────────────────────────────────────────────────────────
 
-userRouter.post("/forgot-password", otpRateLimiter, forgotPasswordController);
+userRouter.post(
+  "/forgot-password",
+  otpRequestLimiter,
+  forgotPasswordController,
+);
 userRouter.post(
   "/verify-forgot-password-otp",
-  otpRateLimiter,
+  otpVerifyLimiter,
   verifyForgotPasswordOtpController,
 );
-userRouter.post("/reset-password", otpRateLimiter, resetPasswordController);
+userRouter.post("/reset-password", otpVerifyLimiter, resetPasswordController);
 
 // ─── Profile ──────────────────────────────────────────────────────────────────
 
@@ -46,7 +56,5 @@ userRouter.patch(
   upload.single("avatar"),
   updateAvatarController,
 );
-
-
 
 export default userRouter;

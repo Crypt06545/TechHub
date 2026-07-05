@@ -4,6 +4,7 @@ import dotenv from "dotenv";
 import cookieParser from "cookie-parser";
 import morgan from "morgan";
 import helmet from "helmet";
+import hpp from "hpp";
 
 import userRouter from "./routes/user.routes.js";
 import AdminRouter from "./routes/admin.routes.js";
@@ -11,14 +12,20 @@ import productRouter from "./routes/product.route.js";
 import chatRouter from "./routes/chat.routes.js";
 import cartRouter from "./routes/cart.routes.js";
 import wishlistRouter from "./routes/wishList.routes.js";
-import paymentRouter from "./routes/payment.routes.js";
-import { globalRateLimiter } from "./middleware/globalRateLimiter.js";
+// import paymentRouter from "./routes/payment.routes.js";
 import orderRouter from "./routes/order.routes.js";
+
+import { globalRateLimiter } from "./middleware/rateLimiter.js";
+import { blockBannedIPs } from "./middleware/blacklist.js";
+import { sanitizeInputs } from "./middleware/sanitize.js";
 
 dotenv.config();
 const app = express();
 
-// 1. Global security & CORS middlewares
+// REQUIRED for Render/Heroku/Nginx/Cloudflare — real client IP from X-Forwarded-For
+app.set("trust proxy", 1);
+
+// 1. Global security & CORS
 app.use(
   cors({
     credentials: true,
@@ -26,24 +33,30 @@ app.use(
   }),
 );
 app.use(cookieParser());
-app.use(morgan("dev")); // Added "dev" format string to fix morgan
+app.use(morgan(process.env.NODE_ENV === "production" ? "combined" : "dev"));
 app.use(
   helmet({
     crossOriginResourcePolicy: false,
   }),
 );
 
-app.use("/api/v1/payment", paymentRouter);
+// payment webhook needs raw body — keep before json parser
+// app.use("/api/v1/payment", paymentRouter);
 
-// 3. Body parsers for all subsequent routes
+// 2. Body parsers + input sanitization
 app.use(express.json({ limit: "16kb" }));
 app.use(express.urlencoded({ extended: true, limit: "16kb" }));
+app.use(sanitizeInputs);
+app.use(hpp());
 app.use(express.static("public"));
 
-// 4. Rate Limiter (Applied to all routes below this point)
+// 3. IP jail check — before rate limiter, cheapest possible reject
+app.use(blockBannedIPs);
+
+// 4. Global rate limiter
 app.use("/api/v1", globalRateLimiter);
 
-// 5. Application Feature Routes
+// 5. Feature routes
 app.use("/api/v1/products", productRouter);
 app.use("/api/v1/users", userRouter);
 app.use("/api/v1/wishlist", wishlistRouter);

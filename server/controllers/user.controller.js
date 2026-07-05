@@ -17,6 +17,10 @@ import generateOTP from "../utils/generateOTP.js";
 import verifyOtpTemplate from "../utils/verifyOtpTemplate.js";
 import jwt from "jsonwebtoken";
 import userService from "../services/userService.js";
+import {
+  clearLoginFailures,
+  recordLoginFailure,
+} from "../middleware/loginLockout.js";
 
 dotenv.config();
 
@@ -97,6 +101,8 @@ export const loginUserController = asyncHandler(async (req, res) => {
       password,
     });
 
+    await clearLoginFailures(email);
+
     res.cookie("accessToken", accessToken, {
       ...cookieOptions,
       maxAge: 5 * 60 * 60 * 1000,
@@ -110,6 +116,8 @@ export const loginUserController = asyncHandler(async (req, res) => {
       .status(200)
       .json(new ApiResponse(200, { user }, "Login successful"));
   } catch (error) {
+    await recordLoginFailure(email);
+
     if (error.message === "ACCOUNT_INACTIVE") {
       throw new ApiError(
         403,
@@ -119,7 +127,6 @@ export const loginUserController = asyncHandler(async (req, res) => {
     throw new ApiError(400, "Invalid email or password");
   }
 });
-
 /**
  * @desc    Retrieve profile data for the currently authenticated session resource
  * @route   GET /api/v1/users/me
