@@ -7,13 +7,12 @@ import {
   InputOTPSlot,
 } from "@/components/ui/input-otp";
 import { ShieldCheck } from "lucide-react";
-import { Link, useLocation, useNavigate } from "react-router-dom";
+import { Link, Navigate, useLocation, useNavigate } from "react-router-dom";
 import { useState } from "react";
 import login from "@/assets/login.png";
 import { AuthToast } from "@/components/common/AuthToast";
 import { useVerifyOtp } from "@/hooks/user.query";
 
-// Masks an email like q34q3@gmail.com -> q****3@gmail.com
 const maskEmail = (email) => {
   if (!email || !email.includes("@")) return email;
   const [name, domain] = email.split("@");
@@ -24,13 +23,15 @@ const maskEmail = (email) => {
 };
 
 const VerifyOtpForm = () => {
-  // const isPending = false;
   const [otp, setOtp] = useState("");
   const { mutate, isPending } = useVerifyOtp();
   const navigate = useNavigate();
   const location = useLocation();
   const email = location?.state?.email;
-  // const email = "q34q3@gmail.com";
+
+  if (!email) {
+    return <Navigate to="/forgot-password" replace />;
+  }
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -38,14 +39,16 @@ const VerifyOtpForm = () => {
       AuthToast.error("Please enter the full 6-digit OTP");
       return;
     }
-    console.log({ email, otp });
 
     mutate(
       { email, otp },
       {
         onSuccess: (response) => {
           AuthToast.success(response?.message || "OTP verified");
-          navigate("/reset-password", { state: { email, otp } });
+          navigate("/reset-password", {
+            state: { email, otp, verified: true },
+            replace: true,
+          });
         },
         onError: (err) => {
           AuthToast.error(err?.response?.data?.message || "Invalid OTP");
@@ -79,7 +82,7 @@ const VerifyOtpForm = () => {
                 <p className="text-base text-muted-foreground leading-relaxed">
                   We sent a 6-digit code to{" "}
                   <span className="font-medium text-foreground">
-                    {maskEmail(email) || "your email"}
+                    {maskEmail(email)}
                   </span>
                   .
                 </p>

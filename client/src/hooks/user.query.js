@@ -4,6 +4,7 @@ import {
   loginUser,
   logoutUser,
   registerUser,
+  resetPassword,
   updateUserProfile,
   verifyForgotPasswordOtp,
 } from "@/api/user.api";
@@ -50,6 +51,17 @@ export const useForgotPassword = () => {
 export const useVerifyOtp = () => {
   return useMutation({
     mutationFn: verifyForgotPasswordOtp,
+  });
+};
+
+export const useResetPassword = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: resetPassword,
+    onSuccess: () => {
+      queryClient.setQueryData(["getUser"], null);
+      queryClient.clear();
+    },
   });
 };
 

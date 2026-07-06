@@ -6,19 +6,18 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Eye, EyeOff, Lock, ShieldCheck } from "lucide-react";
-import { useLocation, useNavigate } from "react-router-dom";
+import { Navigate, useLocation, useNavigate } from "react-router-dom";
 import login from "@/assets/login.png";
-// import { useResetPassword } from "@/hooks/user.query";
-// import { AuthToast } from "./common/AuthToast";
+import { useResetPassword } from "@/hooks/user.query";
+import { AuthToast } from "@/components/common/AuthToast";
 
 const ResetPasswordForm = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
-  // const { mutate, isPending } = useResetPassword();
-  const isPending = false;
+  const { mutate, isPending } = useResetPassword();
   const navigate = useNavigate();
   const location = useLocation();
-  const { email, otp } = location?.state || {};
+  const { email, otp, verified } = location?.state || {};
 
   const {
     register,
@@ -27,22 +26,33 @@ const ResetPasswordForm = () => {
     formState: { errors, isSubmitting },
   } = useForm();
 
+  if (!email || !otp || !verified) {
+    return <Navigate to="/forgot-password" replace />;
+  }
+
   const onSubmit = (data) => {
-    // mutate(
-    //   { email, otp, password: data.password },
-    //   {
-    //     onSuccess: (response) => {
-    //       AuthToast.success(response?.message || "Password reset successfully");
-    //       navigate("/login");
-    //     },
-    //     onError: (err) => {
-    //       AuthToast.error(
-    //         err?.response?.data?.message || "Failed to reset password",
-    //       );
-    //     },
-    //   },
-    // );
-    console.log(data);
+    mutate(
+      {
+        email,
+        otp,
+        newPassword: data.password,
+        confirmPassword: data.confirmPassword,
+      },
+      {
+        onSuccess: (response) => {
+          AuthToast.success(
+            response?.message ||
+              "Password reset successfully. Please log in with your new password.",
+          );
+          navigate("/login", { replace: true });
+        },
+        onError: (err) => {
+          AuthToast.error(
+            err?.response?.data?.message || "Failed to reset password",
+          );
+        },
+      },
+    );
   };
 
   return (
