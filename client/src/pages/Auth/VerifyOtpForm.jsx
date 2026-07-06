@@ -11,7 +11,7 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useState } from "react";
 import login from "@/assets/login.png";
 import { AuthToast } from "@/components/common/AuthToast";
-// import { useVerifyOtp } from "@/hooks/user.query";
+import { useVerifyOtp } from "@/hooks/user.query";
 
 // Masks an email like q34q3@gmail.com -> q****3@gmail.com
 const maskEmail = (email) => {
@@ -24,13 +24,13 @@ const maskEmail = (email) => {
 };
 
 const VerifyOtpForm = () => {
-  const isPending = false;
+  // const isPending = false;
   const [otp, setOtp] = useState("");
-  // const { mutate, isPending } = useVerifyOtp();
+  const { mutate, isPending } = useVerifyOtp();
   const navigate = useNavigate();
   const location = useLocation();
-  // const email = location?.state?.email;
-  const email = "q34q3@gmail.com";
+  const email = location?.state?.email;
+  // const email = "q34q3@gmail.com";
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -40,18 +40,18 @@ const VerifyOtpForm = () => {
     }
     console.log({ email, otp });
 
-    // mutate(
-    //   { email, otp },
-    //   {
-    //     onSuccess: (response) => {
-    //       AuthToast.success(response?.message || "OTP verified");
-    //       navigate("/reset-password", { state: { email, otp } });
-    //     },
-    //     onError: (err) => {
-    //       AuthToast.error(err?.response?.data?.message || "Invalid OTP");
-    //     },
-    //   },
-    // );
+    mutate(
+      { email, otp },
+      {
+        onSuccess: (response) => {
+          AuthToast.success(response?.message || "OTP verified");
+          navigate("/reset-password", { state: { email, otp } });
+        },
+        onError: (err) => {
+          AuthToast.error(err?.response?.data?.message || "Invalid OTP");
+        },
+      },
+    );
   };
 
   return (

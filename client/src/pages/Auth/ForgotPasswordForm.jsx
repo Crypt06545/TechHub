@@ -7,13 +7,13 @@ import { Label } from "@/components/ui/label";
 import { Mail, KeyRound } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import login from "@/assets/login.png";
-// import { useForgotPassword } from "@/hooks/user.query";
+import { useForgotPassword } from "@/hooks/user.query";
 
 import { AuthToast } from "@/components/common/AuthToast";
 
 const ForgotPasswordForm = () => {
-  const isPending = false;
-  // const { mutate, isPending } = useForgotPassword();
+  // const isPending = false;
+  const { mutate, isPending } = useForgotPassword();
   const navigate = useNavigate();
 
   const {
@@ -23,15 +23,15 @@ const ForgotPasswordForm = () => {
   } = useForm();
 
   const onSubmit = (data) => {
-    // mutate(data, {
-    //   onSuccess: (response) => {
-    //     AuthToast.success(response?.message || "OTP sent to your email");
-    //     navigate("/verify-otp", { state: { email: data.email } });
-    //   },
-    //   onError: (err) => {
-    //     AuthToast.error(err?.response?.data?.message || "Something went wrong");
-    //   },
-    // });
+    mutate(data, {
+      onSuccess: (response) => {
+        AuthToast.success(response?.message || "OTP sent to your email");
+        navigate("/verify-otp", { state: { email: data.email } });
+      },
+      onError: (err) => {
+        AuthToast.error(err?.response?.data?.message || "Something went wrong");
+      },
+    });
     console.log(data);
   };
 

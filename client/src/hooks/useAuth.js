@@ -1,4 +1,3 @@
-// hooks/useAuth.js
 import { useEffect } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useGetProfile } from "./user.query";
@@ -10,8 +9,8 @@ export const useAuth = () => {
   useEffect(() => {
     const handleForceLogout = () => {
       queryClient.setQueryData(["getUser"], null);
-      queryClient.clear();
     };
+
     window.addEventListener("auth:logout", handleForceLogout);
     return () => window.removeEventListener("auth:logout", handleForceLogout);
   }, [queryClient]);

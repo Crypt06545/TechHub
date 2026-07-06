@@ -1,9 +1,11 @@
 import {
+  forgotPassword,
   getUser,
   loginUser,
   logoutUser,
   registerUser,
   updateUserProfile,
+  verifyForgotPasswordOtp,
 } from "@/api/user.api";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
@@ -33,6 +35,21 @@ export const useGetProfile = (enabled = true) => {
     enabled,
     queryKey: ["getUser"],
     retry: false,
+    staleTime: 5 * 60 * 1000,
+    gcTime: 10 * 60 * 1000,
+    refetchOnWindowFocus: false,
+  });
+};
+
+export const useForgotPassword = () => {
+  return useMutation({
+    mutationFn: forgotPassword,
+  });
+};
+
+export const useVerifyOtp = () => {
+  return useMutation({
+    mutationFn: verifyForgotPasswordOtp,
   });
 };
 

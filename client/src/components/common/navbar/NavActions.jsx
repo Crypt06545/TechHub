@@ -6,8 +6,9 @@ import {
   LayoutDashboard,
   Package,
   LogOut,
+  Loader2,
 } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useUserStore } from "@/store/userStore";
 import { useCartStore } from "@/store/cartStore";
 import {
@@ -19,15 +20,38 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import CartSidebar from "./Cartsidebar";
+import { AuthToast } from "../AuthToast";
+import { useLogout } from "@/hooks/user.query";
 
 const NavActions = () => {
   const user = useUserStore((s) => s.user);
   const clearUser = useUserStore((s) => s.clearUser);
   const isAdmin = user?.role === "Admin";
 
+  const navigate = useNavigate();
+  const { mutate: logout, isPending: isLoggingOut } = useLogout();
+
   const totalItems = useCartStore((s) => s.totalItems());
 
   const [cartOpen, setCartOpen] = useState(false);
+
+  const handleSignOut = () => {
+    logout(null, {
+      onSuccess: (response) => {
+        clearUser();
+        AuthToast.success(response?.message || "Logged out successfully");
+        navigate("/login");
+      },
+      onError: (err) => {
+        clearUser();
+        AuthToast.error(
+          err?.response?.data?.message ||
+            "Something went wrong, but you've been signed out",
+        );
+        navigate("/login");
+      },
+    });
+  };
 
   return (
     <>
@@ -87,10 +111,19 @@ const NavActions = () => {
               )}
               <DropdownMenuSeparator />
               <DropdownMenuItem
-                onClick={clearUser}
+                onSelect={(e) => {
+                  e.preventDefault();
+                  handleSignOut();
+                }}
+                disabled={isLoggingOut}
                 className="flex items-center gap-2 text-red-500 cursor-pointer focus:text-red-500 focus:bg-red-50"
               >
-                <LogOut size={14} /> Sign Out
+                {isLoggingOut ? (
+                  <Loader2 size={14} className="animate-spin" />
+                ) : (
+                  <LogOut size={14} />
+                )}
+                {isLoggingOut ? "Signing out..." : "Sign Out"}
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
