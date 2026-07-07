@@ -19,6 +19,8 @@ import ForgotPasswordForm from "@/pages/Auth/ForgotPasswordForm";
 import VerifyOtpForm from "@/pages/Auth/VerifyOtpForm";
 import ResetPasswordForm from "@/pages/Auth/ResetPasswordForm";
 import ProtectedRoute from "./ProtectedRoute";
+import AllCategories from "@/pages/Dashboard/AllCategories";
+import AllCoupons from "@/pages/Dashboard/AllCoupons";
 
 const router = createBrowserRouter([
   {
@@ -39,7 +41,7 @@ const router = createBrowserRouter([
 
   // ── Dashboard ────────────────────────────────────
   {
-    element: <ProtectedRoute roles={["Admin"]} />,
+    // element: <ProtectedRoute roles={["Admin"]} />,
     children: [
       {
         path: "dashboard",
@@ -48,6 +50,8 @@ const router = createBrowserRouter([
           { index: true, element: <Dashboard /> },
           { path: "analytics", element: <Analytics /> },
           { path: "products", element: <AllProducts /> },
+          { path: "categories", element: <AllCategories /> },
+          { path: "coupons", element: <AllCoupons /> },
           { path: "orders", element: <Orders /> },
           { path: "customers", element: <Customer /> },
         ],

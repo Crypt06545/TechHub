@@ -5,6 +5,8 @@ import {
   BarChart3, Settings, HelpCircle, Bell, Moon,
   Sun, ChevronDown, LogOut, User, ChevronRight,
   Database, FileText, Zap,
+  Tags,
+  TicketPercent,
 } from "lucide-react";
 import {
   Sidebar, SidebarContent, SidebarFooter, SidebarHeader,
@@ -24,9 +26,11 @@ import { Separator } from "@/components/ui/separator";
 
 /* ── nav ── */
 const NAV_MAIN = [
-  { title: "Dashboard", to: "/dashboard",           icon: LayoutDashboard },
-  { title: "Orders",    to: "/dashboard/orders",    icon: ShoppingBag, badge: "12" },
-  { title: "Products",  to: "/dashboard/products",  icon: Package },
+  { title: "Dashboard", to: "/dashboard", icon: LayoutDashboard },
+  { title: "Orders", to: "/dashboard/orders", icon: ShoppingBag, badge: "12" },
+  { title: "Products", to: "/dashboard/products", icon: Package },
+  { title: "Categories", to: "/dashboard/categories", icon: Tags },
+  { title: "Coupons", to: "/dashboard/coupons", icon: TicketPercent },
   { title: "Customers", to: "/dashboard/customers", icon: Users },
   { title: "Analytics", to: "/dashboard/analytics", icon: BarChart3 },
 ];

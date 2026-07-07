@@ -3,11 +3,7 @@ import MegaMenuSidebar from "@/components/common/navbar/Megamenusidebar";
 import StoreFeatures from "@/components/common/navbar/Storefeatures";
 import FeaturedProducts from "@/components/FeaturedProducts";
 import HomeCategories from "@/components/HomeCategories";
-import AddProduct from "./Dashboard/AddProduct";
-import CheckoutPage from "./Checkout";
-import ForgotPasswordForm from "./Auth/ForgotPasswordForm";
-import VerifyOTP from "./VerifyOTP";
-import ResetPasswordForm from "./Auth/ResetPasswordForm";
+
 
 const Home = () => {
   return (
