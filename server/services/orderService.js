@@ -10,8 +10,6 @@ import CartProductModel from "../models/cartProduct.model.js";
 const orderService = {
   // ─── COD ──────────────────────────────────────────────────────────────────
   async placeCodOrder({ userId, addressData }) {
-    // 1. save address — if user already has a default, keep it
-    //    if this is their first address, make it default
     const existingAddressCount = await Address.countDocuments({ userId });
 
     const savedAddress = await Address.create({
@@ -22,17 +20,15 @@ const orderService = {
       pincode: addressData.pincode,
       country: addressData.country || "Bangladesh",
       mobile: addressData.mobile,
-      isDefault: existingAddressCount === 0, // first address = default
+      isDefault: existingAddressCount === 0,
     });
 
-    // 2. fetch cart
     const cartItems = await CartProductModel.find({ userId }).populate(
       "productId",
       "name images price stock",
     );
     if (!cartItems.length) throw new Error("CART_EMPTY");
 
-    // 3. validate stock + build items
     let subTotalAmt = 0;
     const orderItems = [];
 
@@ -54,7 +50,6 @@ const orderService = {
       });
     }
 
-    // 4. snapshot address into order
     const delivery_address = {
       address_line: savedAddress.address_line,
       city: savedAddress.city,
@@ -64,8 +59,7 @@ const orderService = {
       mobile: savedAddress.mobile,
     };
 
-    // 5. create order
-    const order = await orderRepository.createOrder({
+    const order = await orderRepository.create({
       userId,
       orderId: generateOrderId(),
       items: orderItems,
@@ -77,7 +71,6 @@ const orderService = {
       totalAmt: subTotalAmt,
     });
 
-    // 6. clear cart — fire and forget
     CartProductModel.deleteMany({ userId }).catch((err) =>
       console.error("Cart clear failed:", err),
     );
@@ -87,19 +80,54 @@ const orderService = {
 
   // ─── User queries ──────────────────────────────────────────────────────────
   async getUserOrders(userId) {
-    const orders = await orderRepository.findOrdersByUserId(userId);
+    const orders = await orderRepository.findByUserId(userId);
     if (!orders.length) throw new Error("NO_ORDERS_FOUND");
     return orders;
   },
 
   async getSingleOrder({ orderId, userId }) {
-    const order = await orderRepository.findOrderById(orderId, userId);
+    const order = await orderRepository.findByIdAndUserId({ orderId, userId });
     if (!order) throw new Error("ORDER_NOT_FOUND");
     return order;
   },
+
   // ─── Admin ────────────────────────────────────────────────────────────────
 
-  async adminGetAllOrders() {},
+  async adminGetAllOrders({
+    payment_status,
+    order_status,
+    search,
+    sortDirection,
+    cursor,
+    limit,
+  }) {
+    return orderRepository.findAllOrdersAdmin({
+      payment_status,
+      order_status,
+      search,
+      sortDirection,
+      cursor,
+      limit,
+    });
+  },
+
+  async adminUpdateOrderStatus({ orderId, order_status, payment_status }) {
+    if (!order_status && !payment_status) {
+      throw new ApiError(
+        400,
+        "At least one of order_status or payment_status is required",
+      );
+    }
+
+    const order = await orderRepository.updateStatusById(orderId, {
+      order_status,
+      payment_status,
+    });
+
+    if (!order) throw new ApiError(404, "Order not found");
+
+    return order;
+  },
 };
 
 export default orderService;

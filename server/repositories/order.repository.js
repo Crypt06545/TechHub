@@ -11,6 +11,14 @@ export const orderRepository = {
     return order.save();
   },
 
+  async updateStatusById(orderId, { order_status, payment_status }) {
+    const update = {};
+    if (order_status) update.order_status = order_status;
+    if (payment_status) update.payment_status = payment_status;
+
+    return Order.findByIdAndUpdate(orderId, update, { new: true });
+  },
+
   // ─── Reads ──────────────────────────────────────────────────────────────────
 
   async findById(orderId) {
@@ -37,6 +45,46 @@ export const orderRepository = {
       .lean();
   },
 
+  // ─── Admin: cursor-based pagination (scales to 10M+ orders) ─────────────────
+
+  async findAllOrdersAdmin({
+    payment_status,
+    order_status,
+    search,
+    sortDirection,
+    cursor,
+    limit,
+  }) {
+    const filter = {};
+    if (payment_status) filter.payment_status = payment_status;
+    if (order_status) filter.order_status = order_status;
+
+    // search matches either orderId prefix OR delivery phone number
+    // — both use an index, no cross-collection lookup needed
+    if (search) {
+      filter.$or = [
+        { orderId: { $regex: `^${search}`, $options: "i" } },
+        { "delivery_address.mobile": { $regex: search } },
+      ];
+    }
+
+    const isDesc = sortDirection !== "asc";
+    if (cursor) {
+      filter._id = isDesc ? { $lt: cursor } : { $gt: cursor };
+    }
+
+    const orders = await Order.find(filter)
+      .populate("userId", "name email")
+      .sort({ _id: isDesc ? -1 : 1 })
+      .limit(limit + 1)
+      .lean();
+
+    const hasMore = orders.length > limit;
+    const results = hasMore ? orders.slice(0, limit) : orders;
+    const nextCursor = hasMore ? results[results.length - 1]._id : null;
+
+    return { orders: results, hasMore, nextCursor };
+  },
   async countAll(filter = {}) {
     return Order.countDocuments(filter);
   },
@@ -95,7 +143,7 @@ export const orderRepository = {
       },
     ]);
   },
-  
+
   async revenueByDay(days = 30) {
     const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
     return Order.aggregate([

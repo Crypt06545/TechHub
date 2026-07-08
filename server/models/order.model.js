@@ -134,6 +134,9 @@ orderSchema.index({ payment_status: 1 });
 // admin: filter by order status
 orderSchema.index({ order_status: 1 });
 
+orderSchema.index({ payment_status: 1, order_status: 1, _id: -1 });
+orderSchema.index({ "delivery_address.mobile": 1 });
+
 const Order = mongoose.models.order || mongoose.model("order", orderSchema);
 
 export default Order;

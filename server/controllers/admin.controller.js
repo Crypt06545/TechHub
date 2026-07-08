@@ -297,13 +297,16 @@ export const getAllCategoryController = asyncHandler(async (req, res) => {
 // ─── Orders ───────────────────────────────────────────────────────────────────
 
 export const adminGetAllOrdersController = asyncHandler(async (req, res) => {
-  const { payment_status, order_status, page, limit } = req.query;
+  const { payment_status, order_status, search, sort, cursor, limit } =
+    req.query;
 
   const data = await orderService.adminGetAllOrders({
     payment_status,
     order_status,
-    page: parseInt(page || "1", 10),
-    limit: parseInt(limit || "20", 10),
+    search,
+    sortDirection: sort === "asc" ? "asc" : "desc",
+    cursor,
+    limit: Math.min(parseInt(limit || "20", 10), 100),
   });
 
   return res
