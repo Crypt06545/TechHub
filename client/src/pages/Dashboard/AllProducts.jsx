@@ -8,6 +8,7 @@ import {
   MoreVertical,
   PackageOpen,
   Star,
+  Calculator,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -48,6 +49,7 @@ import {
 } from "@/components/ui/pagination";
 
 import AddProduct from "./AddProduct";
+import ManageProductCost from "./ManageProductCost";
 import { useProducts } from "@/hooks/useProducts";
 
 const formatCurrency = (value) => `৳${Number(value).toLocaleString("en-BD")}`;
@@ -71,7 +73,8 @@ const AllProducts = () => {
   const [searchInput, setSearchInput] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [createOpen, setCreateOpen] = useState(false);
-  const [cursorStack, setCursorStack] = useState([null]); // history of cursors, index = page - 1
+  const [costProduct, setCostProduct] = useState(null);
+  const [cursorStack, setCursorStack] = useState([null]);
   const [pageIndex, setPageIndex] = useState(0);
 
   // Debounce search: only fires the API call 500ms after the user stops typing
@@ -271,6 +274,12 @@ const AllProducts = () => {
                               <Pencil className="mr-2 h-4 w-4" />
                               Edit
                             </DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={() => setCostProduct(product)}
+                            >
+                              <Calculator className="mr-2 h-4 w-4" />
+                              Manage Cost
+                            </DropdownMenuItem>
                             <DropdownMenuItem className="text-red-500 focus:text-red-500">
                               <Trash2 className="mr-2 h-4 w-4" />
                               Delete
@@ -317,6 +326,28 @@ const AllProducts = () => {
           </>
         )}
       </div>
+
+      {/* Manage Cost Dialog */}
+      <Dialog
+        open={Boolean(costProduct)}
+        onOpenChange={(open) => !open && setCostProduct(null)}
+      >
+        <DialogContent className="max-h-[92vh] w-[98vw] overflow-y-auto rounded-2xl border sm:max-w-4xl">
+          <DialogHeader>
+            <DialogTitle>Manage Cost — {costProduct?.title}</DialogTitle>
+            <DialogDescription>
+              Set the cost breakdown and profit margin for this product.
+            </DialogDescription>
+          </DialogHeader>
+
+          {costProduct && (
+            <ManageProductCost
+              product={costProduct}
+              onSuccess={() => setCostProduct(null)}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

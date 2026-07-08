@@ -12,7 +12,7 @@ import Dashboard from "@/pages/Dashboard";
 import Analytics from "@/pages/Dashboard/Analytics";
 import DashLayout from "@/pages/Dashboard/DashLayout";
 import UserProfile from "@/pages/UserProfile";
-import Orders from "@/pages/Dashboard/Orders";
+import AllOrders from "@/pages/Dashboard/AllOrders";
 import Customer from "@/pages/Dashboard/Customer";
 import AllProducts from "@/pages/Dashboard/AllProducts";
 import ForgotPasswordForm from "@/pages/Auth/ForgotPasswordForm";
@@ -52,7 +52,7 @@ const router = createBrowserRouter([
           { path: "products", element: <AllProducts /> },
           { path: "categories", element: <AllCategories /> },
           { path: "coupons", element: <AllCoupons /> },
-          { path: "orders", element: <Orders /> },
+          { path: "orders", element: <AllOrders /> },
           { path: "customers", element: <Customer /> },
         ],
       },
