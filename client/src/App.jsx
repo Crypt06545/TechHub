@@ -45,7 +45,7 @@ function App() {
         <Outlet />
       </main>
       <Footer />
-      <ChatWidget />
+      {/* <ChatWidget /> */}
     </div>
   );
 }

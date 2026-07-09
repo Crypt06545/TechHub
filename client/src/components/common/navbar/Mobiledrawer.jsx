@@ -10,10 +10,13 @@ import {
   Heart,
   Package,
   LayoutDashboard,
+  Loader2,
 } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { SIDEBAR_DATA, NAV_LINKS } from "./NavData";
 import { useUserStore } from "../../../store/userStore";
+import { useLogout } from "@/hooks/user.query";
+import { AuthToast } from "../AuthToast";
 
 const MobileDrawer = ({ isOpen, onClose }) => {
   const [navView, setNavView] = useState("categories");
@@ -25,8 +28,11 @@ const MobileDrawer = ({ isOpen, onClose }) => {
   const clearUser = useUserStore((s) => s.clearUser);
   const isAdmin = user?.role === "Admin";
 
+  const { mutate: logout, isPending: isLoggingOut } = useLogout();
+
   const toggleCat = (name) =>
     setExpandedCat((prev) => (prev === name ? null : name));
+
   const handleSearch = () => {
     const trimmed = searchQuery.trim();
     if (!trimmed) return;
@@ -35,20 +41,32 @@ const MobileDrawer = ({ isOpen, onClose }) => {
     params.set("search", trimmed);
 
     navigate(`/products?${params.toString()}`);
-    setSearchQuery(""); // clear after search
-    onClose(); // close drawer since we navigated away
+    setSearchQuery("");
+    onClose();
   };
 
   const handleSearchKeyDown = (e) => {
-    if (e.key === "Enter") {
-      handleSearch();
-    }
+    if (e.key === "Enter") handleSearch();
   };
 
   const handleSignOut = () => {
-    clearUser();
-    onClose();
-    // optionally: navigate("/") or invalidate React Query cache here
+    logout(null, {
+      onSuccess: (response) => {
+        clearUser();
+        AuthToast.success(response?.message || "Logged out successfully");
+        onClose();
+        navigate("/login");
+      },
+      onError: (err) => {
+        clearUser();
+        AuthToast.error(
+          err?.response?.data?.message ||
+            "Something went wrong, but you've been signed out",
+        );
+        onClose();
+        navigate("/login");
+      },
+    });
   };
 
   return (
@@ -132,7 +150,6 @@ const MobileDrawer = ({ isOpen, onClose }) => {
 
         {/* Scrollable content */}
         <div className="flex-1 overflow-y-auto bg-white pb-6">
-          {/* Categories accordion */}
           {navView === "categories" && (
             <div className="flex flex-col">
               {Object.entries(SIDEBAR_DATA).map(([item, data], idx) => {
@@ -193,14 +210,11 @@ const MobileDrawer = ({ isOpen, onClose }) => {
             </div>
           )}
 
-          {/* Main menu */}
           {navView === "menu" && (
             <div className="flex flex-col py-2">
-              {/* ── Auth-gated section ── */}
               {user && (
                 <>
                   <SectionLabel label="Account" />
-
                   <MenuLink
                     to="/orders"
                     icon={<Package size={16} />}
@@ -220,7 +234,6 @@ const MobileDrawer = ({ isOpen, onClose }) => {
                     onClose={onClose}
                   />
 
-                  {/* Admin-only */}
                   {isAdmin && (
                     <>
                       <SectionLabel label="Admin" />
@@ -238,7 +251,6 @@ const MobileDrawer = ({ isOpen, onClose }) => {
                 </>
               )}
 
-              {/* General nav links — always visible */}
               {NAV_LINKS.map((link) => (
                 <Link
                   key={link.path}
@@ -247,7 +259,6 @@ const MobileDrawer = ({ isOpen, onClose }) => {
                   className="px-5 py-3.5 text-[15px] font-semibold text-gray-700 hover:text-orange-600 hover:bg-gray-50 border-b border-gray-50 transition-colors flex justify-between items-center"
                 >
                   <span>{link.name}</span>
-
                   <ChevronRight size={16} className="text-gray-300" />
                 </Link>
               ))}
@@ -259,7 +270,6 @@ const MobileDrawer = ({ isOpen, onClose }) => {
         <div className="p-5 border-t border-gray-100 bg-gray-50 space-y-4">
           {user ? (
             <>
-              {/* User info */}
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-full bg-gray-800 flex items-center justify-center text-white font-bold text-sm shrink-0">
                   {user.name?.[0]?.toUpperCase() ?? <User size={16} />}
@@ -274,13 +284,17 @@ const MobileDrawer = ({ isOpen, onClose }) => {
                 </div>
               </div>
 
-              {/* Sign out */}
               <button
                 onClick={handleSignOut}
-                className="w-full flex items-center justify-center gap-2 border border-gray-200 bg-white text-red-600 py-3 rounded-xl font-bold text-[14px] hover:bg-red-50 transition-colors"
+                disabled={isLoggingOut}
+                className="w-full flex items-center justify-center gap-2 border border-gray-200 bg-white text-red-600 py-3 rounded-xl font-bold text-[14px] hover:bg-red-50 transition-colors disabled:opacity-60"
               >
-                <LogOut size={16} />
-                Sign Out
+                {isLoggingOut ? (
+                  <Loader2 size={16} className="animate-spin" />
+                ) : (
+                  <LogOut size={16} />
+                )}
+                {isLoggingOut ? "Signing out..." : "Sign Out"}
               </button>
             </>
           ) : (
@@ -308,8 +322,6 @@ const MobileDrawer = ({ isOpen, onClose }) => {
     </div>
   );
 };
-
-// ── Small helpers ─────────────────────────────────────────────
 
 const SectionLabel = ({ label }) => (
   <p className="px-5 pt-4 pb-1 text-[10px] font-bold text-gray-400 uppercase tracking-widest">
