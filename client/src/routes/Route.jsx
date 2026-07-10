@@ -41,7 +41,7 @@ const router = createBrowserRouter([
 
   // ── Dashboard ────────────────────────────────────
   {
-    // element: <ProtectedRoute roles={["Admin"]} />,
+    element: <ProtectedRoute roles={["Admin"]} />,
     children: [
       {
         path: "dashboard",
