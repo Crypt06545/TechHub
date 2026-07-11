@@ -1,12 +1,34 @@
-import { useParams } from "react-router-dom";
-import { useProductDetails } from "@/hooks/useProducts";
+import { Link, useParams } from "react-router-dom";
+import { useProductDetails, useProducts } from "@/hooks/useProducts";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Button } from "@/components/ui/button";
 import { ProductBreadcrumb } from "@/components/common/ProductBreadcrumb";
 import { ProductGallery } from "@/components/ProductGallery";
 import { ProductInfo } from "@/components/ProductInfo";
+import ProductCard from "@/components/productCard/ProductCard";
+import ProductCardSkeleton from "@/components/productCard/ProductCardSkeleton";
 
-// ─── Skeleton ────────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────
+// Helper
+// ─────────────────────────────────────────────────────────────
+const mapProductToCard = (product) => ({
+  productId: product._id,
+  slug: product.slug,
+  image: product.images?.[0]?.url,
+  title: product.title,
+  subtitle: product.category?.name,
+  price: product.price,
+  oldPrice: product.compareAtPrice,
+  rating: product.ratingAverage,
+  reviews: product.ratingCount,
+  stock: product.stock,
+  outOfStock: product.stock === 0,
+});
+
+// ─────────────────────────────────────────────────────────────
+// Skeleton
+// ─────────────────────────────────────────────────────────────
 const ProductDetailsSkeleton = () => (
   <div className="container mx-auto px-4 lg:px-6 py-6">
     <div className="flex items-center gap-1.5 mb-6">
@@ -16,6 +38,7 @@ const ProductDetailsSkeleton = () => (
       <Skeleton className="h-4 w-2" />
       <Skeleton className="h-4 w-40" />
     </div>
+
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 mb-14">
       <div>
         <Skeleton className="aspect-[4/3] w-full rounded-xl mb-3" />
@@ -25,56 +48,52 @@ const ProductDetailsSkeleton = () => (
           ))}
         </div>
       </div>
+
       <div className="flex flex-col gap-5">
-        <div>
-          <Skeleton className="h-7 w-3/4 mb-2" />
-          <Skeleton className="h-4 w-1/2" />
-        </div>
+        <Skeleton className="h-8 w-2/3" />
         <Separator />
-        <div>
-          <Skeleton className="h-8 w-40 mb-3" />
-          <Skeleton className="h-4 w-full mb-1" />
-          <Skeleton className="h-4 w-5/6 mb-1" />
-          <Skeleton className="h-4 w-4/6" />
-        </div>
+        <Skeleton className="h-40 w-full" />
         <Separator />
-        <div className="flex gap-3">
-          <Skeleton className="h-10 w-32" />
-          <Skeleton className="h-10 flex-1" />
-        </div>
-        <Skeleton className="h-10 w-full" />
-        <div className="flex gap-5">
-          <Skeleton className="h-4 w-24" />
-          <Skeleton className="h-4 w-20" />
-        </div>
-        <Separator />
-        <div className="flex flex-col gap-2.5">
-          <Skeleton className="h-4 w-48" />
-          <Skeleton className="h-4 w-56" />
-          <Skeleton className="h-4 w-44" />
-        </div>
-        <Skeleton className="h-4 w-36" />
+        <Skeleton className="h-12 w-full" />
       </div>
     </div>
   </div>
 );
 
-// ─── Main Component ───────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────
+// Component
+// ─────────────────────────────────────────────────────────────
 const ProductDetails = () => {
   const { slug } = useParams();
+
+  // Product details
   const { data, isLoading, isError, error } = useProductDetails(slug);
+  const product = data?.data?.product;
+  const categorySlug = product?.category?.slug;
+
+  // Related products — hook called unconditionally every render
+  const { data: relatedData, isLoading: relatedLoading } = useProducts({
+    categories: categorySlug ? [categorySlug] : [],
+  });
 
   if (isLoading) return <ProductDetailsSkeleton />;
-  if (isError)
-    return (
-      <div className="text-center py-20 text-red-500">{error.message}</div>
-    );
-  if (!data)
-    return (
-      <div className="text-center py-20 text-gray-400">Product not found.</div>
-    );
 
-  const product = data.data.product;
+  if (isError) {
+    return (
+      <div className="py-20 text-center text-red-500">{error.message}</div>
+    );
+  }
+
+  if (!data) {
+    return (
+      <div className="py-20 text-center text-gray-500">Product not found.</div>
+    );
+  }
+
+  const relatedProducts =
+    relatedData?.data?.products
+      ?.filter((item) => item._id !== product._id)
+      .slice(0, 4) || [];
 
   return (
     <div className="container mx-auto px-4 lg:px-6 py-6">
@@ -85,24 +104,42 @@ const ProductDetails = () => {
         title={product.title}
       />
 
-      {/* Main grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 mb-14">
-        {/* Left — images */}
+      {/* Product */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 mb-16">
         <ProductGallery images={product.images} title={product.title} />
-
-        {/* Right — info */}
         <ProductInfo product={product} />
       </div>
 
-      {/* Related products placeholder */}
-      <div>
-        <h2 className="text-lg font-semibold text-gray-900 mb-4">
-          Related Products
-        </h2>
-        <p className="text-sm text-gray-400">
-          Related products will appear here.
-        </p>
-      </div>
+      {/* Related Products */}
+      <section>
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="text-2xl font-bold">Related Products</h2>
+
+          {categorySlug && (
+            <Button variant="outline" size="sm" asChild>
+              <Link to={`/products?categories=${categorySlug}`}>See all</Link>
+            </Button>
+          )}
+        </div>
+
+        {relatedLoading ? (
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+            {[...Array(4)].map((_, i) => (
+              <ProductCardSkeleton key={i} />
+            ))}
+          </div>
+        ) : relatedProducts.length === 0 ? (
+          <div className="text-sm text-gray-500">
+            No related products found.
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+            {relatedProducts.map((item) => (
+              <ProductCard key={item._id} {...mapProductToCard(item)} />
+            ))}
+          </div>
+        )}
+      </section>
     </div>
   );
 };
