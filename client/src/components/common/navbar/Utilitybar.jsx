@@ -1,4 +1,5 @@
 import React from "react";
+import { Link } from "react-router-dom";
 import { Truck, RefreshCw, Headset, ChevronDown, Globe } from "lucide-react";
 
 const UtilityBar = () => (
@@ -16,12 +17,18 @@ const UtilityBar = () => (
         </span>
       </div>
       <div className="flex items-center gap-6">
-        <span className="cursor-pointer hover:text-orange-600 transition-colors font-medium">
+        <Link
+          to="/track-order"
+          className="cursor-pointer hover:text-orange-600 transition-colors font-medium"
+        >
           Track Order
-        </span>
-        <span className="cursor-pointer hover:text-orange-600 transition-colors font-medium">
+        </Link>
+        <Link
+          to="/help-center"
+          className="cursor-pointer hover:text-orange-600 transition-colors font-medium"
+        >
           Help Center
-        </span>
+        </Link>
         <span className="cursor-pointer hover:text-orange-600 transition-colors flex items-center gap-1 font-medium">
           <Globe size={14} /> EN <ChevronDown size={12} />
         </span>
