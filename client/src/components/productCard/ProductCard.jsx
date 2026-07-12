@@ -23,7 +23,16 @@ const ProductCard = ({
 }) => {
   return (
     <div className="group relative w-full rounded-xl border border-gray-200 bg-white p-3 sm:p-4 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-md overflow-hidden flex flex-col">
-      <ProductBadge badge={badge} isWishlisted={isWishlisted} />
+      <ProductBadge
+        badge={badge}
+        productId={productId}
+        image={image}
+        title={title}
+        subtitle={subtitle}
+        price={price}
+        oldPrice={oldPrice}
+        slug={slug}
+      />
 
       <Link to={`/products/${slug}`} className="block">
         <div className="relative mb-3 flex h-[120px] sm:h-[140px] md:h-[150px] items-center justify-center overflow-hidden bg-gray-50 rounded-lg p-2">
@@ -49,7 +58,6 @@ const ProductCard = ({
         <ProductRating rating={rating} reviews={reviews} />
 
         <ProductPrice price={price} oldPrice={oldPrice} stock={stock} />
-        
 
         <div className="mt-auto">
           <AddToCartButton

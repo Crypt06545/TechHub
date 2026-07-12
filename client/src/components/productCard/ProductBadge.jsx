@@ -3,8 +3,18 @@
 
 import React from "react";
 import { Heart } from "lucide-react";
+import { useWishlistStore } from "@/store/wishlistStore";
 
-const ProductBadge = ({ badge, isWishlisted }) => {
+const ProductBadge = ({
+  badge,
+  productId,
+  image,
+  title,
+  subtitle,
+  price,
+  oldPrice,
+  slug,
+}) => {
   const badgeStyles = {
     warning: "bg-orange-50 text-orange-500",
     sale: "bg-red-50 text-red-500",
@@ -12,12 +22,23 @@ const ProductBadge = ({ badge, isWishlisted }) => {
     dark: "bg-gray-100 text-gray-700",
   };
 
-  // Prevent wishlist clicks from triggering any underlying layout clicks
+  const isWishlisted = useWishlistStore((s) =>
+    s.items.some((i) => i._id === productId),
+  );
+  const toggleItem = useWishlistStore((s) => s.toggleItem);
+
   const handleWishlistClick = (e) => {
     e.stopPropagation();
     e.preventDefault();
-    console.log("Wishlist toggled");
-    // Your future wishlist toggle function goes here
+    toggleItem({
+      _id: productId,
+      image,
+      name: title,
+      subtitle,
+      price,
+      oldPrice,
+      slug,
+    });
   };
 
   return (

@@ -125,7 +125,7 @@ export const useCartStore = create(
         get().items.reduce((sum, item) => sum + item.price * item.quantity, 0),
     }),
     {
-      name: "techhub-cart",
+      name: "cartStore",
     },
   ),
 );

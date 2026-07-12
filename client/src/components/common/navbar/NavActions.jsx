@@ -11,6 +11,7 @@ import {
 import { Link, useNavigate } from "react-router-dom";
 import { useUserStore } from "@/store/userStore";
 import { useCartStore } from "@/store/cartStore";
+import { useWishlistStore } from "@/store/wishlistStore";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -20,6 +21,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import CartSidebar from "./Cartsidebar";
+import WishlistSidebar from "./WishlistSidebar";
 import { AuthToast } from "../AuthToast";
 import { useLogout } from "@/hooks/user.query";
 
@@ -32,8 +34,10 @@ const NavActions = () => {
   const { mutate: logout, isPending: isLoggingOut } = useLogout();
 
   const totalItems = useCartStore((s) => s.totalItems());
+  const totalWishlistItems = useWishlistStore((s) => s.items.length);
 
   const [cartOpen, setCartOpen] = useState(false);
+  const [wishlistOpen, setWishlistOpen] = useState(false);
 
   const handleSignOut = () => {
     logout(null, {
@@ -146,10 +150,16 @@ const NavActions = () => {
 
         {/* Wishlist */}
         <button
+          onClick={() => setWishlistOpen(true)}
           className="p-2 lg:p-2.5 text-gray-700 hover:bg-orange-50 hover:text-orange-600 rounded-full transition-all relative"
-          aria-label="Wishlist"
+          aria-label="Open wishlist"
         >
           <Heart size={20} className="w-5 h-5" />
+          {totalWishlistItems > 0 && (
+            <span className="absolute -top-0.5 -right-0.5 min-w-[17px] h-[17px] bg-orange-600 text-white text-[10px] font-bold rounded-full flex items-center justify-center px-0.5 border-2 border-white">
+              {totalWishlistItems > 99 ? "99+" : totalWishlistItems}
+            </span>
+          )}
         </button>
 
         {/* Cart */}
@@ -168,6 +178,7 @@ const NavActions = () => {
       </div>
 
       <CartSidebar open={cartOpen} onOpenChange={setCartOpen} />
+      <WishlistSidebar open={wishlistOpen} onOpenChange={setWishlistOpen} />
     </>
   );
 };
