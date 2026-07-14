@@ -3,7 +3,6 @@ import MegaMenuSidebar from "@/components/common/navbar/Megamenusidebar";
 import StoreFeatures from "@/components/common/navbar/Storefeatures";
 import FeaturedProducts from "@/components/FeaturedProducts";
 import HomeCategories from "@/components/HomeCategories";
-import ManageProductCost from "./Dashboard/ManageProductCost";
 
 
 const Home = () => {

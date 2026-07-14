@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useNavigate, Link } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -6,7 +7,18 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
-import { ShoppingBag, Lock, MapPin, CreditCard, Truck } from "lucide-react";
+import {
+  ShoppingBag,
+  Lock,
+  MapPin,
+  CreditCard,
+  Truck,
+  AlertCircle,
+  Loader2,
+} from "lucide-react";
+import { useCartStore } from "@/store/cartStore"; // adjust path if needed
+import { useAuth } from "@/hooks/useAuth";
+import { AuthToast } from "@/components/common/AuthToast";
 
 const PAYMENT_METHODS = [
   {
@@ -32,54 +44,113 @@ const PAYMENT_METHODS = [
   },
 ];
 
+const FREE_SHIPPING_AT = 1000;
+const LOCAL_SHIPPING_FEE = 60; // Bogura
+const OUTSIDE_SHIPPING_FEE = 120; // elsewhere
+
+const fmt = (n) =>
+  new Intl.NumberFormat("bn-BD", {
+    style: "currency",
+    currency: "BDT",
+    maximumFractionDigits: 0,
+  }).format(n);
+
 const CheckoutPage = () => {
+  const navigate = useNavigate();
+
+  const items = useCartStore((s) => s.items);
+  const clearCart = useCartStore((s) => s.clearCart);
+
+  const { user } = useAuth();
+
   const [paymentMethod, setPaymentMethod] = useState("COD");
-  const [isLoading, setIsLoading] = useState(false);
 
   const {
     register,
     handleSubmit,
+    watch,
     formState: { errors },
   } = useForm({
-    defaultValues: { country: "Bangladesh" },
+    defaultValues: {
+      fullName: user?.name || "",
+      mobile: user?.phone || "",
+      country: "Bangladesh",
+      city: "",
+    },
   });
 
-  // mock cart — replace with your cart state/query
-  const cartItems = [
-    {
-      _id: "1",
-      name: "GoPro HERO12 Black Action Camera",
-      quantity: 4,
-      price: 42000,
-    },
-  ];
+  const watchedCity = watch("city");
 
-  const subTotal = cartItems.reduce((acc, i) => acc + i.price * i.quantity, 0);
-  const shippingCharge = subTotal >= 1000 ? 0 : 60;
+  const [isPlacingOrder, setIsPlacingOrder] = useState(false);
+
+  /* ── Guard: no browsing checkout with an empty cart ── */
+  useEffect(() => {
+    if (items.length === 0) {
+      navigate("/cart", { replace: true });
+    }
+  }, [items.length, navigate]);
+
+  if (items.length === 0) {
+    return null; // redirect effect above handles navigation
+  }
+
+  /* ── Totals ── */
+  const subTotal = items.reduce((acc, i) => acc + i.price * i.quantity, 0);
+  const isBogura = watchedCity?.trim().toLowerCase() === "bogura";
+  const shippingCharge =
+    subTotal >= FREE_SHIPPING_AT
+      ? 0
+      : isBogura
+        ? LOCAL_SHIPPING_FEE
+        : OUTSIDE_SHIPPING_FEE;
   const total = subTotal + shippingCharge;
 
-  const fmt = (n) =>
-    new Intl.NumberFormat("bn-BD", {
-      style: "currency",
-      currency: "BDT",
-      maximumFractionDigits: 0,
-    }).format(n);
-
-  const onSubmit = async (data) => {
-    setIsLoading(true);
+  /* ── Submit ── */
+  const onSubmit = (data) => {
     const payload = {
+      fullName: data.fullName,
+      mobile: data.mobile,
       address_line: data.address_line,
       city: data.city,
       state: data.state,
       pincode: data.pincode,
       country: data.country,
-      mobile: data.mobile,
       payment_method: paymentMethod,
       ...(paymentMethod !== "COD" && { transactionId: data.transactionId }),
+      items: items.map((item) => ({
+        productId: item._id,
+        name: item.name,
+        image: item.image,
+        slug: item.slug,
+        quantity: item.quantity,
+        price: item.price,
+      })),
+      subTotal,
+      shippingCharge,
+      total,
     };
-    console.log(payload);
-    // await placeOrder(payload)
-    setIsLoading(false);
+
+    // TEMP: stub — replace this block with your real order mutation
+    // (e.g. createOrder(payload, { onSuccess, onError })) once the
+    // backend endpoint is ready. Logging here so you can inspect the
+    // exact shape being sent.
+    console.log("Order payload:", payload);
+
+    setIsPlacingOrder(true);
+
+    setTimeout(() => {
+      setIsPlacingOrder(false);
+
+      // Simulate a generated order id until the real API returns one
+      const mockOrderId = `TH-${Date.now().toString().slice(-8)}`;
+
+      clearCart();
+      AuthToast.success("Order placed successfully");
+      navigate(`/orders/${mockOrderId}`, {
+        replace: true,
+        state: { justPlaced: true },
+      });
+    }, 1200);
   };
 
   return (
@@ -115,6 +186,32 @@ const CheckoutPage = () => {
                   </div>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    {/* Full name */}
+                    <div className="flex flex-col gap-1.5 sm:col-span-2">
+                      <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                        Full name <span className="text-red-500">*</span>
+                      </Label>
+                      <Input
+                        placeholder="Your name"
+                        className={cn(
+                          "h-11 border-gray-300 focus:border-black focus:ring-black",
+                          errors.fullName && "border-red-400",
+                        )}
+                        {...register("fullName", {
+                          required: "Full name is required",
+                          minLength: {
+                            value: 2,
+                            message: "Name is too short",
+                          },
+                        })}
+                      />
+                      {errors.fullName && (
+                        <p className="text-xs text-red-500">
+                          {errors.fullName.message}
+                        </p>
+                      )}
+                    </div>
+
                     {/* Mobile */}
                     <div className="flex flex-col gap-1.5">
                       <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
@@ -166,7 +263,10 @@ const CheckoutPage = () => {
                         )}
                         {...register("address_line", {
                           required: "Address is required",
-                          minLength: { value: 5, message: "Address too short" },
+                          minLength: {
+                            value: 5,
+                            message: "Address too short",
+                          },
                         })}
                       />
                       {errors.address_line && (
@@ -187,7 +287,9 @@ const CheckoutPage = () => {
                           "h-11 border-gray-300 focus:border-black focus:ring-black",
                           errors.city && "border-red-400",
                         )}
-                        {...register("city", { required: "City is required" })}
+                        {...register("city", {
+                          required: "City is required",
+                        })}
                       />
                       {errors.city && (
                         <p className="text-xs text-red-500">
@@ -269,7 +371,6 @@ const CheckoutPage = () => {
                             : "border-gray-200 hover:border-gray-300 hover:bg-gray-50",
                         )}
                       >
-                        {/* Radio dot */}
                         <div
                           className={cn(
                             "w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 transition-colors",
@@ -304,7 +405,6 @@ const CheckoutPage = () => {
                     ))}
                   </div>
 
-                  {/* TXN ID field — bKash / Nagad */}
                   {paymentMethod !== "COD" && (
                     <div className="mt-4 flex flex-col gap-1.5">
                       <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
@@ -342,17 +442,38 @@ const CheckoutPage = () => {
             <div className="lg:sticky lg:top-6">
               <Card className="border-gray-200 shadow-sm rounded-xl">
                 <CardContent className="p-6">
-                  <h2 className="text-sm font-semibold mb-4">Order summary</h2>
+                  <div className="flex items-center justify-between mb-4">
+                    <h2 className="text-sm font-semibold">Order summary</h2>
+                    <Link
+                      to="/cart"
+                      className="text-xs font-medium text-gray-500 hover:text-gray-800 transition-colors"
+                    >
+                      Edit cart
+                    </Link>
+                  </div>
 
                   {/* Items */}
-                  <div className="flex flex-col divide-y divide-gray-100">
-                    {cartItems.map((item) => (
+                  <div className="flex flex-col divide-y divide-gray-100 max-h-72 overflow-y-auto">
+                    {items.map((item) => (
                       <div
                         key={item._id}
                         className="flex items-center gap-3 py-3 first:pt-0 last:pb-0"
                       >
-                        <div className="w-11 h-11 rounded-lg bg-gray-100 border border-gray-200 flex items-center justify-center shrink-0">
-                          <ShoppingBag className="w-4 h-4 text-gray-400" />
+                        <div className="relative w-11 h-11 rounded-lg bg-gray-100 border border-gray-200 overflow-hidden shrink-0">
+                          {item.image ? (
+                            <img
+                              src={item.image}
+                              alt={item.name}
+                              className="h-full w-full object-cover"
+                            />
+                          ) : (
+                            <div className="flex h-full w-full items-center justify-center">
+                              <ShoppingBag className="w-4 h-4 text-gray-400" />
+                            </div>
+                          )}
+                          <span className="absolute -top-1.5 -right-1.5 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-gray-900 px-1 text-[9px] font-bold text-white">
+                            {item.quantity}
+                          </span>
                         </div>
                         <div className="flex-1 min-w-0">
                           <p className="text-sm font-medium leading-tight truncate">
@@ -397,11 +518,14 @@ const CheckoutPage = () => {
                   {/* Place order button */}
                   <Button
                     type="submit"
-                    disabled={isLoading}
+                    disabled={isPlacingOrder}
                     className="w-full h-11 bg-black hover:bg-gray-900 text-white font-semibold rounded-xl mt-5 transition-all duration-200"
                   >
-                    {isLoading ? (
-                      "Placing order..."
+                    {isPlacingOrder ? (
+                      <>
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        Placing order...
+                      </>
                     ) : (
                       <>
                         <ShoppingBag className="w-4 h-4 mr-2" />
@@ -422,10 +546,21 @@ const CheckoutPage = () => {
                   <div className="flex items-start gap-2 mt-4 p-3 bg-gray-50 rounded-lg border border-gray-200">
                     <Truck className="w-4 h-4 text-muted-foreground shrink-0 mt-0.5" />
                     <p className="text-xs text-muted-foreground leading-relaxed">
-                      Free delivery on orders above ৳1,000. Bogura: ৳60 —
-                      outside: ৳120.
+                      Free delivery on orders above ৳{FREE_SHIPPING_AT}. Bogura:
+                      ৳{LOCAL_SHIPPING_FEE} — outside: ৳{OUTSIDE_SHIPPING_FEE}.
                     </p>
                   </div>
+
+                  {/* COD reminder */}
+                  {paymentMethod === "COD" && (
+                    <div className="flex items-start gap-2 mt-3 p-3 bg-orange-50 rounded-lg border border-orange-100">
+                      <AlertCircle className="w-4 h-4 text-orange-500 shrink-0 mt-0.5" />
+                      <p className="text-xs text-orange-700 leading-relaxed">
+                        Please keep the exact amount ready for the delivery
+                        agent.
+                      </p>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             </div>

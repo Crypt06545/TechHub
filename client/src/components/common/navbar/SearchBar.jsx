@@ -1,15 +1,8 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Search, ChevronDown, LayoutGrid } from "lucide-react";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { CATEGORIES } from "./NavData";
+import { Search, LayoutGrid } from "lucide-react";
 
-const SearchBar = ({ selectedCategory, onCategoryChange }) => {
+const SearchBar = () => {
   const [query, setQuery] = useState("");
   const navigate = useNavigate();
 
@@ -19,10 +12,6 @@ const SearchBar = ({ selectedCategory, onCategoryChange }) => {
 
     const params = new URLSearchParams();
     params.set("search", trimmed);
-
-    if (selectedCategory && selectedCategory !== "All Categories") {
-      params.set("categories", selectedCategory);
-    }
 
     navigate(`/products?${params.toString()}`);
     setQuery(""); // clear after search
@@ -36,27 +25,10 @@ const SearchBar = ({ selectedCategory, onCategoryChange }) => {
 
   return (
     <div className="hidden lg:flex flex-1 max-w-3xl items-center border border-gray-200 rounded-xl bg-[#F8F9FA] h-12 relative pl-2 mx-4">
-      <DropdownMenu>
-        <DropdownMenuTrigger className="h-full px-4 flex items-center gap-2 text-sm text-gray-700 font-medium hover:text-orange-600 transition-colors whitespace-nowrap outline-none">
-          <LayoutGrid size={14} className="text-gray-500" />
-          {selectedCategory}
-          <ChevronDown size={14} className="text-gray-400" />
-        </DropdownMenuTrigger>
-        <DropdownMenuContent
-          align="start"
-          className="w-52 bg-white rounded-xl shadow-xl border border-gray-100 py-1.5 z-[100]"
-        >
-          {CATEGORIES.map((cat, idx) => (
-            <DropdownMenuItem
-              key={idx}
-              onClick={() => onCategoryChange(cat)}
-              className="px-4 py-2 text-sm text-gray-600 data-[focused]:bg-orange-50 data-[focused]:text-orange-600 rounded-lg cursor-pointer transition-colors outline-none"
-            >
-              {cat}
-            </DropdownMenuItem>
-          ))}
-        </DropdownMenuContent>
-      </DropdownMenu>
+      <div className="h-full px-4 flex items-center gap-2 text-sm text-gray-700 font-medium whitespace-nowrap">
+        <LayoutGrid size={14} className="text-gray-500" />
+        All Categories
+      </div>
 
       <span className="h-5 w-[1px] bg-gray-200 self-center" />
 
