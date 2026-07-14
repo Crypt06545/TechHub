@@ -1,5 +1,5 @@
 import React from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { ShoppingBag, Plus, Minus, Trash2, ArrowRight, X } from "lucide-react";
 import {
   Sheet,
@@ -9,6 +9,8 @@ import {
 } from "@/components/ui/sheet";
 import { Separator } from "@/components/ui/separator";
 import { useCartStore } from "@/store/cartStore"; // adjust path if needed
+import { useAuth } from "@/hooks/useAuth";
+import { AuthToast } from "../AuthToast";
 
 /* ── free shipping threshold ── */
 const FREE_SHIPPING_AT = 2000;
@@ -123,6 +125,19 @@ const CartSidebar = ({ open, onOpenChange }) => {
   const updateQty = useCartStore((s) => s.updateQty);
   const removeItem = useCartStore((s) => s.removeItem);
 
+  const { isAuthenticated } = useAuth();
+  const navigate = useNavigate();
+
+  const handleCheckout = () => {
+    onOpenChange(false);
+    if (!isAuthenticated) {
+      AuthToast.error("Please log in first to checkout");
+      navigate("/login", { state: { from: { pathname: "/checkout" } } });
+      return;
+    }
+    navigate("/checkout");
+  };
+
   const subtotal = items.reduce((s, i) => s + i.price * i.quantity, 0);
   const totalQty = items.reduce((s, i) => s + i.quantity, 0);
   const shippingFee =
@@ -232,13 +247,12 @@ const CartSidebar = ({ open, onOpenChange }) => {
             </div>
 
             {/* checkout CTA */}
-            <Link
-              to="/checkout"
-              onClick={() => onOpenChange(false)}
+            <button
+              onClick={handleCheckout}
               className="flex items-center justify-center gap-2 w-full h-10 bg-gray-900 hover:bg-gray-800 text-white text-xs font-semibold rounded-xl transition-colors"
             >
               Checkout <ArrowRight size={14} />
-            </Link>
+            </button>
 
             {/* secondary */}
             <Link

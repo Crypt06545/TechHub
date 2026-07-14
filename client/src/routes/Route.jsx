@@ -22,6 +22,7 @@ import ProtectedRoute from "./ProtectedRoute";
 import AllCategories from "@/pages/Dashboard/AllCategories";
 import AllCoupons from "@/pages/Dashboard/AllCoupons";
 import TrackOrderPage from "@/components/TrackOrderPage";
+import CartPage from "@/pages/CartPage";
 
 const router = createBrowserRouter([
   {
@@ -33,6 +34,7 @@ const router = createBrowserRouter([
       { path: "/products/:slug?", element: <ProductDetails /> },
       { path: "/profile", element: <UserProfile /> },
       { path: "/track-order", element: <TrackOrderPage /> },
+      { path: "/cart", element: <CartPage /> },
     ],
   },
   { path: "login", element: <Login /> },
