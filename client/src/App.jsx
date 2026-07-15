@@ -7,6 +7,8 @@ import ScrollToTop from "./components/common/ScrollToTop";
 import NavLinks from "./components/common/navbar/NavLinks";
 import { useGetProfile } from "./hooks/user.query";
 import { useUserStore } from "./store/userStore";
+import FloatingWhatsAppButton from "./components/common/Floatingwhatsappbutto";
+import FloatingMessengerButton from "./components/common/Floatingmessengerbutton";
 
 function App() {
   const location = useLocation();
@@ -45,7 +47,8 @@ function App() {
         <Outlet />
       </main>
       <Footer />
-      {/* <ChatWidget /> */}
+      <FloatingWhatsAppButton />
+      <FloatingMessengerButton/>
     </div>
   );
 }
