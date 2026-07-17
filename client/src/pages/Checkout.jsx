@@ -19,6 +19,8 @@ import {
 import { useCartStore } from "@/store/cartStore"; // adjust path if needed
 import { useAuth } from "@/hooks/useAuth";
 import { AuthToast } from "@/components/common/AuthToast";
+import BkashIcon from "@/assets/BKash-Icon2-Logo.wine.svg";
+import NagadIcon from "@/assets/Nagad-Vertical-Logo.wine.svg";
 
 const PAYMENT_METHODS = [
   {
@@ -32,28 +34,23 @@ const PAYMENT_METHODS = [
     value: "bKash",
     label: "bKash",
     desc: "Send to 01XXXXXXXXX, then enter TXN ID",
-    icon: "bK",
-    iconBg: "bg-pink-50 text-pink-700",
+    icon: BkashIcon,
+    iconBg: "bg-white border border-gray-200",
   },
   {
     value: "Nagad",
     label: "Nagad",
     desc: "Send to 01XXXXXXXXX, then enter TXN ID",
-    icon: "Ng",
-    iconBg: "bg-orange-50 text-orange-700",
+    icon: NagadIcon,
+    iconBg: "bg-white border border-gray-200",
   },
 ];
 
-const FREE_SHIPPING_AT = 1000;
+const FREE_SHIPPING_AT = 2000;
 const LOCAL_SHIPPING_FEE = 60; // Bogura
 const OUTSIDE_SHIPPING_FEE = 120; // elsewhere
 
-const fmt = (n) =>
-  new Intl.NumberFormat("bn-BD", {
-    style: "currency",
-    currency: "BDT",
-    maximumFractionDigits: 0,
-  }).format(n);
+const fmt = (n) => `৳${Math.round(n).toLocaleString("en-US")}`;
 
 const CheckoutPage = () => {
   const navigate = useNavigate();
@@ -395,11 +392,21 @@ const CheckoutPage = () => {
 
                         <div
                           className={cn(
-                            "w-9 h-9 rounded-lg flex items-center justify-center text-xs font-bold shrink-0",
+                            "w-16 h-16 rounded-lg flex items-center justify-center shrink-0 overflow-hidden",
                             method.iconBg,
                           )}
                         >
-                          {method.icon}
+                          {method.value === "COD" ? (
+                            <span className="text-2xl font-bold">
+                              {method.icon}
+                            </span>
+                          ) : (
+                            <img
+                              src={method.icon}
+                              alt={method.label}
+                              className="w-full h-full object-contain p-1"
+                            />
+                          )}
                         </div>
                       </button>
                     ))}

@@ -9,6 +9,7 @@ import { useGetProfile } from "./hooks/user.query";
 import { useUserStore } from "./store/userStore";
 import FloatingWhatsAppButton from "./components/common/Floatingwhatsappbutto";
 import FloatingMessengerButton from "./components/common/Floatingmessengerbutton";
+import Marquee from "./components/common/Marquee";
 
 function App() {
   const location = useLocation();
@@ -32,6 +33,7 @@ function App() {
   return (
     <div className="min-h-screen flex flex-col">
       <ScrollToTop />
+      <Marquee/>
 
       <div className="sticky top-0 z-50 lg:static">
         <Navbar />
@@ -48,7 +50,6 @@ function App() {
       </main>
       <Footer />
       <FloatingWhatsAppButton />
-      <FloatingMessengerButton/>
     </div>
   );
 }
