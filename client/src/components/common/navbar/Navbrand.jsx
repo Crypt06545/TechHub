@@ -1,15 +1,16 @@
 import React from "react";
-import senzo from "@/assets/senzo.png"; // new transparent version
+import { Link } from "react-router-dom";
+import ZUHR from "@/assets/logo.png";
 
 const NavBrand = () => (
-  <div className="flex items-center flex-shrink-0">
-    <div className="flex items-center cursor-pointer">
+  <div className="flex items-center flex-shrink-0 h-full">
+    <Link to="/" className="flex items-center h-full cursor-pointer">
       <img
-        src={senzo}
-        alt="Senzo Brand Logo"
-        className="h-20 sm:h-24 w-auto object-contain"
+        src={ZUHR}
+        alt="ZUHR Brand Logo"
+        className="h-20 lg:h-24 w-auto object-contain"
       />
-    </div>
+    </Link>
   </div>
 );
 

@@ -24,7 +24,7 @@ const Navbar = () => {
 
       <div className="bg-gray-50 border-b border-gray-200">
         <div className="container mx-auto px-4 lg:px-6">
-          <div className="flex items-center justify-between py-2 lg:py-4 gap-4">
+          <div className="flex h-24 items-center justify-between gap-4">
             <NavBrand />
             <SearchBar
               selectedCategory={selectedCategory}
