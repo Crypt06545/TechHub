@@ -89,7 +89,7 @@ const ChartsGrid = () => {
   const [range, setRange] = useState("week");
   const { data: response, isLoading, isError } = useRevenueAnalytics(range);
   const chartData = response?.data ?? [];
-  console.log(response);
+  // console.log(response);
 
 
   if (isLoading) {

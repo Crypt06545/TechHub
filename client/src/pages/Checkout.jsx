@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { useForm } from "react-hook-form";
+import { useQueryClient } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -18,6 +19,7 @@ import {
 } from "lucide-react";
 import { useCartStore } from "@/store/cartStore"; // adjust path if needed
 import { useAuth } from "@/hooks/useAuth";
+import { usePlaceOrder } from "@/hooks/order.query";
 import { AuthToast } from "@/components/common/AuthToast";
 import BkashIcon from "@/assets/BKash-Icon2-Logo.wine.svg";
 import NagadIcon from "@/assets/Nagad-Vertical-Logo.wine.svg";
@@ -46,7 +48,9 @@ const PAYMENT_METHODS = [
   },
 ];
 
-const FREE_SHIPPING_AT = 2000;
+// ── Must mirror calcShipping() in order.controller.js exactly ──
+// If the backend threshold/fees ever change, update both places.
+const FREE_SHIPPING_AT = 1000;
 const LOCAL_SHIPPING_FEE = 60; // Bogura
 const OUTSIDE_SHIPPING_FEE = 120; // elsewhere
 
@@ -54,6 +58,7 @@ const fmt = (n) => `৳${Math.round(n).toLocaleString("en-US")}`;
 
 const CheckoutPage = () => {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
 
   const items = useCartStore((s) => s.items);
   const clearCart = useCartStore((s) => s.clearCart);
@@ -78,7 +83,7 @@ const CheckoutPage = () => {
 
   const watchedCity = watch("city");
 
-  const [isPlacingOrder, setIsPlacingOrder] = useState(false);
+  const { mutate: placeOrder, isPending: isPlacingOrder } = usePlaceOrder();
 
   /* ── Guard: no browsing checkout with an empty cart ── */
   useEffect(() => {
@@ -91,7 +96,9 @@ const CheckoutPage = () => {
     return null; // redirect effect above handles navigation
   }
 
-  /* ── Totals ── */
+  /* ── Totals — client-side estimate only. The backend recomputes
+     subtotal/shipping/total from live DB prices; this is purely for
+     UX display before submit, not what actually gets charged. ── */
   const subTotal = items.reduce((acc, i) => acc + i.price * i.quantity, 0);
   const isBogura = watchedCity?.trim().toLowerCase() === "bogura";
   const shippingCharge =
@@ -102,52 +109,59 @@ const CheckoutPage = () => {
         : OUTSIDE_SHIPPING_FEE;
   const total = subTotal + shippingCharge;
 
-  /* ── Submit ── */
+  /* ── Submit ──
+     Only sends fields placeOrderController actually reads. Cart items
+     are reduced to { productId, quantity } — price/name/image are
+     display-only client fields and get ignored either way, since the
+     backend resolves everything fresh from the DB in one batched query.
+     Prices can drift between add-to-cart and checkout, so this is
+     never optional — the client's price is never the source of truth. */
   const onSubmit = (data) => {
     const payload = {
-      fullName: data.fullName,
-      mobile: data.mobile,
       address_line: data.address_line,
       city: data.city,
       state: data.state,
       pincode: data.pincode,
       country: data.country,
+      mobile: data.mobile,
       payment_method: paymentMethod,
       ...(paymentMethod !== "COD" && { transactionId: data.transactionId }),
+      payment_proof_images: [], // wire up a screenshot upload here later for bKash/Nagad
       items: items.map((item) => ({
         productId: item._id,
-        name: item.name,
-        image: item.image,
-        slug: item.slug,
         quantity: item.quantity,
-        price: item.price,
       })),
-      subTotal,
-      shippingCharge,
-      total,
     };
 
-    // TEMP: stub — replace this block with your real order mutation
-    // (e.g. createOrder(payload, { onSuccess, onError })) once the
-    // backend endpoint is ready. Logging here so you can inspect the
-    // exact shape being sent.
-    console.log("Order payload:", payload);
+    placeOrder(payload, {
+      onSuccess: (response) => {
+        clearCart();
 
-    setIsPlacingOrder(true);
+        // Backend Redis cache is invalidated server-side on order placement,
+        // but React Query's client-side cache doesn't know that — without
+        // this, useFeaturedProducts (staleTime: 5min) keeps serving its old
+        // in-memory copy regardless of what the server would now return.
+        queryClient.invalidateQueries({ queryKey: ["featuredProducts"] });
+        queryClient.invalidateQueries({ queryKey: ["products"] });
+        items.forEach((item) => {
+          if (item.slug) {
+            queryClient.invalidateQueries({ queryKey: ["product", item.slug] });
+          }
+        });
 
-    setTimeout(() => {
-      setIsPlacingOrder(false);
-
-      // Simulate a generated order id until the real API returns one
-      const mockOrderId = `TH-${Date.now().toString().slice(-8)}`;
-
-      clearCart();
-      AuthToast.success("Order placed successfully");
-      navigate(`/orders/${mockOrderId}`, {
-        replace: true,
-        state: { justPlaced: true },
-      });
-    }, 1200);
+        AuthToast.success(response?.message || "Order placed successfully");
+        navigate(`/orders/${response?.data?.order?.orderId}`, {
+          replace: true,
+          state: { justPlaced: true },
+        });
+      },
+      onError: (err) => {
+        AuthToast.error(
+          err?.response?.data?.message ||
+            "Something went wrong placing your order. Please try again.",
+        );
+      },
+    });
   };
 
   return (
@@ -466,21 +480,8 @@ const CheckoutPage = () => {
                         key={item._id}
                         className="flex items-center gap-3 py-3 first:pt-0 last:pb-0"
                       >
-                        <div className="relative w-11 h-11 rounded-lg bg-gray-100 border border-gray-200 overflow-hidden shrink-0">
-                          {item.image ? (
-                            <img
-                              src={item.image}
-                              alt={item.name}
-                              className="h-full w-full object-cover"
-                            />
-                          ) : (
-                            <div className="flex h-full w-full items-center justify-center">
-                              <ShoppingBag className="w-4 h-4 text-gray-400" />
-                            </div>
-                          )}
-                          <span className="absolute -top-1.5 -right-1.5 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-gray-900 px-1 text-[9px] font-bold text-white">
-                            {item.quantity}
-                          </span>
+                        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-gray-100 border border-gray-200 text-xs font-bold text-gray-600">
+                          {item.quantity}×
                         </div>
                         <div className="flex-1 min-w-0">
                           <p className="text-sm font-medium leading-tight truncate">
@@ -520,6 +521,9 @@ const CheckoutPage = () => {
                       <span>Total</span>
                       <span>{fmt(total)}</span>
                     </div>
+                    <p className="text-[11px] text-muted-foreground">
+                      Final total is confirmed after your order is placed.
+                    </p>
                   </div>
 
                   {/* Place order button */}
