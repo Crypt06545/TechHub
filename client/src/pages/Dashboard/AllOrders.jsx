@@ -44,6 +44,7 @@ import {
 
 import { useAdminOrders, useDashboardStats } from "@/hooks/useAdminAnalytics";
 import UpdateOrderStatus from "./UpdateOrderStatus";
+import OrderDetailsModal from "./OrderDetailsModal"; // adjust path if needed
 
 const formatCurrency = (value) =>
   `৳${Number(value || 0).toLocaleString("en-BD")}`;
@@ -99,6 +100,7 @@ const AllOrders = () => {
   const [orderFilter, setOrderFilter] = useState("all");
   const [sortDirection, setSortDirection] = useState("desc"); // newest first by default
   const [statusOrder, setStatusOrder] = useState(null); // order being edited
+  const [viewOrder, setViewOrder] = useState(null); // order being viewed in detail
 
   const [cursorStack, setCursorStack] = useState([null]);
   const [pageIndex, setPageIndex] = useState(0);
@@ -310,7 +312,9 @@ const AllOrders = () => {
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
-                            <DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={() => setViewOrder(order)}
+                            >
                               <Eye className="mr-2 h-4 w-4" />
                               View Details
                             </DropdownMenuItem>
@@ -356,6 +360,12 @@ const AllOrders = () => {
           </>
         )}
       </div>
+
+      {/* View Details Dialog — full customer, shipping & item breakdown */}
+      <OrderDetailsModal
+        order={viewOrder}
+        onOpenChange={(open) => !open && setViewOrder(null)}
+      />
 
       {/* Update Status Dialog */}
       <Dialog

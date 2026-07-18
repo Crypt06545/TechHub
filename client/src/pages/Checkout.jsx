@@ -480,9 +480,11 @@ const CheckoutPage = () => {
                         key={item._id}
                         className="flex items-center gap-3 py-3 first:pt-0 last:pb-0"
                       >
-                        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-gray-100 border border-gray-200 text-xs font-bold text-gray-600">
-                          {item.quantity}×
-                        </div>
+                        <img
+                          src={item.image}
+                          alt={item.name}
+                          className="h-9 w-9 shrink-0 rounded-lg object-cover border border-gray-200 bg-gray-100"
+                        />
                         <div className="flex-1 min-w-0">
                           <p className="text-sm font-medium leading-tight truncate">
                             {item.name}
@@ -530,7 +532,7 @@ const CheckoutPage = () => {
                   <Button
                     type="submit"
                     disabled={isPlacingOrder}
-                    className="w-full h-11 bg-black hover:bg-gray-900 text-white font-semibold rounded-xl mt-5 transition-all duration-200"
+                    className="w-full cursor-pointer h-11 bg-black hover:bg-gray-900 text-white font-semibold rounded-xl mt-5 transition-all duration-200"
                   >
                     {isPlacingOrder ? (
                       <>
