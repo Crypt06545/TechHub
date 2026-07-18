@@ -173,6 +173,7 @@ export const productService = {
 
     return result;
   },
+
   
   async getFilterFacets() {
     const cacheKey = "product:filters:facets";

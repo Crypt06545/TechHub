@@ -6,7 +6,6 @@ import Order from "../models/order.model.js";
 import { Product } from "../models/product.model.js";
 import { generateOrderId } from "../utils/generateOrderId.js";
 import { redis } from "../config/redis.js";
-import CartProductModel from "../models/cartProduct.model.js";
 
 // ─── TTLs ─────────────────────────────────────────────────────────────────────
 const USER_ORDERS_TTL = 120; // 2 min
@@ -47,6 +46,13 @@ const calcShipping = (subTotal, city) => {
  * @desc    Place an order — COD / bKash / Nagad
  * @route   POST /api/v1/orders/place
  * @access  Private
+ *
+ * Cart lives client-side only (no per-add DB write). At checkout the
+ * client sends [{ productId, quantity }] — nothing else from the cart
+ * is trusted. Price, title, and stock are always resolved fresh from
+ * the DB in a single batched query, regardless of what the client's
+ * local cart displayed (prices can drift between add-to-cart and
+ * checkout, and a client could tamper with price/name in devtools).
  */
 export const placeOrderController = asyncHandler(async (req, res) => {
   const {
@@ -59,6 +65,7 @@ export const placeOrderController = asyncHandler(async (req, res) => {
     payment_method,
     transactionId,
     payment_proof_images = [],
+    items, // [{ productId, quantity }] — sent fresh from client's local cart
   } = req.body;
 
   const userId = req.user._id;
@@ -73,30 +80,39 @@ export const placeOrderController = asyncHandler(async (req, res) => {
   if (payment_method !== "COD" && !transactionId)
     throw new ApiError(400, "Transaction ID is required for online payment");
 
-  // ── Cart ──────────────────────────────────────────────────────────────────
-  const cartItems = await CartProductModel.find({ userId }).populate(
-    "productId",
-    "title price stock",
-  );
-  if (!cartItems.length) throw new ApiError(400, "Your cart is empty");
+  if (!Array.isArray(items) || items.length === 0)
+    throw new ApiError(400, "Your cart is empty");
 
-  // ── Stock check + build items ─────────────────────────────────────────────
+  for (const item of items) {
+    if (!item?.productId || !item?.quantity || item.quantity < 1)
+      throw new ApiError(400, "Invalid item in cart");
+  }
+
+  // ── Batch fetch live product data — ONE query for the whole cart,
+  //    regardless of how many line items are in it ──────────────────────────
+  const productIds = items.map((i) => i.productId);
+  const products = await Product.find({ _id: { $in: productIds } }).select(
+    "title price stock slug",
+  );
+  const productMap = new Map(products.map((p) => [p._id.toString(), p]));
+
+  // ── Stock check + build items from live DB data only ──────────────────────
   let subTotalAmt = 0;
   const orderItems = [];
 
-  for (const item of cartItems) {
-    const product = item.productId;
+  for (const { productId, quantity } of items) {
+    const product = productMap.get(productId.toString());
     if (!product)
       throw new ApiError(404, "A product in your cart no longer exists");
-    if (product.stock < item.quantity)
+    if (product.stock < quantity)
       throw new ApiError(400, `Insufficient stock for: ${product.title}`);
 
-    subTotalAmt += product.price * item.quantity;
+    subTotalAmt += product.price * quantity;
     orderItems.push({
       productId: product._id,
       name: product.title,
-      price: product.price,
-      quantity: item.quantity,
+      price: product.price, // always the live DB price — never client-sent
+      quantity,
     });
   }
 
@@ -142,7 +158,14 @@ export const placeOrderController = asyncHandler(async (req, res) => {
     totalAmt,
   });
 
-  // ── Stock deduction + cache invalidation + cart clear — fire and forget ───
+  // ── Stock deduction + cache invalidation — fire and forget ────────────────
+  // No CartProductModel cleanup needed — cart was never written to the DB.
+  //
+  // IMPORTANT: this must mirror invalidateProductCache() in product.service.js
+  // exactly (same key format: `product:${slug}`, "featured_products",
+  // "product:filters:facets"). If those key formats ever change there,
+  // update here too — otherwise stock updates silently stop invalidating
+  // the cache again, same bug as this one.
   Promise.all([
     ...orderItems.map((item) =>
       Product.findByIdAndUpdate(item.productId, {
@@ -150,8 +173,11 @@ export const placeOrderController = asyncHandler(async (req, res) => {
       }),
     ),
     redis.del(userOrdersKey(userId)),
-    CartProductModel.deleteMany({ userId }),
-    redis.del(`cart:${userId}`),
+    redis.del(
+      ...products.map((p) => `product:${p.slug}`),
+      "featured_products",
+      "product:filters:facets",
+    ),
   ]).catch((err) => console.error("[Cleanup] post-order failed:", err.message));
 
   return res
