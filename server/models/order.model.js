@@ -7,6 +7,19 @@ const orderItemSchema = new mongoose.Schema(
       ref: "Product",
       required: true,
     },
+    variantId: {
+      type: mongoose.Schema.Types.ObjectId,
+      default: null,
+    },
+    variantLabel: {
+      type: String,
+      default: null,
+    },
+    category: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Category",
+      required: true,
+    },
     name: {
       type: String,
       required: true,
@@ -16,7 +29,6 @@ const orderItemSchema = new mongoose.Schema(
       type: [String],
       default: [],
     },
-    // price snapshotted at order time — never rely on the live product price
     price: {
       type: Number,
       required: true,
@@ -58,7 +70,7 @@ const orderSchema = new mongoose.Schema(
     orderId: {
       type: String,
       required: true,
-      unique: true, // unique already creates the index — no extra needed
+      unique: true,
     },
     items: {
       type: [orderItemSchema],
@@ -68,40 +80,37 @@ const orderSchema = new mongoose.Schema(
         message: "An order must have at least one item.",
       },
     },
-    // embedded address snapshot instead of a reference
     delivery_address: {
       type: addressSnapshotSchema,
       required: true,
     },
-
-    // NEW: Added payment method options
     payment_method: {
       type: String,
       enum: ["COD", "bKash", "Nagad"],
       required: true,
     },
-
-    // NEW: Array of strings to store image URLs for payment proofs (e.g., bKash/Nagad screenshots)
-    payment_proof_images: {
-      type: [String],
-      default: [],
-    },
-
     transactionId: {
       type: String,
-      default: null, // Will be null for COD, but populated for bKash/Nagad
+      default: null,
     },
-
     payment_status: {
       type: String,
       enum: ["Pending", "Paid", "Failed", "Refunded"],
       default: "Pending",
     },
-    // order_status — separate concern from payment
     order_status: {
       type: String,
       enum: ["Processing", "Confirmed", "Shipped", "Delivered", "Cancelled"],
       default: "Processing",
+    },
+    couponCode: {
+      type: String,
+      default: null,
+    },
+    discountAmount: {
+      type: Number,
+      default: 0,
+      min: 0,
     },
     subTotalAmt: {
       type: Number,
@@ -125,17 +134,12 @@ const orderSchema = new mongoose.Schema(
   },
 );
 
-// user's order history, newest first
 orderSchema.index({ userId: 1, createdAt: -1 });
-
-// admin: filter by payment status
 orderSchema.index({ payment_status: 1 });
-
-// admin: filter by order status
 orderSchema.index({ order_status: 1 });
-
 orderSchema.index({ payment_status: 1, order_status: 1, _id: -1 });
 orderSchema.index({ "delivery_address.mobile": 1 });
+orderSchema.index({ userId: 1, couponCode: 1 });
 
 const Order = mongoose.models.order || mongoose.model("order", orderSchema);
 

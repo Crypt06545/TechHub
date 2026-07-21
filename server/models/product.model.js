@@ -8,6 +8,19 @@ const imageSchema = new mongoose.Schema(
   { _id: false },
 );
 
+// A variant is a size/color combo with its own price + stock.
+// Kept as a real subdocument (with _id) so cart/order line items can
+// reference a specific variantId later, not just the productId.
+const variantSchema = new mongoose.Schema(
+  {
+    size: { type: String, default: null, trim: true },
+    color: { type: String, default: null, trim: true },
+    price: { type: Number, required: true, min: 0 },
+    stock: { type: Number, required: true, min: 0, default: 0 },
+  },
+  { _id: true },
+);
+
 const ProductSchema = new mongoose.Schema(
   {
     title: { type: String, required: true, trim: true, maxlength: 200 },
@@ -35,6 +48,10 @@ const ProductSchema = new mongoose.Schema(
 
     stock: { type: Number, required: true, min: 0, default: 0 },
 
+    // --- variants (size/color, optional) ---
+    hasVariants: { type: Boolean, default: false },
+    variants: { type: [variantSchema], default: [] },
+
     isPublished: { type: Boolean, default: false },
     isArchived: { type: Boolean, default: false },
     isFeatured: { type: Boolean, default: false },
@@ -50,6 +67,18 @@ const ProductSchema = new mongoose.Schema(
   },
   { timestamps: true, versionKey: false },
 );
+
+// keep top-level `stock` in sync with variant stock totals so existing
+// stock-based queries/sorts still work without unwinding `variants`.
+// NOTE: only fires on doc.save() (`new Product().save()` / `product.save()`),
+// NOT on findByIdAndUpdate — recompute the same sum in your update
+// controller before calling findByIdAndUpdate there.
+ProductSchema.pre("save", function (next) {
+  if (this.hasVariants && this.variants?.length) {
+    this.stock = this.variants.reduce((sum, v) => sum + (v.stock || 0), 0);
+  }
+  next();
+});
 
 // latest products
 ProductSchema.index({ isPublished: 1, isArchived: 1, _id: -1 });

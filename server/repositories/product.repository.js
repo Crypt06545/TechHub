@@ -25,7 +25,10 @@ compareAtPrice
 images
 category
 brand
+sku
 stock
+hasVariants
+variants
 ratingAverage
 ratingCount
 vendorId
@@ -112,17 +115,29 @@ export const productRepository = {
     return Product.findByIdAndDelete(productId);
   },
 
-  async decrementStock(productId, quantity) {
-    return Product.findByIdAndUpdate(
-      productId,
+  async decrementStock(productId, quantity, session) {
+    return Product.findOneAndUpdate(
+      { _id: productId, stock: { $gte: quantity } },
+      { $inc: { stock: -quantity } },
+      { returnDocument: "after", session },
+    );
+  },
+
+  async decrementVariantStock(productId, variantId, quantity, session) {
+    return Product.findOneAndUpdate(
       {
-        $inc: {
-          stock: -quantity,
+        _id: productId,
+        variants: {
+          $elemMatch: { _id: variantId, stock: { $gte: quantity } },
         },
       },
       {
-        new: true,
+        $inc: {
+          "variants.$.stock": -quantity,
+          stock: -quantity,
+        },
       },
+      { returnDocument: "after", session },
     );
   },
 

@@ -1,9 +1,16 @@
 import Order from "../models/order.model.js";
 
 export const orderRepository = {
-  // ─── Writes ─────────────────────────────────────────────────────────────────
+  // ─── Writes ─────────────────────────────────────────────────────────────
 
-  async create(data) {
+  // session optional — pass it when this needs to run inside a transaction
+  // (e.g. order placement, where stock decrement must commit atomically
+  // with order creation).
+  async create(data, session) {
+    if (session) {
+      const [order] = await Order.create([data], { session });
+      return order;
+    }
     return Order.create(data);
   },
 
@@ -16,10 +23,12 @@ export const orderRepository = {
     if (order_status) update.order_status = order_status;
     if (payment_status) update.payment_status = payment_status;
 
-    return Order.findByIdAndUpdate(orderId, update, { new: true });
+    return Order.findByIdAndUpdate(orderId, update, {
+      returnDocument: "after",
+    });
   },
 
-  // ─── Reads ──────────────────────────────────────────────────────────────────
+  // ─── Reads ──────────────────────────────────────────────────────────────
 
   async findById(orderId) {
     return Order.findById(orderId);
@@ -31,6 +40,12 @@ export const orderRepository = {
 
   async findByIdAndUserId({ orderId, userId }) {
     return Order.findOne({ _id: orderId, userId });
+  },
+
+  // custom orderId string (e.g. "ORD-xxxx") + ownership check in one query
+  // — used by the user-facing single-order route.
+  async findByOrderIdAndUserId({ orderId, userId }) {
+    return Order.findOne({ orderId, userId }).lean();
   },
 
   async findByUserId(userId) {
@@ -45,7 +60,13 @@ export const orderRepository = {
       .lean();
   },
 
-  // ─── Admin: cursor-based pagination (scales to 10M+ orders) ─────────────────
+  // used to enforce coupon.maxUsesPerUser during checkout, inside the
+  // same transaction session so it sees consistent data.
+  async countByUserAndCoupon({ userId, couponCode }, session) {
+    return Order.countDocuments({ userId, couponCode }).session(session);
+  },
+
+  // ─── Admin: cursor-based pagination (scales to 10M+ orders) ─────────────
 
   async findAllOrdersAdmin({
     payment_status,
@@ -59,8 +80,6 @@ export const orderRepository = {
     if (payment_status) filter.payment_status = payment_status;
     if (order_status) filter.order_status = order_status;
 
-    // search matches either orderId prefix OR delivery phone number
-    // — both use an index, no cross-collection lookup needed
     if (search) {
       filter.$or = [
         { orderId: { $regex: `^${search}`, $options: "i" } },
@@ -85,11 +104,12 @@ export const orderRepository = {
 
     return { orders: results, hasMore, nextCursor };
   },
+
   async countAll(filter = {}) {
     return Order.countDocuments(filter);
   },
 
-  // ─── Analytics ──────────────────────────────────────────────────────────────
+  // ─── Analytics ────────────────────────────────────────────────────────────
 
   async revenueByRange(range = "week") {
     const now = new Date();
@@ -133,14 +153,7 @@ export const orderRepository = {
         },
       },
       { $sort: { _id: 1 } },
-      {
-        $project: {
-          _id: 0,
-          date: "$_id",
-          revenue: 1,
-          orders: 1,
-        },
-      },
+      { $project: { _id: 0, date: "$_id", revenue: 1, orders: 1 } },
     ]);
   },
 
@@ -188,12 +201,7 @@ export const orderRepository = {
 
   async orderStatusBreakdown() {
     return Order.aggregate([
-      {
-        $group: {
-          _id: "$order_status",
-          count: { $sum: 1 },
-        },
-      },
+      { $group: { _id: "$order_status", count: { $sum: 1 } } },
     ]);
   },
 

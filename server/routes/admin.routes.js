@@ -17,6 +17,14 @@ import {
 } from "../controllers/admin.controller.js";
 import adminAuthMiddleware from "../middleware/adminMiddleware.js";
 import { upload } from "../middleware/multerMiddleware.js";
+import {
+  createCouponController,
+  deleteCouponController,
+  getAllCouponsController,
+  getCouponByIdController,
+  toggleCouponActiveController,
+  updateCouponController,
+} from "../controllers/coupon.controller.js";
 
 const adminRouter = Router();
 
@@ -58,5 +66,11 @@ adminRouter.get("/dashboard", getDashboardController);
 adminRouter.get("/analytics/revenue", getRevenueAnalyticsController);
 adminRouter.get("/analytics/top-products", getTopProductsController);
 adminRouter.get("/analytics/new-users", getNewUsersAnalyticsController);
+
+adminRouter.post("/coupons", createCouponController);
+adminRouter.get("/coupons", getAllCouponsController);
+adminRouter.get("/coupons/:id", getCouponByIdController);
+adminRouter.patch("/coupons/:id", updateCouponController);
+adminRouter.patch("/coupons/:id", toggleCouponActiveController);
 
 export default adminRouter;

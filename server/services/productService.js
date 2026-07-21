@@ -4,19 +4,19 @@ import { productRepository } from "../repositories/product.repository.js";
 import { Product } from "../models/product.model.js";
 import Category from "../models/category.mode.js";
 
-// ─── TTLs ─────────────────────────────────────────────────────────────────────
+// ─── TTLs ─────────────────────────────────────────────────────────────────
 
 const PRODUCT_LIST_TTL = 3_600; // 1h
 const FEATURED_TTL = 86_400; // 24h
 const SINGLE_PRODUCT_TTL = 86_400; // 24h
 
-// ─── Cache Key Helpers ────────────────────────────────────────────────────────
+// ─── Cache Key Helpers ──────────────────────────────────────────────────
 
 const featuredKey = () => "featured_products";
 const singleKey = (slug) => `product:${slug}`;
 const productListKey = (params) => `products:${JSON.stringify(params)}`;
 
-// ─── Internal Helpers ─────────────────────────────────────────────────────────
+// ─── Internal Helpers ──────────────────────────────────────────────────
 
 const safeRedisGet = async (key) => {
   try {
@@ -36,11 +36,6 @@ const safeRedisGet = async (key) => {
   return null;
 };
 
-/**
- * Builds a unique slug from a title.
- * Appends timestamp if slug already exists in DB.
- * Excludes excludeId so update doesn't conflict with itself.
- */
 const buildSlug = async (title, excludeId = null) => {
   let slug = title
     .toLowerCase()
@@ -54,7 +49,7 @@ const buildSlug = async (title, excludeId = null) => {
   return slug;
 };
 
-// ─── Cache Invalidation ───────────────────────────────────────────────────────
+// ─── Cache Invalidation ─────────────────────────────────────────────────
 
 const invalidateProductCache = async (slug = null) => {
   try {
@@ -66,11 +61,10 @@ const invalidateProductCache = async (slug = null) => {
   }
 };
 
-// ─── Service ──────────────────────────────────────────────────────────────────
+// ─── Service ────────────────────────────────────────────────────────────
 
 export const productService = {
-  // ─── Public ───────────────────────────────────────────────────────────────
-  // productService.js - getProducts মেথড পুরোটা রিপ্লেস করে দাও
+  // ─── Public ─────────────────────────────────────────────────────────
 
   async getProducts({
     limit = 12,
@@ -130,20 +124,13 @@ export const productService = {
         }
 
         if (sort === "price_asc") {
-          query.price = {
-            ...(query.price || {}),
-            $gte: cursorData.price,
-          };
+          query.price = { ...(query.price || {}), $gte: cursorData.price };
           query._id = { $gt: cursorData._id };
         } else {
-          query.price = {
-            ...(query.price || {}),
-            $lte: cursorData.price,
-          };
+          query.price = { ...(query.price || {}), $lte: cursorData.price };
           query._id = { $lt: cursorData._id };
         }
       } else {
-        // default sort: nextCursor is just the raw _id string, not JSON
         query._id = { $lt: cursor };
       }
     }
@@ -174,7 +161,6 @@ export const productService = {
     return result;
   },
 
-  
   async getFilterFacets() {
     const cacheKey = "product:filters:facets";
     const cached = await safeRedisGet(cacheKey);
@@ -237,7 +223,6 @@ export const productService = {
     if (!slug) throw new ApiError(400, "Product slug is required");
 
     const cacheKey = singleKey(slug);
-
     const cached = await safeRedisGet(cacheKey);
     if (cached) return cached;
 
@@ -253,12 +238,8 @@ export const productService = {
     return product;
   },
 
-  // ─── Admin ────────────────────────────────────────────────────────────────
+  // ─── Admin ──────────────────────────────────────────────────────────
 
-  /**
-   * images array is built in the controller from Cloudinary uploads.
-   * Service stays clean of req.files / multer.
-   */
   async createProduct({
     title,
     description,
@@ -286,14 +267,9 @@ export const productService = {
     });
 
     await invalidateProductCache();
-
     return product;
   },
 
-  /**
-   * imagesToRemove — array of URLs already deleted from Cloudinary in the controller.
-   * newImages      — array of { url, publicId } already uploaded in the controller.
-   */
   async updateProduct(
     productId,
     {
@@ -327,21 +303,18 @@ export const productService = {
     if (isPublished !== undefined)
       product.isPublished = isPublished === "true" || isPublished === true;
 
-    // Strip removed images
     if (imagesToRemove?.length) {
       product.images = product.images.filter(
         (img) => !imagesToRemove.includes(img.url),
       );
     }
 
-    // Append new images
     if (newImages?.length) {
       product.images = [...product.images, ...newImages];
     }
 
     const updated = await productRepository.save(product);
 
-    // Invalidate both old and new slug in case title changed
     await invalidateProductCache(oldSlug);
     if (product.slug !== oldSlug) await invalidateProductCache(product.slug);
 
@@ -356,13 +329,9 @@ export const productService = {
     const updated = await productRepository.save(product);
 
     await invalidateProductCache(product.slug);
-
     return updated;
   },
 
-  /**
-   * Returns images array so controller can clean up Cloudinary after DB delete.
-   */
   async deleteProduct(productId) {
     const product = await productRepository.findById(productId);
     if (!product) throw new ApiError(404, "Product not found");
@@ -370,6 +339,6 @@ export const productService = {
     await productRepository.deleteById(productId);
     await invalidateProductCache(product.slug);
 
-    return product.images; // controller uses this to delete from Cloudinary
+    return product.images;
   },
 };
