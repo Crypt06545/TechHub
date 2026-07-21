@@ -8,7 +8,7 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import { Separator } from "@/components/ui/separator";
-import { useCartStore } from "@/store/cartStore"; // adjust path if needed
+import { useCartStore, getLineId } from "@/store/cartStore"; // adjust path if needed
 import { useAuth } from "@/hooks/useAuth";
 import { AuthToast } from "../AuthToast";
 
@@ -35,6 +35,7 @@ const EmptyCart = () => (
    Single cart row
 ───────────────────────────────────────────────────────────────────── */
 const CartRow = ({ item, onRemove, onQty }) => {
+  const lineId = getLineId(item);
   const lineTotal = item.price * item.quantity;
   const originalLine = item.originalPrice
     ? item.originalPrice * item.quantity
@@ -58,16 +59,36 @@ const CartRow = ({ item, onRemove, onQty }) => {
               {item.name}
             </p>
 
-            {item.variant && (
-              <p className="mt-0.5 truncate text-[11px] text-gray-400">
-                {item.variant}
-              </p>
+            {/* Selected size/color, if this line has variants */}
+            {item.size || item.color ? (
+              <div className="mt-1 flex flex-wrap items-center gap-1">
+                {item.size && (
+                  <span className="rounded-md bg-gray-100 px-1.5 py-0.5 text-[10px] font-medium text-gray-600">
+                    {item.size}
+                  </span>
+                )}
+                {item.color && (
+                  <span className="flex items-center gap-1 rounded-md bg-gray-100 px-1.5 py-0.5 text-[10px] font-medium text-gray-600">
+                    <span
+                      className="h-2 w-2 rounded-full border border-gray-300"
+                      style={{ backgroundColor: item.color.toLowerCase() }}
+                    />
+                    {item.color}
+                  </span>
+                )}
+              </div>
+            ) : (
+              item.variant && (
+                <p className="mt-0.5 truncate text-[11px] text-gray-400">
+                  {item.variant}
+                </p>
+              )
             )}
           </div>
 
           <button
             type="button"
-            onClick={() => onRemove(item._id)}
+            onClick={() => onRemove(lineId)}
             className="flex h-8 w-8 items-center justify-center rounded-lg text-gray-400 transition-all hover:bg-red-50 hover:text-red-600"
             aria-label="Remove item"
           >
@@ -80,7 +101,7 @@ const CartRow = ({ item, onRemove, onQty }) => {
           <div className="flex items-center overflow-hidden rounded-lg border border-gray-200 bg-gray-50">
             {/* Minus */}
             <button
-              onClick={() => onQty(item._id, item.quantity - 1)}
+              onClick={() => onQty(lineId, item.quantity - 1)}
               className="flex h-8 w-8 items-center justify-center text-gray-500 transition-colors hover:bg-red-50 hover:text-red-600"
             >
               <Minus size={14} />
@@ -93,7 +114,7 @@ const CartRow = ({ item, onRemove, onQty }) => {
 
             {/* Plus */}
             <button
-              onClick={() => onQty(item._id, item.quantity + 1)}
+              onClick={() => onQty(lineId, item.quantity + 1)}
               className="flex h-8 w-8 items-center justify-center text-gray-500 transition-colors hover:bg-orange-50 hover:text-orange-600"
             >
               <Plus size={14} />
@@ -207,7 +228,7 @@ const CartSidebar = ({ open, onOpenChange }) => {
           ) : (
             items.map((item) => (
               <CartRow
-                key={item._id}
+                key={getLineId(item)}
                 item={item}
                 onRemove={removeItem}
                 onQty={updateQty}

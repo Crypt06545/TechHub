@@ -49,7 +49,7 @@ const FeaturedProducts = () => {
     );
   }
 
-  const products = data?.data?.products?.slice(0, 8) || [];
+  const products = data?.data?.products?.slice(0, 5) || [];
 
   return (
     <section className="py-12 px-4 container mx-auto sm:px-6 lg:px-8">

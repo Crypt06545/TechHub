@@ -96,7 +96,13 @@ const orderStatusBadge = (status) => {
 
 /* Normalizes line items regardless of whether your API returns
    order.items, order.products, or a populated productId object —
-   adjust the field names here once to match your real schema. */
+   adjust the field names here once to match your real schema.
+
+   FIX: your API's line items carry their own `images` ARRAY
+   (line.images[0]) rather than a singular `image` string, and
+   variant info lives directly on the line item as `variantId` /
+   `variantLabel` (e.g. "12ml", "Red / XL"). Both are now captured
+   here so they don't silently disappear. */
 const getLineItems = (order) => {
   const raw = order?.items || order?.products || [];
   return raw.map((line, idx) => {
@@ -107,9 +113,16 @@ const getLineItems = (order) => {
     return {
       id: line._id || idx,
       name: line.name || product?.name || "—",
-      image: line.image || product?.image || product?.images?.[0],
+      image:
+        line.image ||
+        line.images?.[0] ||
+        product?.image ||
+        product?.images?.[0],
       price: line.price ?? product?.price ?? 0,
       quantity: line.quantity ?? 1,
+      variantId: line.variantId || line.variant?._id || null,
+      variantLabel:
+        line.variantLabel || line.variant?.label || line.variant?.name || null,
     };
   });
 };
@@ -202,6 +215,7 @@ const OrderDetailsModal = ({ order, onOpenChange }) => {
           productId: i.id,
           quantity: i.quantity,
           price: i.price,
+          variantId: i.variantId,
         })),
         shippingCharge: editedShipping,
         delivery_address: {
@@ -404,7 +418,19 @@ const OrderDetailsModal = ({ order, onOpenChange }) => {
                     <div className="h-12 w-12 rounded-lg border bg-muted shrink-0" />
                   )}
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium truncate">{item.name}</p>
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <p className="text-sm font-medium truncate">
+                        {item.name}
+                      </p>
+                      {item.variantLabel && (
+                        <Badge
+                          variant="secondary"
+                          className="text-[10px] px-1.5 py-0 h-4 font-normal shrink-0"
+                        >
+                          {item.variantLabel}
+                        </Badge>
+                      )}
+                    </div>
 
                     {!isEditing ? (
                       <p className="text-xs text-muted-foreground">

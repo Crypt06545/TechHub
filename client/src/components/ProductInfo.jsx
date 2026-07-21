@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -17,15 +17,138 @@ import {
 } from "lucide-react";
 import { useCartStore } from "@/store/cartStore";
 
+// ─── Small presentational pieces (kept in-file since they're only used here) ──
+
+const SizeSelector = ({ sizes, selected, onSelect, isAvailable }) => (
+  <div className="flex flex-col gap-2">
+    <span className="text-sm font-medium text-gray-900">
+      Size
+      {selected && (
+        <span className="font-normal text-gray-500">: {selected}</span>
+      )}
+    </span>
+    <div className="flex flex-wrap gap-2">
+      {sizes.map((size) => {
+        const available = isAvailable(size);
+        const active = selected === size;
+        return (
+          <button
+            key={size}
+            type="button"
+            disabled={!available}
+            onClick={() => onSelect(size)}
+            className={`h-9 min-w-[44px] rounded-lg border px-3 text-sm font-medium transition-colors ${
+              active
+                ? "border-gray-900 bg-gray-900 text-white"
+                : "border-gray-200 text-gray-700 hover:border-gray-400"
+            } ${!available ? "cursor-not-allowed opacity-40 line-through" : ""}`}
+          >
+            {size}
+          </button>
+        );
+      })}
+    </div>
+  </div>
+);
+
+const ColorSelector = ({ colors, selected, onSelect, isAvailable }) => (
+  <div className="flex flex-col gap-2">
+    <span className="text-sm font-medium text-gray-900">
+      Color
+      {selected && (
+        <span className="font-normal text-gray-500">: {selected}</span>
+      )}
+    </span>
+    <div className="flex flex-wrap gap-2">
+      {colors.map((color) => {
+        const available = isAvailable(color);
+        const active = selected === color;
+        return (
+          <button
+            key={color}
+            type="button"
+            disabled={!available}
+            onClick={() => onSelect(color)}
+            title={color}
+            className={`flex h-9 items-center gap-2 rounded-lg border px-3 text-sm font-medium transition-colors ${
+              active
+                ? "border-gray-900 ring-1 ring-gray-900"
+                : "border-gray-200 hover:border-gray-400"
+            } ${!available ? "cursor-not-allowed opacity-40" : ""}`}
+          >
+            <span
+              className="h-4 w-4 rounded-full border border-gray-300"
+              style={{ backgroundColor: color.toLowerCase() }}
+            />
+            <span className="text-gray-700">{color}</span>
+            {!available && (
+              <span className="text-[10px] text-gray-400">(out of stock)</span>
+            )}
+          </button>
+        );
+      })}
+    </div>
+  </div>
+);
+
+// ─── Main component ────────────────────────────────────────────────────────────
+
 export const ProductInfo = ({ product }) => {
   const navigate = useNavigate();
   const { setItemQuantity, items } = useCartStore();
 
-  const cartItem = items.find((i) => i._id === product._id);
+  const variants = product.variants || [];
+  const hasVariants = product.hasVariants && variants.length > 0;
 
-  // Local qty — initialize from cart if already added, else 1
+  // ── Derived option lists (recomputed only when variants change) ────────────
+  const sizes = useMemo(
+    () => [...new Set(variants.map((v) => v.size).filter(Boolean))],
+    [variants],
+  );
+  const colors = useMemo(
+    () => [...new Set(variants.map((v) => v.color).filter(Boolean))],
+    [variants],
+  );
+
+  const [selectedSize, setSelectedSize] = useState(sizes[0] ?? null);
+  const [selectedColor, setSelectedColor] = useState(colors[0] ?? null);
+
+  // ── Resolve the exact variant matching the current selection ───────────────
+  const selectedVariant = useMemo(() => {
+    if (!hasVariants) return null;
+    return variants.find(
+      (v) =>
+        (sizes.length === 0 || v.size === selectedSize) &&
+        (colors.length === 0 || v.color === selectedColor),
+    );
+  }, [hasVariants, variants, sizes, colors, selectedSize, selectedColor]);
+
+  // ── Active price/stock reflect the chosen variant, else the base product ───
+  const activePrice = selectedVariant ? selectedVariant.price : product.price;
+  const activeStock = selectedVariant ? selectedVariant.stock : product.stock;
+  const activeOutOfStock = hasVariants
+    ? !selectedVariant || activeStock === 0
+    : activeStock === 0;
+
+  const discount = product.compareAtPrice
+    ? Math.round(
+        ((product.compareAtPrice - activePrice) / product.compareAtPrice) * 100,
+      )
+    : null;
+
+  // ── Cart wiring ──────────────────────────────────────────────────────────
+  const cartItem = items.find(
+    (i) =>
+      i._id === product._id && i.variantId === (selectedVariant?._id ?? null),
+  );
+
   const [qty, setQty] = useState(cartItem?.quantity ?? 1);
   const [copied, setCopied] = useState(false);
+
+  // clamp qty whenever the active variant's stock changes
+  useEffect(() => {
+    setQty((q) => Math.min(Math.max(q, 1), activeStock || 1));
+  }, [activeStock]);
 
   const cartProduct = {
     _id: product._id,
@@ -35,17 +158,17 @@ export const ProductInfo = ({ product }) => {
       product.images?.[0]?.url ||
       product.images?.[0] ||
       "",
-    price: product.price,
+    price: activePrice,
     originalPrice: product.compareAtPrice ?? null,
     slug: product.slug,
-    variant: product.variant ?? null,
+    variantId: selectedVariant?._id ?? null,
+    size: selectedVariant?.size ?? null,
+    color: selectedVariant?.color ?? null,
   };
 
-  // ── Qty controls ────────────────────────────────────────────────────────────
   const handleIncrement = () => {
-    const next = Math.min(product.stock, qty + 1);
+    const next = Math.min(activeStock, qty + 1);
     setQty(next);
-    // Keep cart in sync if item is already there
     if (cartItem) setItemQuantity(cartProduct, next);
   };
 
@@ -55,32 +178,28 @@ export const ProductInfo = ({ product }) => {
     if (cartItem) setItemQuantity(cartProduct, next);
   };
 
-  // ── Cart actions ────────────────────────────────────────────────────────────
   const handleAddToCart = () => {
-    if (qty > product.stock) return;
-    // Always SET quantity, never accumulate
+    if (activeOutOfStock || qty > activeStock) return;
     setItemQuantity(cartProduct, qty);
   };
 
   const handleBuyNow = () => {
-    if (qty > product.stock) return;
+    if (activeOutOfStock || qty > activeStock) return;
     setItemQuantity(cartProduct, qty);
     navigate("/checkout");
   };
 
-  // ── Discount ────────────────────────────────────────────────────────────────
-  const discount = product.compareAtPrice
-    ? Math.round(
-        ((product.compareAtPrice - product.price) / product.compareAtPrice) *
-          100,
-      )
-    : null;
+  // an option greys out only if every variant carrying it is fully sold out,
+  // regardless of the other dimension currently selected
+  const isSizeAvailable = (size) =>
+    variants.some((v) => v.size === size && v.stock > 0);
+  const isColorAvailable = (color) =>
+    variants.some((v) => v.color === color && v.stock > 0);
 
-  // ── Share ───────────────────────────────────────────────────────────────────
   const handleShare = async () => {
     const shareData = {
       title: product?.title,
-      text: `Check out this product on Senzo`,
+      text: `Check out this product on ZUHR`,
       url: window.location.href,
     };
     if (navigator.share) {
@@ -110,7 +229,7 @@ export const ProductInfo = ({ product }) => {
             <span>({product.ratingCount} reviews)</span>
           </div>
           <span>·</span>
-          <span>SKU: {product._id.slice(-8).toUpperCase()}</span>
+          <span>SKU: {product.sku || product._id.slice(-8).toUpperCase()}</span>
         </div>
       </div>
 
@@ -120,14 +239,14 @@ export const ProductInfo = ({ product }) => {
       <div>
         <div className="flex items-baseline gap-3 mb-3">
           <span className="text-3xl font-bold text-gray-900">
-            ৳ {product.price.toLocaleString()}
+            ৳ {activePrice.toLocaleString()}
           </span>
           {product.compareAtPrice && (
             <>
               <span className="text-base text-gray-400 line-through">
                 ৳ {product.compareAtPrice.toLocaleString()}
               </span>
-              {discount && (
+              {discount > 0 && (
                 <Badge className="bg-red-50 text-red-600 border-0 font-medium text-xs">
                   -{discount}%
                 </Badge>
@@ -140,6 +259,34 @@ export const ProductInfo = ({ product }) => {
         </p>
       </div>
 
+      {/* Variant selectors */}
+      {hasVariants && (
+        <>
+          <Separator />
+          {sizes.length > 0 && (
+            <SizeSelector
+              sizes={sizes}
+              selected={selectedSize}
+              onSelect={setSelectedSize}
+              isAvailable={isSizeAvailable}
+            />
+          )}
+          {colors.length > 0 && (
+            <ColorSelector
+              colors={colors}
+              selected={selectedColor}
+              onSelect={setSelectedColor}
+              isAvailable={isColorAvailable}
+            />
+          )}
+          {!selectedVariant && (
+            <p className="text-xs text-amber-600">
+              This combination isn't available — try a different size or color.
+            </p>
+          )}
+        </>
+      )}
+
       <Separator />
 
       {/* Qty + Add to cart */}
@@ -147,7 +294,7 @@ export const ProductInfo = ({ product }) => {
         <div className="flex items-center overflow-hidden rounded-lg border border-gray-200">
           <button
             onClick={handleDecrement}
-            disabled={qty <= 1 || product.stock === 0}
+            disabled={qty <= 1 || activeOutOfStock}
             className="flex h-10 w-10 items-center justify-center text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-900 disabled:opacity-40 disabled:cursor-not-allowed"
           >
             <Minus size={15} strokeWidth={2.5} />
@@ -159,7 +306,7 @@ export const ProductInfo = ({ product }) => {
 
           <button
             onClick={handleIncrement}
-            disabled={qty >= product.stock || product.stock === 0}
+            disabled={qty >= activeStock || activeOutOfStock}
             className="flex h-10 w-10 items-center justify-center text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-900 disabled:opacity-40 disabled:cursor-not-allowed"
           >
             <Plus size={15} strokeWidth={2.5} />
@@ -168,7 +315,7 @@ export const ProductInfo = ({ product }) => {
 
         <Button
           className="flex-1 bg-gray-900 hover:bg-gray-700 text-white h-10"
-          disabled={product.stock === 0}
+          disabled={activeOutOfStock}
           onClick={handleAddToCart}
         >
           {cartItem ? "Update Cart" : "Add to Cart"}
@@ -178,7 +325,7 @@ export const ProductInfo = ({ product }) => {
       <Button
         variant="outline"
         className="w-full h-10 border-gray-300 text-gray-700 hover:bg-gray-50"
-        disabled={product.stock === 0}
+        disabled={activeOutOfStock}
         onClick={handleBuyNow}
       >
         Buy Now
@@ -223,11 +370,11 @@ export const ProductInfo = ({ product }) => {
         </div>
         <div className="flex items-center gap-2">
           <ShieldCheck className="w-4 h-4 shrink-0" />
-          {product.stock > 0 ? (
+          {activeStock > 0 ? (
             <span>
               Availability:{" "}
               <span className="text-green-600 font-medium">
-                Only {product.stock} left in stock
+                Only {activeStock} left in stock
               </span>
             </span>
           ) : (

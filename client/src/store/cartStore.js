@@ -1,6 +1,17 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
+// A cart "line" is uniquely identified by product + variant (if any).
+// Two different sizes/colors of the same product must never collapse
+// into a single line — this is what keeps "Attar 3ml" and "Attar 12ml"
+// as two separate rows in the cart, each with its own price and qty.
+// For products with no variants, variantId is null/undefined and the
+// line id just falls back to the plain product _id — so existing
+// non-variant flows (e.g. AddToCartButton on the product cards) keep
+// working exactly as before, no changes needed there.
+export const getLineId = (item) =>
+  item.variantId ? `${item._id}__${item.variantId}` : item._id;
+
 export const useCartStore = create(
   persist(
     (set, get) => ({
@@ -11,15 +22,16 @@ export const useCartStore = create(
       // ===========================
       addItem: (product, qty = 1) => {
         set((state) => {
-          const existing = state.items.find((i) => i._id === product._id);
+          const lineId = getLineId(product);
+          const existing = state.items.find((i) => getLineId(i) === lineId);
 
           if (existing) {
             return {
               items: state.items.map((item) =>
-                item._id === product._id
+                getLineId(item) === lineId
                   ? {
                       ...item,
-                      ...product, // <-- refresh all product fields
+                      ...product, // refresh all product/variant fields
                       quantity: item.quantity + qty,
                     }
                   : item,
@@ -39,22 +51,26 @@ export const useCartStore = create(
         });
       },
 
+      // ===========================
+      // Set exact quantity (used by ProductInfo's Add to Cart / Buy Now)
+      // ===========================
       setItemQuantity: (product, qty) => {
         set((state) => {
-          const exists = state.items.find((item) => item._id === product._id);
+          const lineId = getLineId(product);
+          const exists = state.items.find((item) => getLineId(item) === lineId);
 
           // Remove if qty <= 0
           if (qty <= 0) {
             return {
-              items: state.items.filter((item) => item._id !== product._id),
+              items: state.items.filter((item) => getLineId(item) !== lineId),
             };
           }
 
-          // Update existing product while keeping all latest data
+          // Update existing line while keeping all latest data
           if (exists) {
             return {
               items: state.items.map((item) =>
-                item._id === product._id
+                getLineId(item) === lineId
                   ? {
                       ...item,
                       ...product,
@@ -65,7 +81,7 @@ export const useCartStore = create(
             };
           }
 
-          // Add new product
+          // Add new line
           return {
             items: [
               ...state.items,
@@ -80,18 +96,21 @@ export const useCartStore = create(
 
       // ===========================
       // Update Quantity
+      // lineId: plain productId for non-variant items, or
+      //         `${productId}__${variantId}` for variant lines
+      //         (use the exported getLineId() helper to build this)
       // ===========================
-      updateQty: (id, qty) => {
+      updateQty: (lineId, qty) => {
         set((state) => {
           if (qty < 1) {
             return {
-              items: state.items.filter((i) => i._id !== id),
+              items: state.items.filter((i) => getLineId(i) !== lineId),
             };
           }
 
           return {
             items: state.items.map((i) =>
-              i._id === id
+              getLineId(i) === lineId
                 ? {
                     ...i,
                     quantity: qty,
@@ -105,9 +124,9 @@ export const useCartStore = create(
       // ===========================
       // Remove Item
       // ===========================
-      removeItem: (id) =>
+      removeItem: (lineId) =>
         set((state) => ({
-          items: state.items.filter((item) => item._id !== id),
+          items: state.items.filter((item) => getLineId(item) !== lineId),
         })),
 
       // ===========================

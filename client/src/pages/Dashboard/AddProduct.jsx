@@ -1,13 +1,14 @@
-import React, { useState } from "react";
-import { useForm, Controller } from "react-hook-form";
+import React, { useState, useEffect } from "react";
+import { useForm, Controller, useFieldArray } from "react-hook-form";
 import ReactQuill from "react-quill-new";
 import "react-quill-new/dist/quill.snow.css";
-import { X, Upload, ImageIcon, Star } from "lucide-react";
+import { X, Upload, ImageIcon, Star, Plus } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
+import { Badge } from "@/components/ui/badge";
 import {
   Select,
   SelectContent,
@@ -82,16 +83,37 @@ const quillFormats = [
   "size",
 ];
 
+// Builds the cartesian product of sizes/colors. Either can be empty —
+// e.g. sizes only (no colors) still produces one variant per size.
+const buildCombos = (sizes, colors) => {
+  if (sizes.length && colors.length) {
+    return sizes.flatMap((size) => colors.map((color) => ({ size, color })));
+  }
+  if (sizes.length) return sizes.map((size) => ({ size, color: null }));
+  if (colors.length) return colors.map((color) => ({ size: null, color }));
+  return [];
+};
+
+const comboKey = (size, color) => `${size || ""}__${color || ""}`;
+
 const AddProduct = () => {
   const [images, setImages] = useState([]);
   const [imageUrls, setImageUrls] = useState([""]);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // --- Variant (size/color) state ---
+  const [hasVariants, setHasVariants] = useState(false);
+  const [sizes, setSizes] = useState([]);
+  const [sizeInput, setSizeInput] = useState("");
+  const [colors, setColors] = useState([]);
+  const [colorInput, setColorInput] = useState("");
 
   const {
     register,
     handleSubmit,
     control,
     reset,
+    watch,
     formState: { errors },
   } = useForm({
     defaultValues: {
@@ -107,8 +129,73 @@ const AddProduct = () => {
       status: "draft",
       isPublished: false,
       isFeatured: false,
+      variants: [],
     },
   });
+
+  const { fields, append, remove } = useFieldArray({
+    control,
+    name: "variants",
+  });
+
+  const basePrice = watch("price");
+
+  // Keep the variants array in sync with the current sizes/colors tags.
+  // Preserves price/stock/sku already entered for combos that still exist.
+  useEffect(() => {
+    if (!hasVariants) return;
+
+    const combos = buildCombos(sizes, colors);
+    const comboKeys = combos.map((c) => comboKey(c.size, c.color));
+    const existingKeys = fields.map((f) => comboKey(f.size, f.color));
+
+    // remove stale rows (walk backwards so indices stay valid)
+    for (let i = fields.length - 1; i >= 0; i--) {
+      if (!comboKeys.includes(existingKeys[i])) remove(i);
+    }
+
+    // add new rows for combos that don't exist yet
+    combos.forEach((c) => {
+      if (!existingKeys.includes(comboKey(c.size, c.color))) {
+        append({
+          size: c.size,
+          color: c.color,
+          price: "",
+          stock: "",
+        });
+      }
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sizes, colors, hasVariants]);
+
+  const addSize = () => {
+    const value = sizeInput.trim();
+    if (value && !sizes.includes(value)) setSizes((prev) => [...prev, value]);
+    setSizeInput("");
+  };
+
+  const addColor = () => {
+    const value = colorInput.trim();
+    if (value && !colors.includes(value)) setColors((prev) => [...prev, value]);
+    setColorInput("");
+  };
+
+  const removeSize = (value) =>
+    setSizes((prev) => prev.filter((s) => s !== value));
+
+  const removeColor = (value) =>
+    setColors((prev) => prev.filter((c) => c !== value));
+
+  const toggleVariants = (checked) => {
+    setHasVariants(checked);
+    if (!checked) {
+      // clear everything when turning variants off so stale data
+      // doesn't get submitted silently
+      setSizes([]);
+      setColors([]);
+      for (let i = fields.length - 1; i >= 0; i--) remove(i);
+    }
+  };
 
   const handleImageUpload = (e) => {
     const files = Array.from(e.target.files);
@@ -154,6 +241,14 @@ const AddProduct = () => {
   const onSubmit = async (data) => {
     setIsSubmitting(true);
 
+    const resolvedVariants = (data.variants || []).map((v) => ({
+      size: v.size || null,
+      color: v.color || null,
+      // falls back to the base price when left blank
+      price: v.price ? Number(v.price) : Number(data.price),
+      stock: v.stock ? Number(v.stock) : 0,
+    }));
+
     const formData = {
       title: data.productName,
       slug: data.productName
@@ -169,12 +264,16 @@ const AddProduct = () => {
       category: data.category,
       sku: data.sku,
       warranty: data.warranty,
-      stock: Number(data.stock),
+      stock: hasVariants
+        ? resolvedVariants.reduce((sum, v) => sum + v.stock, 0)
+        : Number(data.stock),
       isPublished: data.isPublished,
       isArchived: data.status === "archived",
       isFeatured: data.isFeatured,
       uploadedImages: images,
       imageUrls: imageUrls.filter((url) => url.trim() !== ""),
+      hasVariants,
+      variants: hasVariants ? resolvedVariants : [],
     };
 
     console.log("Form submitted:", formData);
@@ -273,7 +372,8 @@ const AddProduct = () => {
             {/* Price */}
             <div className="space-y-2">
               <Label htmlFor="price">
-                Price (৳) <span className="text-red-500">*</span>
+                {hasVariants ? "Base Price (৳)" : "Price (৳)"}{" "}
+                <span className="text-red-500">*</span>
               </Label>
               <Input
                 id="price"
@@ -284,29 +384,37 @@ const AddProduct = () => {
                   min: 0.01,
                 })}
               />
+              {hasVariants && (
+                <p className="text-xs text-muted-foreground">
+                  Used as the fallback for any variant left without its own
+                  price.
+                </p>
+              )}
               {errors.price && (
                 <p className="text-sm text-red-500">{errors.price.message}</p>
               )}
             </div>
 
-            {/* Stock */}
-            <div className="space-y-2">
-              <Label htmlFor="stock">
-                Stock Quantity <span className="text-red-500">*</span>
-              </Label>
-              <Input
-                id="stock"
-                type="number"
-                placeholder="25"
-                {...register("stock", {
-                  required: "Stock is required",
-                  min: 0,
-                })}
-              />
-              {errors.stock && (
-                <p className="text-sm text-red-500">{errors.stock.message}</p>
-              )}
-            </div>
+            {/* Stock — hidden once variants take over stock tracking */}
+            {!hasVariants && (
+              <div className="space-y-2">
+                <Label htmlFor="stock">
+                  Stock Quantity <span className="text-red-500">*</span>
+                </Label>
+                <Input
+                  id="stock"
+                  type="number"
+                  placeholder="25"
+                  {...register("stock", {
+                    required: "Stock is required",
+                    min: 0,
+                  })}
+                />
+                {errors.stock && (
+                  <p className="text-sm text-red-500">{errors.stock.message}</p>
+                )}
+              </div>
+            )}
 
             {/* Discount */}
             <div className="space-y-2">
@@ -400,6 +508,162 @@ const AddProduct = () => {
               </Label>
             </div>
           </div>
+        </CardContent>
+      </Card>
+
+      {/* Size / Color Variants */}
+      <Card>
+        <CardContent className="pt-6 space-y-6">
+          <div className="flex items-center gap-3">
+            <Switch checked={hasVariants} onCheckedChange={toggleVariants} />
+            <Label className="cursor-pointer text-lg font-semibold">
+              This product has sizes / colors
+            </Label>
+          </div>
+
+          {hasVariants && (
+            <>
+              <div className="grid gap-6 md:grid-cols-2">
+                {/* Sizes */}
+                <div className="space-y-2">
+                  <Label>Sizes (optional)</Label>
+                  <div className="flex gap-2">
+                    <Input
+                      placeholder="e.g. S, M, L or 128GB, 256GB"
+                      value={sizeInput}
+                      onChange={(e) => setSizeInput(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          e.preventDefault();
+                          addSize();
+                        }
+                      }}
+                    />
+                    <Button type="button" variant="outline" onClick={addSize}>
+                      <Plus className="h-4 w-4" />
+                    </Button>
+                  </div>
+                  {sizes.length > 0 && (
+                    <div className="flex flex-wrap gap-2 pt-1">
+                      {sizes.map((size) => (
+                        <Badge
+                          key={size}
+                          variant="secondary"
+                          className="flex items-center gap-1"
+                        >
+                          {size}
+                          <button
+                            type="button"
+                            onClick={() => removeSize(size)}
+                            className="ml-1"
+                          >
+                            <X className="h-3 w-3" />
+                          </button>
+                        </Badge>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* Colors */}
+                <div className="space-y-2">
+                  <Label>Colors (optional)</Label>
+                  <div className="flex gap-2">
+                    <Input
+                      placeholder="e.g. Black, Silver, Gold"
+                      value={colorInput}
+                      onChange={(e) => setColorInput(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          e.preventDefault();
+                          addColor();
+                        }
+                      }}
+                    />
+                    <Button type="button" variant="outline" onClick={addColor}>
+                      <Plus className="h-4 w-4" />
+                    </Button>
+                  </div>
+                  {colors.length > 0 && (
+                    <div className="flex flex-wrap gap-2 pt-1">
+                      {colors.map((color) => (
+                        <Badge
+                          key={color}
+                          variant="secondary"
+                          className="flex items-center gap-1"
+                        >
+                          {color}
+                          <button
+                            type="button"
+                            onClick={() => removeColor(color)}
+                            className="ml-1"
+                          >
+                            <X className="h-3 w-3" />
+                          </button>
+                        </Badge>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Generated variant rows */}
+              {fields.length > 0 && (
+                <div className="space-y-3">
+                  <Label className="text-base font-medium">
+                    Variant Pricing & Stock
+                  </Label>
+                  <p className="text-xs text-muted-foreground">
+                    Leave price blank to use the base price (৳
+                    {basePrice || "0"}).
+                  </p>
+
+                  <div className="space-y-2">
+                    {fields.map((field, index) => (
+                      <div
+                        key={field.id}
+                        className="grid grid-cols-2 gap-3 rounded-lg border p-3 md:grid-cols-5 md:items-end"
+                      >
+                        <div className="col-span-2 flex flex-wrap items-center gap-2 md:col-span-1">
+                          {field.size && (
+                            <Badge variant="outline">{field.size}</Badge>
+                          )}
+                          {field.color && (
+                            <Badge variant="outline">{field.color}</Badge>
+                          )}
+                        </div>
+
+                        <div className="space-y-1">
+                          <Label className="text-xs">Price (৳)</Label>
+                          <Input
+                            type="number"
+                            placeholder={basePrice || "0"}
+                            {...register(`variants.${index}.price`, {
+                              min: 0,
+                            })}
+                          />
+                        </div>
+
+                        <div className="space-y-1 md:col-span-3">
+                          <Label className="text-xs">
+                            Stock <span className="text-red-500">*</span>
+                          </Label>
+                          <Input
+                            type="number"
+                            placeholder="0"
+                            {...register(`variants.${index}.stock`, {
+                              required: true,
+                              min: 0,
+                            })}
+                          />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </>
+          )}
         </CardContent>
       </Card>
 
@@ -544,6 +808,9 @@ const AddProduct = () => {
             reset();
             setImages([]);
             setImageUrls([""]);
+            setSizes([]);
+            setColors([]);
+            setHasVariants(false);
           }}
         >
           Reset

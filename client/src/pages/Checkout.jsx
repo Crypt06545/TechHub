@@ -17,7 +17,7 @@ import {
   AlertCircle,
   Loader2,
 } from "lucide-react";
-import { useCartStore } from "@/store/cartStore"; // adjust path if needed
+import { useCartStore, getLineId } from "@/store/cartStore"; // adjust path if needed
 import { useAuth } from "@/hooks/useAuth";
 import { usePlaceOrder } from "@/hooks/order.query";
 import { AuthToast } from "@/components/common/AuthToast";
@@ -111,11 +111,18 @@ const CheckoutPage = () => {
 
   /* ── Submit ──
      Only sends fields placeOrderController actually reads. Cart items
-     are reduced to { productId, quantity } — price/name/image are
-     display-only client fields and get ignored either way, since the
+     are reduced to { productId, variantId, quantity } — price/name/image
+     are display-only client fields and get ignored either way, since the
      backend resolves everything fresh from the DB in one batched query.
      Prices can drift between add-to-cart and checkout, so this is
-     never optional — the client's price is never the source of truth. */
+     never optional — the client's price is never the source of truth.
+
+     variantId matters just as much: without it the backend has no way
+     to know a "Musk Al Haramain 12ml" was ordered vs the 3ml — it needs
+     this to resolve the right variant price and decrement the right
+     variant's stock, not just the product's base stock. Your order
+     controller/schema will need a matching variantId field if it
+     doesn't already have one. */
   const onSubmit = (data) => {
     const payload = {
       address_line: data.address_line,
@@ -129,6 +136,7 @@ const CheckoutPage = () => {
       payment_proof_images: [], // wire up a screenshot upload here later for bKash/Nagad
       items: items.map((item) => ({
         productId: item._id,
+        variantId: item.variantId || null,
         quantity: item.quantity,
       })),
     };
@@ -477,7 +485,7 @@ const CheckoutPage = () => {
                   <div className="flex flex-col divide-y divide-gray-100 max-h-72 overflow-y-auto">
                     {items.map((item) => (
                       <div
-                        key={item._id}
+                        key={getLineId(item)}
                         className="flex items-center gap-3 py-3 first:pt-0 last:pb-0"
                       >
                         <img
@@ -489,9 +497,34 @@ const CheckoutPage = () => {
                           <p className="text-sm font-medium leading-tight truncate">
                             {item.name}
                           </p>
-                          <p className="text-xs text-muted-foreground mt-0.5">
-                            Qty: {item.quantity}
-                          </p>
+
+                          {item.size || item.color ? (
+                            <div className="mt-1 flex flex-wrap items-center gap-1">
+                              {item.size && (
+                                <span className="rounded-md bg-gray-100 px-1.5 py-0.5 text-[10px] font-medium text-gray-600">
+                                  {item.size}
+                                </span>
+                              )}
+                              {item.color && (
+                                <span className="flex items-center gap-1 rounded-md bg-gray-100 px-1.5 py-0.5 text-[10px] font-medium text-gray-600">
+                                  <span
+                                    className="h-2 w-2 rounded-full border border-gray-300"
+                                    style={{
+                                      backgroundColor: item.color.toLowerCase(),
+                                    }}
+                                  />
+                                  {item.color}
+                                </span>
+                              )}
+                              <span className="text-xs text-muted-foreground">
+                                · Qty: {item.quantity}
+                              </span>
+                            </div>
+                          ) : (
+                            <p className="text-xs text-muted-foreground mt-0.5">
+                              Qty: {item.quantity}
+                            </p>
+                          )}
                         </div>
                         <p className="text-sm font-semibold shrink-0">
                           {fmt(item.price * item.quantity)}

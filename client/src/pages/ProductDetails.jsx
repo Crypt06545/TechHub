@@ -69,12 +69,16 @@ const ProductDetails = () => {
   // Product details
   const { data, isLoading, isError, error } = useProductDetails(slug);
   const product = data?.data?.product;
+  console.log(product);
+  
   const categorySlug = product?.category?.slug;
 
   // Related products — hook called unconditionally every render
   const { data: relatedData, isLoading: relatedLoading } = useProducts({
     categories: categorySlug ? [categorySlug] : [],
   });
+  // console.log(relatedData);
+
 
   if (isLoading) return <ProductDetailsSkeleton />;
 
