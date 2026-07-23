@@ -45,6 +45,7 @@ const ProductSchema = new mongoose.Schema(
     },
 
     brand: { type: String, default: "", trim: true },
+    sku: { type: String, default: "", trim: true },
 
     stock: { type: Number, required: true, min: 0, default: 0 },
 
@@ -68,18 +69,11 @@ const ProductSchema = new mongoose.Schema(
   { timestamps: true, versionKey: false },
 );
 
-// keep top-level `stock` in sync with variant stock totals so existing
-// stock-based queries/sorts still work without unwinding `variants`.
-// NOTE: only fires on doc.save() (`new Product().save()` / `product.save()`),
-// NOT on findByIdAndUpdate — recompute the same sum in your update
-// controller before calling findByIdAndUpdate there.
-ProductSchema.pre("save", function (next) {
+ProductSchema.pre("save", async function () {
   if (this.hasVariants && this.variants?.length) {
     this.stock = this.variants.reduce((sum, v) => sum + (v.stock || 0), 0);
   }
-  next();
 });
-
 // latest products
 ProductSchema.index({ isPublished: 1, isArchived: 1, _id: -1 });
 

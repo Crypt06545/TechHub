@@ -103,6 +103,20 @@ export const productRepository = {
       .lean();
   },
 
+  /**
+   * Used by productService.resolveOrderItems() before order creation /
+   * payment. Needs enough fields to price and validate each cart line
+   * server-side — not the lean list projection, which is missing
+   * hasVariants/variants/isPublished/isArchived.
+   */
+  async findByIdsForOrder(productIds) {
+    return Product.find({ _id: { $in: productIds } })
+      .select(
+        "title slug price stock images isPublished isArchived hasVariants variants",
+      )
+      .lean();
+  },
+
   async create(data) {
     return Product.create(data);
   },

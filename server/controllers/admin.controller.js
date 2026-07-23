@@ -32,6 +32,22 @@ const safeRedisGet = async (key) => {
   return null;
 };
 
+// variants arrives as a JSON string inside multipart/form-data (same
+// pattern as removeImages below) since FormData can't carry nested arrays
+// natively. Empty/omitted field just means "no variants sent".
+const parseVariantsField = (variants) => {
+  if (variants === undefined || variants === null || variants === "") {
+    return undefined;
+  }
+  try {
+    const parsed = JSON.parse(variants);
+    if (!Array.isArray(parsed)) throw new Error("not an array");
+    return parsed;
+  } catch {
+    throw new ApiError(400, "Invalid variants payload");
+  }
+};
+
 // ─── Users ────────────────────────────────────────────────────────────────────
 
 export const getAllUserController = asyncHandler(async (req, res) => {
@@ -56,138 +72,6 @@ export const getAllUserController = asyncHandler(async (req, res) => {
 
 // ─── Products ─────────────────────────────────────────────────────────────────
 
-export const addProductController = asyncHandler(async (req, res) => {
-  const {
-    title,
-    description,
-    price,
-    compareAtPrice,
-    category,
-    stock,
-    isPublished,
-  } = req.body;
-
-  if (!title || !price || !category || stock === undefined) {
-    throw new ApiError(400, "title, price, category and stock are required");
-  }
-
-  let images = [];
-  if (req.files?.length) {
-    const uploads = await Promise.all(
-      req.files.map((file) =>
-        uploadOnCloudinary(
-          file.buffer,
-          file.originalname || `product-${Date.now()}`,
-        ),
-      ),
-    );
-    images = uploads
-      .filter((r) => r?.secure_url)
-      .map((r) => ({ url: r.secure_url, publicId: r.public_id }));
-  }
-
-  const product = await productService.createProduct({
-    title,
-    description,
-    price,
-    compareAtPrice,
-    category,
-    stock,
-    isPublished,
-    images,
-    vendorId: req.user._id,
-  });
-
-  return res
-    .status(201)
-    .json(new ApiResponse(201, product, "Product added successfully"));
-});
-
-export const updateProductController = asyncHandler(async (req, res) => {
-  const { id } = req.params;
-  const {
-    title,
-    description,
-    price,
-    compareAtPrice,
-    category,
-    stock,
-    isPublished,
-    removeImages,
-  } = req.body;
-
-  let imagesToRemove = [];
-  if (removeImages) {
-    imagesToRemove = JSON.parse(removeImages);
-    await Promise.all(imagesToRemove.map((url) => deleteFromCloudinary(url)));
-  }
-
-  let newImages = [];
-  if (req.files?.length) {
-    const uploads = await Promise.all(
-      req.files.map((file) =>
-        uploadOnCloudinary(
-          file.buffer,
-          file.originalname || `product-${Date.now()}`,
-        ),
-      ),
-    );
-    newImages = uploads
-      .filter((r) => r?.secure_url)
-      .map((r) => ({ url: r.secure_url, publicId: r.public_id }));
-  }
-
-  const product = await productService.updateProduct(id, {
-    title,
-    description,
-    price,
-    compareAtPrice,
-    category,
-    stock,
-    isPublished,
-    imagesToRemove,
-    newImages,
-  });
-
-  return res
-    .status(200)
-    .json(new ApiResponse(200, product, "Product updated successfully"));
-});
-
-export const deleteProductController = asyncHandler(async (req, res) => {
-  const images = await productService.deleteProduct(req.params.id);
-
-  if (images?.length) {
-    Promise.all(
-      images.map((img) => img.url && deleteFromCloudinary(img.url)),
-    ).catch((err) => console.error("[Cloudinary] delete failed:", err.message));
-  }
-
-  return res
-    .status(200)
-    .json(new ApiResponse(200, null, "Product deleted successfully"));
-});
-
-export const toggleFeaturedProduct = asyncHandler(async (req, res) => {
-  const { id } = req.params;
-  if (!id) throw new ApiError(400, "Product ID is required");
-
-  const product = await productService.toggleFeatured(id);
-
-  return res
-    .status(200)
-    .json(
-      new ApiResponse(
-        200,
-        {
-          productId: product._id,
-          title: product.title,
-          isFeatured: product.isFeatured,
-        },
-        `Product ${product.isFeatured ? "marked as featured" : "removed from featured"} successfully`,
-      ),
-    );
-});
 
 // ─── Categories ───────────────────────────────────────────────────────────────
 

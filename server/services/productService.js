@@ -4,19 +4,20 @@ import { productRepository } from "../repositories/product.repository.js";
 import { Product } from "../models/product.model.js";
 import Category from "../models/category.mode.js";
 
-// ─── TTLs ─────────────────────────────────────────────────────────────────
+// ─── TTLs ─────────────────────────────────────────────────────────────────────
 
 const PRODUCT_LIST_TTL = 3_600; // 1h
 const FEATURED_TTL = 86_400; // 24h
 const SINGLE_PRODUCT_TTL = 86_400; // 24h
 
-// ─── Cache Key Helpers ──────────────────────────────────────────────────
+// ─── Cache Key Helpers ────────────────────────────────────────────────────────
+// NOTE: admin product list is NEVER cached — no key helper needed for it.
 
 const featuredKey = () => "featured_products";
 const singleKey = (slug) => `product:${slug}`;
-const productListKey = (params) => `products:${JSON.stringify(params)}`;
+const productListKey = (params) => `all_products:${JSON.stringify(params)}`;
 
-// ─── Internal Helpers ──────────────────────────────────────────────────
+// ─── Internal Helpers ─────────────────────────────────────────────────────────
 
 const safeRedisGet = async (key) => {
   try {
@@ -49,23 +50,56 @@ const buildSlug = async (title, excludeId = null) => {
   return slug;
 };
 
-// ─── Cache Invalidation ─────────────────────────────────────────────────
+const normalizeVariants = (rawVariants) => {
+  if (!Array.isArray(rawVariants)) return [];
+
+  return rawVariants.map((v, i) => {
+    const size = v.size?.toString().trim() || null;
+    const color = v.color?.toString().trim() || null;
+    const price = Number(v.price);
+    const stock = Number(v.stock);
+
+    if (!size && !color) {
+      throw new ApiError(400, `Variant #${i + 1} needs a size or a color`);
+    }
+    if (Number.isNaN(price) || price < 0) {
+      throw new ApiError(400, `Variant #${i + 1} has an invalid price`);
+    }
+    if (Number.isNaN(stock) || stock < 0) {
+      throw new ApiError(400, `Variant #${i + 1} has an invalid stock value`);
+    }
+
+    return { size, color, price, stock };
+  });
+};
+
+const toBool = (val) => val === true || val === "true";
+
+// ─── Cache Invalidation ───────────────────────────────────────────────────────
 
 const invalidateProductCache = async (slug = null) => {
   try {
     const keysToDelete = [featuredKey(), "product:filters:facets"];
     if (slug) keysToDelete.push(singleKey(slug));
+
+    const listKeys = await redis.keys("all_products:*");
+    if (listKeys.length) keysToDelete.push(...listKeys);
+
     if (keysToDelete.length) await redis.del(...keysToDelete);
   } catch (err) {
     console.error("[Redis] cache invalidation failed:", err.message);
   }
 };
 
-// ─── Service ────────────────────────────────────────────────────────────
+// ─── Service ──────────────────────────────────────────────────────────────────
 
 export const productService = {
-  // ─── Public ─────────────────────────────────────────────────────────
+  // ─── Public (storefront) ─────────────────────────────────────────────────
 
+  /**
+   * Storefront product list — only published, non-archived products.
+   * Cached in Redis per unique filter/sort/cursor combination.
+   */
   async getProducts({
     limit = 12,
     cursor,
@@ -238,7 +272,188 @@ export const productService = {
     return product;
   },
 
-  // ─── Admin ──────────────────────────────────────────────────────────
+  // ─── Admin ────────────────────────────────────────────────────────────────
+
+  /**
+   * Admin product list — ALL products regardless of status. Never cached,
+   * always fresh. Filters by status/featured/category/title instead of
+   * the storefront's price-range filters.
+   *
+   * status: "draft" | "published" | "archived" | undefined (= all)
+   * isFeatured: true | false | undefined
+   * sort: "latest" | "oldest" (default latest)
+   */
+  async getAdminProducts({
+    limit = 12,
+    cursor,
+    search,
+    category,
+    status,
+    isFeatured,
+    sort,
+  }) {
+    const query = {};
+
+    if (status === "published") {
+      query.isPublished = true;
+      query.isArchived = false;
+    } else if (status === "draft") {
+      query.isPublished = false;
+      query.isArchived = false;
+    } else if (status === "archived") {
+      query.isArchived = true;
+    }
+
+    if (isFeatured !== undefined) {
+      query.isFeatured = isFeatured === "true" || isFeatured === true;
+    }
+
+    if (category) {
+      const slugs = category.split(",");
+      const categoryDocs = await Category.find({ slug: { $in: slugs } })
+        .select("_id")
+        .lean();
+      if (categoryDocs.length === 0) {
+        return { products: [], nextCursor: null, hasMore: false };
+      }
+      query.category = { $in: categoryDocs.map((c) => c._id) };
+    }
+
+    if (search) query.title = { $regex: search, $options: "i" };
+
+    const sortSpec = sort === "oldest" ? { _id: 1 } : { _id: -1 };
+
+    if (cursor) {
+      query._id = sort === "oldest" ? { $gt: cursor } : { $lt: cursor };
+    }
+
+    const products = await Product.find(query)
+      .select(
+        "title slug price compareAtPrice images stock ratingAverage category isPublished isArchived isFeatured createdAt",
+      )
+      .populate("category", "name slug")
+      .sort(sortSpec)
+      .limit(limit + 1)
+      .lean();
+
+    let nextCursor = null;
+    if (products.length > limit) {
+      const nextItem = products.pop();
+      nextCursor = nextItem._id;
+    }
+
+    return { products, nextCursor, hasMore: Boolean(nextCursor) };
+  },
+
+  // ─── Order support ────────────────────────────────────────────────────────
+
+  async resolveOrderItems(items) {
+    if (!items?.length) throw new ApiError(400, "No items provided");
+
+    const productIds = items.map((i) => i.productId);
+    const products = await productRepository.findByIdsForOrder(productIds);
+    const productMap = new Map(products.map((p) => [String(p._id), p]));
+
+    return items.map(({ productId, variantId, quantity }) => {
+      if (!quantity || quantity < 1) {
+        throw new ApiError(400, "Invalid quantity in cart");
+      }
+
+      const product = productMap.get(String(productId));
+      if (!product) {
+        throw new ApiError(
+          404,
+          `One of the products in your cart no longer exists`,
+        );
+      }
+      if (!product.isPublished || product.isArchived) {
+        throw new ApiError(400, `"${product.title}" is no longer available`);
+      }
+
+      if (variantId) {
+        const variant = product.variants?.find(
+          (v) => String(v._id) === String(variantId),
+        );
+        if (!variant) {
+          throw new ApiError(
+            404,
+            `The selected option for "${product.title}" is no longer available`,
+          );
+        }
+        if (variant.stock < quantity) {
+          const label = [variant.size, variant.color]
+            .filter(Boolean)
+            .join(" / ");
+          throw new ApiError(
+            400,
+            `Only ${variant.stock} left in stock for "${product.title}"${
+              label ? ` (${label})` : ""
+            }`,
+          );
+        }
+
+        const price = variant.price;
+        return {
+          productId: product._id,
+          variantId: variant._id,
+          title: product.title,
+          slug: product.slug,
+          image: product.images?.[0]?.url ?? null,
+          size: variant.size,
+          color: variant.color,
+          price,
+          quantity,
+          lineTotal: price * quantity,
+        };
+      }
+
+      if (product.stock < quantity) {
+        throw new ApiError(
+          400,
+          `Only ${product.stock} left in stock for "${product.title}"`,
+        );
+      }
+
+      return {
+        productId: product._id,
+        variantId: null,
+        title: product.title,
+        slug: product.slug,
+        image: product.images?.[0]?.url ?? null,
+        size: null,
+        color: null,
+        price: product.price,
+        quantity,
+        lineTotal: product.price * quantity,
+      };
+    });
+  },
+
+  async decrementStockForOrder(resolvedItems, session = null) {
+    for (const item of resolvedItems) {
+      const updated = item.variantId
+        ? await productRepository.decrementVariantStock(
+            item.productId,
+            item.variantId,
+            item.quantity,
+            session,
+          )
+        : await productRepository.decrementStock(
+            item.productId,
+            item.quantity,
+            session,
+          );
+
+      if (!updated) {
+        throw new ApiError(
+          409,
+          `Stock for "${item.title}" changed while you were checking out — please review your cart and try again.`,
+        );
+      }
+    }
+  },
+
+  // ─── Admin: mutations ─────────────────────────────────────────────────────
 
   async createProduct({
     title,
@@ -246,11 +461,38 @@ export const productService = {
     price,
     compareAtPrice,
     category,
+    brand,
+    sku,
     stock,
     isPublished,
+    isFeatured,
+    hasVariants,
+    variants,
     images,
     vendorId,
   }) {
+    if (!title || !price || !category) {
+      throw new ApiError(400, "title, price and category are required");
+    }
+
+    const normalizedHasVariants = toBool(hasVariants);
+    const normalizedVariants = normalizedHasVariants
+      ? normalizeVariants(variants)
+      : [];
+
+    if (normalizedHasVariants && normalizedVariants.length === 0) {
+      throw new ApiError(
+        400,
+        "At least one variant is required when the product has variants",
+      );
+    }
+    if (!normalizedHasVariants && (stock === undefined || stock === "")) {
+      throw new ApiError(
+        400,
+        "Stock is required for products without variants",
+      );
+    }
+
     const slug = await buildSlug(title);
 
     const product = await productRepository.create({
@@ -260,13 +502,19 @@ export const productService = {
       price: Number(price),
       compareAtPrice: compareAtPrice ? Number(compareAtPrice) : null,
       category,
+      brand: brand || "",
+      sku: sku || "",
       images,
-      stock: Number(stock),
+      stock: normalizedHasVariants ? 0 : Number(stock),
+      hasVariants: normalizedHasVariants,
+      variants: normalizedVariants,
       isPublished: isPublished === "true" || isPublished === true,
+      isFeatured: toBool(isFeatured),
       vendorId,
     });
 
     await invalidateProductCache();
+
     return product;
   },
 
@@ -278,8 +526,13 @@ export const productService = {
       price,
       compareAtPrice,
       category,
+      brand,
+      sku,
       stock,
       isPublished,
+      isFeatured,
+      hasVariants,
+      variants,
       imagesToRemove,
       newImages,
     },
@@ -299,11 +552,38 @@ export const productService = {
     if (compareAtPrice !== undefined)
       product.compareAtPrice = compareAtPrice ? Number(compareAtPrice) : null;
     if (category) product.category = category;
-    if (stock !== undefined) product.stock = Number(stock);
+    if (brand !== undefined) product.brand = brand;
+    if (sku !== undefined) product.sku = sku;
     if (isPublished !== undefined)
       product.isPublished = isPublished === "true" || isPublished === true;
+    if (isFeatured !== undefined) product.isFeatured = toBool(isFeatured);
 
+    if (hasVariants !== undefined) {
+      const normalizedHasVariants = toBool(hasVariants);
+      product.hasVariants = normalizedHasVariants;
+
+      if (normalizedHasVariants) {
+        const normalizedVariants = normalizeVariants(variants);
+        if (normalizedVariants.length === 0) {
+          throw new ApiError(
+            400,
+            "At least one variant is required when the product has variants",
+          );
+        }
+        product.variants = normalizedVariants;
+      } else {
+        product.variants = [];
+        if (stock !== undefined) product.stock = Number(stock);
+      }
+    } else if (!product.hasVariants && stock !== undefined) {
+      product.stock = Number(stock);
+    }
+
+    let removedImages = [];
     if (imagesToRemove?.length) {
+      removedImages = product.images.filter((img) =>
+        imagesToRemove.includes(img.url),
+      );
       product.images = product.images.filter(
         (img) => !imagesToRemove.includes(img.url),
       );
@@ -318,7 +598,7 @@ export const productService = {
     await invalidateProductCache(oldSlug);
     if (product.slug !== oldSlug) await invalidateProductCache(product.slug);
 
-    return updated;
+    return { product: updated, removedImages };
   },
 
   async toggleFeatured(productId) {
@@ -329,6 +609,7 @@ export const productService = {
     const updated = await productRepository.save(product);
 
     await invalidateProductCache(product.slug);
+
     return updated;
   },
 

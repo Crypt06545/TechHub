@@ -1,10 +1,6 @@
 import { Router } from "express";
 import {
   getAllUserController,
-  addProductController,
-  updateProductController,
-  deleteProductController,
-  toggleFeaturedProduct,
   AddCategoryController,
   updateCategoryController,
   getAllCategoryController,
@@ -25,6 +21,13 @@ import {
   toggleCouponActiveController,
   updateCouponController,
 } from "../controllers/coupon.controller.js";
+import {
+  createProductController,
+  deleteProductController,
+  toggleFeaturedController,
+  updateProductController,
+  getAdminProductsController,
+} from "../controllers/product.contoller.js";
 
 const adminRouter = Router();
 
@@ -36,14 +39,19 @@ adminRouter.get("/users", getAllUserController);
 
 // ─── Products ─────────────────────────────────────────────────────────────────
 
-adminRouter.post("/products", upload.array("images", 5), addProductController);
+adminRouter.get("/products", getAdminProductsController);
+adminRouter.post(
+  "/products",
+  upload.array("images", 5),
+  createProductController,
+);
 adminRouter.put(
   "/products/:id",
   upload.array("images", 5),
   updateProductController,
 );
 adminRouter.delete("/products/:id", deleteProductController);
-adminRouter.patch("/products/:id/featured", toggleFeaturedProduct);
+adminRouter.patch("/products/:id/featured", toggleFeaturedController);
 
 // ─── Categories ───────────────────────────────────────────────────────────────
 
