@@ -235,9 +235,10 @@ export const ProductInfo = ({ product }) => {
 
       <Separator />
 
-      {/* Price + description */}
+      {/* Price only — full description now lives in the Details tab on
+          ProductDetails.jsx, not here, to keep this column compact */}
       <div>
-        <div className="flex items-baseline gap-3 mb-3">
+        <div className="flex items-baseline gap-3">
           <span className="text-3xl font-bold text-gray-900">
             ৳ {activePrice.toLocaleString()}
           </span>
@@ -254,9 +255,6 @@ export const ProductInfo = ({ product }) => {
             </>
           )}
         </div>
-        <p className="text-gray-500 text-sm leading-relaxed">
-          {product.description}
-        </p>
       </div>
 
       {/* Variant selectors */}
