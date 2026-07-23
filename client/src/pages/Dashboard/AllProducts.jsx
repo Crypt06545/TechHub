@@ -50,7 +50,7 @@ import {
 
 import AddProduct from "./AddProduct";
 import ManageProductCost from "./ManageProductCost";
-import { useProducts } from "@/hooks/useProducts";
+import { useAdminProducts } from "@/hooks/useAdminAnalytics";
 
 const formatCurrency = (value) => `৳${Number(value).toLocaleString("en-BD")}`;
 
@@ -89,11 +89,11 @@ const AllProducts = () => {
 
   const currentCursor = cursorStack[pageIndex];
 
-  const { data, isLoading, isFetching } = useProducts(
+  const { data, isLoading, isFetching } = useAdminProducts(
     { search: debouncedSearch || undefined },
     currentCursor,
   );
-
+  
   const products = data?.data?.products || [];
   const hasMore = data?.data?.hasMore || false;
   const nextCursor = data?.data?.nextCursor || null;

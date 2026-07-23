@@ -1,9 +1,8 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { useForm, Controller, useFieldArray } from "react-hook-form";
 import ReactQuill from "react-quill-new";
 import "react-quill-new/dist/quill.snow.css";
-import { X, Upload, ImageIcon, Star, Plus } from "lucide-react";
-
+import { X, Upload, ImageIcon, Star, Plus, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -17,17 +16,16 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Card, CardContent } from "@/components/ui/card";
+import { AuthToast } from "@/components/common/AuthToast";
 
-const categories = [
-  "Laptops",
-  "Smartphones",
-  "Tablets",
-  "Accessories",
-  "Monitors",
-  "Printers",
-  "Networking",
-  "Storage",
-];
+// Category list still comes from the real admin endpoint (Category
+// documents with genuine ObjectIds) — this is the one piece that must
+// stay live, per your instruction, even while product creation itself
+// is stubbed out below.
+import {
+  useAdminCategories,
+  useCreateProduct,
+} from "@/hooks/useAdminAnalytics";
 
 const brands = [
   "Apple",
@@ -40,7 +38,6 @@ const brands = [
   "Microsoft",
 ];
 
-// React Quill Configuration
 const quillModules = {
   toolbar: [
     [{ header: [1, 2, 3, 4, 5, 6, false] }],
@@ -83,8 +80,6 @@ const quillFormats = [
   "size",
 ];
 
-// Builds the cartesian product of sizes/colors. Either can be empty —
-// e.g. sizes only (no colors) still produces one variant per size.
 const buildCombos = (sizes, colors) => {
   if (sizes.length && colors.length) {
     return sizes.flatMap((size) => colors.map((color) => ({ size, color })));
@@ -99,15 +94,19 @@ const comboKey = (size, color) => `${size || ""}__${color || ""}`;
 const AddProduct = () => {
   const [images, setImages] = useState([]);
   const [imageUrls, setImageUrls] = useState([""]);
-  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // --- Variant (size/color) state ---
+  // Real API — categories must stay live even though product creation
+  // itself is stubbed below.
+  const { data: categoriesData, isLoading: categoriesLoading } =
+    useAdminCategories();
+  const categories = categoriesData?.data?.categories || [];
+
   const [hasVariants, setHasVariants] = useState(false);
   const [sizes, setSizes] = useState([]);
   const [sizeInput, setSizeInput] = useState("");
   const [colors, setColors] = useState([]);
   const [colorInput, setColorInput] = useState("");
-
+  const { mutate, isPending: isSubmitting } = useCreateProduct();
   const {
     register,
     handleSubmit,
@@ -124,7 +123,7 @@ const AddProduct = () => {
       stock: "",
       discount: "",
       sku: "",
-      warranty: "",
+      ratingAverage: "",
       description: "",
       status: "draft",
       isPublished: false,
@@ -140,21 +139,20 @@ const AddProduct = () => {
 
   const basePrice = watch("price");
 
-  // Keep the variants array in sync with the current sizes/colors tags.
-  // Preserves price/stock/sku already entered for combos that still exist.
-  useEffect(() => {
+  const updateVariants = (newSizes, newColors) => {
     if (!hasVariants) return;
 
-    const combos = buildCombos(sizes, colors);
+    const combos = buildCombos(newSizes, newColors);
     const comboKeys = combos.map((c) => comboKey(c.size, c.color));
-    const existingKeys = fields.map((f) => comboKey(f.size, f.color));
+    const currentFields = watch("variants") || [];
+    const existingKeys = currentFields.map((f) => comboKey(f.size, f.color));
 
-    // remove stale rows (walk backwards so indices stay valid)
-    for (let i = fields.length - 1; i >= 0; i--) {
-      if (!comboKeys.includes(existingKeys[i])) remove(i);
+    for (let i = currentFields.length - 1; i >= 0; i--) {
+      if (!comboKeys.includes(existingKeys[i])) {
+        remove(i);
+      }
     }
 
-    // add new rows for combos that don't exist yet
     combos.forEach((c) => {
       if (!existingKeys.includes(comboKey(c.size, c.color))) {
         append({
@@ -165,42 +163,56 @@ const AddProduct = () => {
         });
       }
     });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sizes, colors, hasVariants]);
+  };
 
   const addSize = () => {
     const value = sizeInput.trim();
-    if (value && !sizes.includes(value)) setSizes((prev) => [...prev, value]);
+    if (value && !sizes.includes(value)) {
+      const newSizes = [...sizes, value];
+      setSizes(newSizes);
+      updateVariants(newSizes, colors);
+    }
     setSizeInput("");
+  };
+
+  const removeSize = (value) => {
+    const newSizes = sizes.filter((s) => s !== value);
+    setSizes(newSizes);
+    updateVariants(newSizes, colors);
   };
 
   const addColor = () => {
     const value = colorInput.trim();
-    if (value && !colors.includes(value)) setColors((prev) => [...prev, value]);
+    if (value && !colors.includes(value)) {
+      const newColors = [...colors, value];
+      setColors(newColors);
+      updateVariants(sizes, newColors);
+    }
     setColorInput("");
   };
 
-  const removeSize = (value) =>
-    setSizes((prev) => prev.filter((s) => s !== value));
-
-  const removeColor = (value) =>
-    setColors((prev) => prev.filter((c) => c !== value));
+  const removeColor = (value) => {
+    const newColors = colors.filter((c) => c !== value);
+    setColors(newColors);
+    updateVariants(sizes, newColors);
+  };
 
   const toggleVariants = (checked) => {
     setHasVariants(checked);
     if (!checked) {
-      // clear everything when turning variants off so stale data
-      // doesn't get submitted silently
+      const currentFields = watch("variants") || [];
+      for (let i = currentFields.length - 1; i >= 0; i--) {
+        remove(i);
+      }
       setSizes([]);
       setColors([]);
-      for (let i = fields.length - 1; i >= 0; i--) remove(i);
     }
   };
 
   const handleImageUpload = (e) => {
     const files = Array.from(e.target.files);
     if (images.length + files.length > 5) {
-      alert("You can upload a maximum of 5 images");
+      AuthToast.error("You can upload a maximum of 5 images");
       return;
     }
 
@@ -238,52 +250,98 @@ const AddProduct = () => {
     setImageUrls(newUrls.length === 0 ? [""] : newUrls);
   };
 
-  const onSubmit = async (data) => {
-    setIsSubmitting(true);
+  const resetForm = () => {
+    images.forEach((img) => URL.revokeObjectURL(img.preview));
 
+    reset();
+    setImages([]);
+    setImageUrls([""]);
+    setSizes([]);
+    setColors([]);
+    setHasVariants(false);
+    const currentFields = watch("variants") || [];
+    for (let i = currentFields.length - 1; i >= 0; i--) {
+      remove(i);
+    }
+  };
+
+  // TODO: wire this back up once the create-product endpoint is ready.
+  const onSubmit = (data) => {
     const resolvedVariants = (data.variants || []).map((v) => ({
       size: v.size || null,
       color: v.color || null,
-      // falls back to the base price when left blank
       price: v.price ? Number(v.price) : Number(data.price),
       stock: v.stock ? Number(v.stock) : 0,
     }));
 
-    const formData = {
-      title: data.productName,
-      slug: data.productName
-        .toLowerCase()
-        .replace(/[^a-z0-9]+/g, "-")
-        .replace(/^-|-$/g, ""),
-      description: data.description,
-      price: Number(data.price),
-      compareAtPrice: data.discount
-        ? Math.round(Number(data.price) * (1 + Number(data.discount) / 100))
-        : null,
-      brand: data.brand,
-      category: data.category,
-      sku: data.sku,
-      warranty: data.warranty,
-      stock: hasVariants
-        ? resolvedVariants.reduce((sum, v) => sum + v.stock, 0)
-        : Number(data.stock),
-      isPublished: data.isPublished,
-      isArchived: data.status === "archived",
-      isFeatured: data.isFeatured,
-      uploadedImages: images,
-      imageUrls: imageUrls.filter((url) => url.trim() !== ""),
-      hasVariants,
-      variants: hasVariants ? resolvedVariants : [],
-    };
+    const formData = new FormData();
 
-    console.log("Form submitted:", formData);
+    formData.append("title", data.productName);
+    formData.append("description", data.description || "");
+    formData.append("price", Number(data.price));
+    formData.append("category", data.category);
+    formData.append("brand", data.brand || "");
+    formData.append("sku", data.sku || "");
+    formData.append("hasVariants", hasVariants);
+    formData.append("isFeatured", data.isFeatured);
 
-    // TODO: Send to your API
-    // await axios.post("/api/products", formData);
+    if (data.ratingAverage !== "") {
+      formData.append("ratingAverage", Number(data.ratingAverage));
+    }
 
-    setIsSubmitting(false);
+    let isPublished = false;
+    let isArchived = false;
+
+    if (data.status === "published") {
+      isPublished = true;
+    } else if (data.status === "archived") {
+      isArchived = true;
+    }
+
+    formData.append("isPublished", isPublished);
+    formData.append("isArchived", isArchived);
+
+    const discount = Number(data.discount);
+
+    if (discount > 0 && discount < 100) {
+      formData.append(
+        "compareAtPrice",
+        Math.round(Number(data.price) / ((100 - discount) / 100)),
+      );
+    }
+
+    if (hasVariants) {
+      formData.append("variants", JSON.stringify(resolvedVariants));
+    } else {
+      formData.append("stock", Number(data.stock) || 0);
+    }
+
+    images.forEach((img) => {
+      formData.append("images", img.file);
+    });
+
+    const validUrls = imageUrls.filter((url) => url.trim() !== "");
+
+    if (validUrls.length > 0) {
+      formData.append("imageUrls", JSON.stringify(validUrls));
+    }
+
+    mutate(formData, {
+      onSuccess: (response) => {
+        AuthToast.success(response?.message || "Product created successfully");
+        resetForm();
+      },
+
+      onError: (err) => {
+        AuthToast.error(
+          err?.response?.data?.message || "Failed to create product",
+        );
+        console.log(err);
+      },
+    });
   };
 
+  
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-8">
       <Card>
@@ -303,7 +361,7 @@ const AddProduct = () => {
                 })}
               />
               {errors.productName && (
-                <p className="text-sm text-red-500">
+                <p className="text-xs text-red-500">
                   {errors.productName.message}
                 </p>
               )}
@@ -334,11 +392,11 @@ const AddProduct = () => {
                 )}
               />
               {errors.brand && (
-                <p className="text-sm text-red-500">{errors.brand.message}</p>
+                <p className="text-xs text-red-500">{errors.brand.message}</p>
               )}
             </div>
 
-            {/* Category */}
+            {/* Category — real admin categories, real _id values */}
             <div className="space-y-2">
               <Label htmlFor="category">
                 Category <span className="text-red-500">*</span>
@@ -348,14 +406,24 @@ const AddProduct = () => {
                 control={control}
                 rules={{ required: "Category is required" }}
                 render={({ field }) => (
-                  <Select onValueChange={field.onChange} value={field.value}>
+                  <Select
+                    onValueChange={field.onChange}
+                    value={field.value}
+                    disabled={categoriesLoading}
+                  >
                     <SelectTrigger id="category">
-                      <SelectValue placeholder="Select category" />
+                      <SelectValue
+                        placeholder={
+                          categoriesLoading
+                            ? "Loading categories..."
+                            : "Select category"
+                        }
+                      />
                     </SelectTrigger>
                     <SelectContent>
-                      {categories.map((category) => (
-                        <SelectItem key={category} value={category}>
-                          {category}
+                      {categories.map((cat) => (
+                        <SelectItem key={cat._id} value={cat._id}>
+                          {cat.name}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -363,7 +431,7 @@ const AddProduct = () => {
                 )}
               />
               {errors.category && (
-                <p className="text-sm text-red-500">
+                <p className="text-xs text-red-500">
                   {errors.category.message}
                 </p>
               )}
@@ -381,21 +449,20 @@ const AddProduct = () => {
                 placeholder="120000"
                 {...register("price", {
                   required: "Price is required",
-                  min: 0.01,
+                  min: { value: 0, message: "Price cannot be negative" },
                 })}
               />
               {hasVariants && (
                 <p className="text-xs text-muted-foreground">
-                  Used as the fallback for any variant left without its own
-                  price.
+                  Used as fallback for variants without price
                 </p>
               )}
               {errors.price && (
-                <p className="text-sm text-red-500">{errors.price.message}</p>
+                <p className="text-xs text-red-500">{errors.price.message}</p>
               )}
             </div>
 
-            {/* Stock — hidden once variants take over stock tracking */}
+            {/* Stock (only when no variants) */}
             {!hasVariants && (
               <div className="space-y-2">
                 <Label htmlFor="stock">
@@ -407,11 +474,11 @@ const AddProduct = () => {
                   placeholder="25"
                   {...register("stock", {
                     required: "Stock is required",
-                    min: 0,
+                    min: { value: 0, message: "Stock cannot be negative" },
                   })}
                 />
                 {errors.stock && (
-                  <p className="text-sm text-red-500">{errors.stock.message}</p>
+                  <p className="text-xs text-red-500">{errors.stock.message}</p>
                 )}
               </div>
             )}
@@ -423,33 +490,51 @@ const AddProduct = () => {
                 id="discount"
                 type="number"
                 placeholder="10"
-                {...register("discount", { min: 0, max: 100 })}
+                {...register("discount", {
+                  min: { value: 0, message: "Min 0%" },
+                  max: { value: 100, message: "Max 100%" },
+                })}
               />
+              {errors.discount && (
+                <p className="text-xs text-red-500">
+                  {errors.discount.message}
+                </p>
+              )}
             </div>
 
             {/* SKU */}
             <div className="space-y-2">
-              <Label htmlFor="sku">
-                SKU <span className="text-red-500">*</span>
-              </Label>
-              <Input
-                id="sku"
-                placeholder="SKU-123456"
-                {...register("sku", { required: "SKU is required" })}
-              />
-              {errors.sku && (
-                <p className="text-sm text-red-500">{errors.sku.message}</p>
-              )}
+              <Label htmlFor="sku">SKU</Label>
+              <Input id="sku" placeholder="SKU-123456" {...register("sku")} />
             </div>
 
-            {/* Warranty */}
+            {/* ✅ New: Initial Rating */}
             <div className="space-y-2">
-              <Label htmlFor="warranty">Warranty</Label>
+              <Label
+                htmlFor="ratingAverage"
+                className="flex items-center gap-1.5"
+              >
+                <Star className="w-3.5 h-3.5 text-yellow-500" />
+                Initial Rating{" "}
+                <span className="text-xs text-muted-foreground font-normal">
+                  (optional, 0–5)
+                </span>
+              </Label>
               <Input
-                id="warranty"
-                placeholder="1 Year Official Warranty"
-                {...register("warranty")}
+                id="ratingAverage"
+                type="number"
+                step="0.1"
+                placeholder="0"
+                {...register("ratingAverage", {
+                  min: { value: 0, message: "Min 0" },
+                  max: { value: 5, message: "Max 5" },
+                })}
               />
+              {errors.ratingAverage && (
+                <p className="text-xs text-red-500">
+                  {errors.ratingAverage.message}
+                </p>
+              )}
             </div>
 
             {/* Status */}
@@ -473,7 +558,6 @@ const AddProduct = () => {
               />
             </div>
 
-            {/* isPublished Toggle */}
             <div className="flex items-center gap-3 pt-6">
               <Controller
                 name="isPublished"
@@ -490,7 +574,6 @@ const AddProduct = () => {
               </Label>
             </div>
 
-            {/* isFeatured Toggle */}
             <div className="flex items-center gap-3">
               <Controller
                 name="isFeatured"
@@ -614,8 +697,7 @@ const AddProduct = () => {
                     Variant Pricing & Stock
                   </Label>
                   <p className="text-xs text-muted-foreground">
-                    Leave price blank to use the base price (৳
-                    {basePrice || "0"}).
+                    Leave price blank to use base price (৳{basePrice || "0"})
                   </p>
 
                   <div className="space-y-2">
@@ -639,7 +721,7 @@ const AddProduct = () => {
                             type="number"
                             placeholder={basePrice || "0"}
                             {...register(`variants.${index}.price`, {
-                              min: 0,
+                              min: { value: 0, message: "Min 0" },
                             })}
                           />
                         </div>
@@ -652,8 +734,8 @@ const AddProduct = () => {
                             type="number"
                             placeholder="0"
                             {...register(`variants.${index}.stock`, {
-                              required: true,
-                              min: 0,
+                              required: "Stock is required",
+                              min: { value: 0, message: "Min 0" },
                             })}
                           />
                         </div>
@@ -767,16 +849,10 @@ const AddProduct = () => {
       <Card>
         <CardContent className="pt-6">
           <div className="space-y-2">
-            <Label htmlFor="description">
-              Description <span className="text-red-500">*</span>
-            </Label>
+            <Label htmlFor="description">Description</Label>
             <Controller
               name="description"
               control={control}
-              rules={{
-                required: "Description is required",
-                minLength: { value: 10, message: "At least 10 characters" },
-              }}
               render={({ field }) => (
                 <ReactQuill
                   theme="snow"
@@ -790,11 +866,6 @@ const AddProduct = () => {
                 />
               )}
             />
-            {errors.description && (
-              <p className="text-sm text-red-500 mt-12">
-                {errors.description.message}
-              </p>
-            )}
           </div>
         </CardContent>
       </Card>
@@ -804,19 +875,20 @@ const AddProduct = () => {
         <Button
           variant="outline"
           type="button"
-          onClick={() => {
-            reset();
-            setImages([]);
-            setImageUrls([""]);
-            setSizes([]);
-            setColors([]);
-            setHasVariants(false);
-          }}
+          onClick={resetForm}
+          disabled={isSubmitting}
         >
           Reset
         </Button>
         <Button type="submit" disabled={isSubmitting}>
-          {isSubmitting ? "Creating..." : "Create Product"}
+          {isSubmitting ? (
+            <>
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              Logging...
+            </>
+          ) : (
+            "Create Product"
+          )}
         </Button>
       </div>
     </form>

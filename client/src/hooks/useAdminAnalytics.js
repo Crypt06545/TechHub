@@ -6,7 +6,81 @@ import {
   getRecentOrders,
   getAdminOrders,
   updateOrderStatus,
+  createProduct,
+  updateProduct,
+  deleteProduct,
+  toggleFeaturedProduct,
+  getAdminCategories,
+  getAdminProducts,
 } from "@/api/admin.api";
+
+export const useAdminCategories = () =>
+  useQuery({
+    queryKey: ["admin-categories"],
+    queryFn: getAdminCategories,
+    staleTime: 15 * 60 * 1000,
+  });
+
+export const useAdminProducts = (filters = {}, cursor = null, limit = 12) =>
+  useQuery({
+    queryKey: ["admin-products", filters, cursor, limit],
+    queryFn: () =>
+      getAdminProducts({
+        limit,
+        cursor: cursor || undefined,
+        search: filters.search || undefined,
+        category: filters.category || undefined,
+        status: filters.status || undefined,
+        isFeatured: filters.isFeatured ?? undefined,
+        sort: filters.sort || undefined,
+      }),
+    staleTime: 30 * 1000,
+    placeholderData: (previousData) => previousData,
+  });
+
+export const useCreateProduct = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: createProduct,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin-products"] });
+      queryClient.invalidateQueries({ queryKey: ["products"] });
+    },
+  });
+};
+
+export const useUpdateProduct = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: updateProduct,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin-products"] });
+      queryClient.invalidateQueries({ queryKey: ["products"] });
+    },
+  });
+};
+
+export const useDeleteProduct = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: deleteProduct,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin-products"] });
+      queryClient.invalidateQueries({ queryKey: ["products"] });
+    },
+  });
+};
+
+export const useToggleFeaturedProduct = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: toggleFeaturedProduct,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin-products"] });
+      queryClient.invalidateQueries({ queryKey: ["products"] });
+    },
+  });
+};
 
 export const useDashboardStats = () =>
   useQuery({
@@ -40,6 +114,7 @@ export const useUpdateOrderStatus = () => {
     },
   });
 };
+
 export const useRevenueAnalytics = (range) =>
   useQuery({
     queryKey: ["revenue-analytics", range],
