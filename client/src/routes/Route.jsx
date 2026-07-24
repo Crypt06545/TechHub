@@ -24,6 +24,8 @@ import AllCoupons from "@/pages/Dashboard/AllCoupons";
 import TrackOrderPage from "@/components/TrackOrderPage";
 import CartPage from "@/pages/CartPage";
 import CheckoutPage from "@/pages/Checkout";
+import AboutUs from "@/components/AboutUs";
+import PrivacyPolicy from "@/components/DataPolicy";
 
 const router = createBrowserRouter([
   {
@@ -36,7 +38,9 @@ const router = createBrowserRouter([
       { path: "/profile", element: <UserProfile /> },
       { path: "/track-order", element: <TrackOrderPage /> },
       { path: "/cart", element: <CartPage /> },
-      { path: "checkout", element: <CheckoutPage /> },
+      { path: "/checkout", element: <CheckoutPage /> },
+      { path: "/about", element: <AboutUs /> },
+      { path: "/datapolicy", element: <PrivacyPolicy /> },
     ],
   },
   { path: "login", element: <Login /> },
