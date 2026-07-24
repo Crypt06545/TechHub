@@ -50,7 +50,12 @@ import {
 
 import AddProduct from "./AddProduct";
 import ManageProductCost from "./ManageProductCost";
-import { useAdminProducts } from "@/hooks/useAdminAnalytics";
+import {
+  useAdminProducts,
+  useAdminProductDetails,
+} from "@/hooks/useAdminAnalytics";
+
+import EditProduct from "./EditProduct";
 
 const formatCurrency = (value) => `৳${Number(value).toLocaleString("en-BD")}`;
 
@@ -74,6 +79,7 @@ const AllProducts = () => {
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [createOpen, setCreateOpen] = useState(false);
   const [costProduct, setCostProduct] = useState(null);
+  const [editProductId, setEditProductId] = useState(null);
   const [cursorStack, setCursorStack] = useState([null]);
   const [pageIndex, setPageIndex] = useState(0);
 
@@ -93,7 +99,11 @@ const AllProducts = () => {
     { search: debouncedSearch || undefined },
     currentCursor,
   );
-  
+
+  const { data: editProductData, isLoading: editProductLoading } =
+    useAdminProductDetails(editProductId);
+  const editProductFull = editProductData?.data?.product;
+
   const products = data?.data?.products || [];
   const hasMore = data?.data?.hasMore || false;
   const nextCursor = data?.data?.nextCursor || null;
@@ -270,7 +280,9 @@ const AllProducts = () => {
                               <Eye className="mr-2 h-4 w-4" />
                               View
                             </DropdownMenuItem>
-                            <DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={() => setEditProductId(product._id)}
+                            >
                               <Pencil className="mr-2 h-4 w-4" />
                               Edit
                             </DropdownMenuItem>
@@ -346,6 +358,33 @@ const AllProducts = () => {
               onSuccess={() => setCostProduct(null)}
             />
           )}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={Boolean(editProductId)}
+        onOpenChange={(open) => !open && setEditProductId(null)}
+      >
+        <DialogContent className="max-h-[92vh] w-[98vw] overflow-y-auto rounded-2xl border sm:max-w-5xl">
+          <DialogHeader>
+            <DialogTitle className="text-2xl">Edit Product</DialogTitle>
+            <DialogDescription>
+              Update product information — changes apply immediately.
+            </DialogDescription>
+          </DialogHeader>
+
+          {editProductLoading ? (
+            <div className="space-y-3 py-6">
+              <Skeleton className="h-10 w-full" />
+              <Skeleton className="h-10 w-full" />
+              <Skeleton className="h-40 w-full" />
+            </div>
+          ) : editProductFull ? (
+            <EditProduct
+              product={editProductFull}
+              onSuccess={() => setEditProductId(null)}
+            />
+          ) : null}
         </DialogContent>
       </Dialog>
     </div>

@@ -12,6 +12,7 @@ import {
   toggleFeaturedProduct,
   getAdminCategories,
   getAdminProducts,
+  getAdminProductById,
 } from "@/api/admin.api";
 
 export const useAdminCategories = () =>
@@ -38,6 +39,14 @@ export const useAdminProducts = (filters = {}, cursor = null, limit = 12) =>
     placeholderData: (previousData) => previousData,
   });
 
+export const useAdminProductDetails = (id) =>
+  useQuery({
+    queryKey: ["admin-product", id],
+    queryFn: () => getAdminProductById(id),
+    enabled: !!id,
+    staleTime: 0,
+  });
+  
 export const useCreateProduct = () => {
   const queryClient = useQueryClient();
   return useMutation({

@@ -19,7 +19,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { AuthToast } from "@/components/common/AuthToast";
 import {
   useAdminCategories,
-  useCreateProduct,
+  useUpdateProduct,
 } from "@/hooks/useAdminAnalytics";
 
 const brands = [
@@ -86,44 +86,64 @@ const buildCombos = (sizes, colors) => {
 
 const comboKey = (size, color) => `${size || ""}__${color || ""}`;
 
-const AddProduct = () => {
-  const [images, setImages] = useState([]);
+// Reverse-engineer discount % from price + compareAtPrice, since the
+// backend only stores compareAtPrice, not the original discount input.
+const deriveDiscount = (price, compareAtPrice) => {
+  if (!compareAtPrice || !price || compareAtPrice <= price) return "";
+  return Math.round(((compareAtPrice - price) / compareAtPrice) * 100);
+};
+
+const EditProduct = ({ product, onSuccess }) => {
+  const [images, setImages] = useState([]); // newly added files
+  const [existingImages, setExistingImages] = useState(product.images || []);
+  const [removedImageUrls, setRemovedImageUrls] = useState([]);
   const [imageUrls, setImageUrls] = useState([""]);
 
-  // Real API — categories must stay live even though product creation
-  // itself is stubbed below.
   const { data: categoriesData, isLoading: categoriesLoading } =
     useAdminCategories();
   const categories = categoriesData?.data?.categories || [];
 
-  const [hasVariants, setHasVariants] = useState(false);
-  const [sizes, setSizes] = useState([]);
+  const initialSizes = [
+    ...new Set((product.variants || []).map((v) => v.size).filter(Boolean)),
+  ];
+  const initialColors = [
+    ...new Set((product.variants || []).map((v) => v.color).filter(Boolean)),
+  ];
+
+  const [hasVariants, setHasVariants] = useState(Boolean(product.hasVariants));
+  const [sizes, setSizes] = useState(initialSizes);
   const [sizeInput, setSizeInput] = useState("");
-  const [colors, setColors] = useState([]);
+  const [colors, setColors] = useState(initialColors);
   const [colorInput, setColorInput] = useState("");
-  const { mutate, isPending: isSubmitting } = useCreateProduct();
+
+  const { mutate, isPending: isSubmitting } = useUpdateProduct();
+
   const {
     register,
     handleSubmit,
     control,
-    reset,
     watch,
     formState: { errors },
   } = useForm({
     defaultValues: {
-      productName: "",
-      brand: "",
-      category: "",
-      price: "",
-      stock: "",
-      discount: "",
-      sku: "",
-      ratingAverage: "",
-      description: "",
-      status: "draft",
-      isPublished: false,
-      isFeatured: false,
-      variants: [],
+      productName: product.title || "",
+      brand: product.brand || "",
+      category: product.category?._id || product.category || "",
+      price: product.price ?? "",
+      stock: product.hasVariants ? "" : (product.stock ?? ""),
+      discount: deriveDiscount(product.price, product.compareAtPrice),
+      sku: product.sku || "",
+      ratingAverage: product.ratingAverage ?? "",
+      description: product.description || "",
+      status: product.isArchived ? "archived" : "draft",
+      isPublished: Boolean(product.isPublished),
+      isFeatured: Boolean(product.isFeatured),
+      variants: (product.variants || []).map((v) => ({
+        size: v.size,
+        color: v.color,
+        price: v.price ?? "",
+        stock: v.stock ?? "",
+      })),
     },
   });
 
@@ -150,12 +170,7 @@ const AddProduct = () => {
 
     combos.forEach((c) => {
       if (!existingKeys.includes(comboKey(c.size, c.color))) {
-        append({
-          size: c.size,
-          color: c.color,
-          price: "",
-          stock: "",
-        });
+        append({ size: c.size, color: c.color, price: "", stock: "" });
       }
     });
   };
@@ -196,18 +211,24 @@ const AddProduct = () => {
     setHasVariants(checked);
     if (!checked) {
       const currentFields = watch("variants") || [];
-      for (let i = currentFields.length - 1; i >= 0; i--) {
-        remove(i);
-      }
+      for (let i = currentFields.length - 1; i >= 0; i--) remove(i);
       setSizes([]);
       setColors([]);
     }
   };
 
+  // ── Existing image removal (marks for deletion, doesn't touch DB yet) ──
+  const markExistingImageRemoved = (url) => {
+    setExistingImages((prev) => prev.filter((img) => img.url !== url));
+    setRemovedImageUrls((prev) => [...prev, url]);
+  };
+
+  // ── New image upload (same pattern as AddProduct) ──
   const handleImageUpload = (e) => {
     const files = Array.from(e.target.files);
-    if (images.length + files.length > 5) {
-      AuthToast.error("You can upload a maximum of 5 images");
+    const totalCount = existingImages.length + images.length + files.length;
+    if (totalCount > 5) {
+      AuthToast.error("You can have a maximum of 5 images total");
       return;
     }
 
@@ -217,10 +238,12 @@ const AddProduct = () => {
       id: Math.random().toString(36).substr(2, 9),
     }));
 
-    setImages((prev) => [...prev, ...newImages].slice(0, 5));
+    setImages((prev) =>
+      [...prev, ...newImages].slice(0, 5 - existingImages.length),
+    );
   };
 
-  const removeImage = (id) => {
+  const removeNewImage = (id) => {
     setImages((prev) => {
       const imageToRemove = prev.find((img) => img.id === id);
       if (imageToRemove) URL.revokeObjectURL(imageToRemove.preview);
@@ -229,9 +252,7 @@ const AddProduct = () => {
   };
 
   const addImageUrl = () => {
-    if (imageUrls.length < 5) {
-      setImageUrls([...imageUrls, ""]);
-    }
+    if (imageUrls.length < 5) setImageUrls([...imageUrls, ""]);
   };
 
   const updateImageUrl = (index, value) => {
@@ -240,27 +261,22 @@ const AddProduct = () => {
     setImageUrls(newUrls);
   };
 
-  const removeImageUrl = (index) => {
+  const removeImageUrlField = (index) => {
     const newUrls = imageUrls.filter((_, i) => i !== index);
     setImageUrls(newUrls.length === 0 ? [""] : newUrls);
   };
 
-  const resetForm = () => {
-    images.forEach((img) => URL.revokeObjectURL(img.preview));
-
-    reset();
-    setImages([]);
-    setImageUrls([""]);
-    setSizes([]);
-    setColors([]);
-    setHasVariants(false);
-    const currentFields = watch("variants") || [];
-    for (let i = currentFields.length - 1; i >= 0; i--) {
-      remove(i);
-    }
-  };
+  const totalImageCount =
+    existingImages.length +
+    images.length +
+    imageUrls.filter((u) => u.trim() !== "").length;
 
   const onSubmit = (data) => {
+    if (totalImageCount === 0) {
+      AuthToast.error("At least one product image is required");
+      return;
+    }
+
     const resolvedVariants = (data.variants || []).map((v) => ({
       size: v.size || null,
       color: v.color || null,
@@ -290,7 +306,6 @@ const AddProduct = () => {
     formData.append("isArchived", isArchived);
 
     const discount = Number(data.discount);
-
     if (discount > 0 && discount < 100) {
       formData.append(
         "compareAtPrice",
@@ -304,29 +319,36 @@ const AddProduct = () => {
       formData.append("stock", Number(data.stock) || 0);
     }
 
-    images.forEach((img) => {
-      formData.append("images", img.file);
-    });
+    // new uploaded files
+    images.forEach((img) => formData.append("images", img.file));
 
+    // new image URLs (treated as already-hosted, no upload needed)
     const validUrls = imageUrls.filter((url) => url.trim() !== "");
-
     if (validUrls.length > 0) {
       formData.append("imageUrls", JSON.stringify(validUrls));
     }
 
-    mutate(formData, {
-      onSuccess: (response) => {
-        AuthToast.success(response?.message || "Product created successfully");
-        resetForm();
-      },
+    // existing images the admin removed this session
+    if (removedImageUrls.length > 0) {
+      formData.append("imagesToRemove", JSON.stringify(removedImageUrls));
+    }
 
-      onError: (err) => {
-        AuthToast.error(
-          err?.response?.data?.message || "Failed to create product",
-        );
-        console.log(err);
+    mutate(
+      { id: product._id, formData },
+      {
+        onSuccess: (response) => {
+          AuthToast.success(
+            response?.message || "Product updated successfully",
+          );
+          onSuccess?.();
+        },
+        onError: (err) => {
+          AuthToast.error(
+            err?.response?.data?.message || "Failed to update product",
+          );
+        },
       },
-    });
+    );
   };
 
   return (
@@ -336,11 +358,11 @@ const AddProduct = () => {
           <div className="grid gap-6 md:grid-cols-2">
             {/* Product Name */}
             <div className="space-y-2">
-              <Label htmlFor="productName">
+              <Label htmlFor="edit-productName">
                 Product Name <span className="text-red-500">*</span>
               </Label>
               <Input
-                id="productName"
+                id="edit-productName"
                 placeholder="MacBook Pro M4"
                 {...register("productName", {
                   required: "Product name is required",
@@ -356,7 +378,7 @@ const AddProduct = () => {
 
             {/* Brand */}
             <div className="space-y-2">
-              <Label htmlFor="brand">
+              <Label htmlFor="edit-brand">
                 Brand <span className="text-red-500">*</span>
               </Label>
               <Controller
@@ -365,7 +387,7 @@ const AddProduct = () => {
                 rules={{ required: "Brand is required" }}
                 render={({ field }) => (
                   <Select onValueChange={field.onChange} value={field.value}>
-                    <SelectTrigger id="brand">
+                    <SelectTrigger id="edit-brand">
                       <SelectValue placeholder="Select brand" />
                     </SelectTrigger>
                     <SelectContent>
@@ -383,9 +405,9 @@ const AddProduct = () => {
               )}
             </div>
 
-            {/* Category — real admin categories, real _id values */}
+            {/* Category */}
             <div className="space-y-2">
-              <Label htmlFor="category">
+              <Label htmlFor="edit-category">
                 Category <span className="text-red-500">*</span>
               </Label>
               <Controller
@@ -398,7 +420,7 @@ const AddProduct = () => {
                     value={field.value}
                     disabled={categoriesLoading}
                   >
-                    <SelectTrigger id="category">
+                    <SelectTrigger id="edit-category">
                       <SelectValue
                         placeholder={
                           categoriesLoading
@@ -426,12 +448,12 @@ const AddProduct = () => {
 
             {/* Price */}
             <div className="space-y-2">
-              <Label htmlFor="price">
+              <Label htmlFor="edit-price">
                 {hasVariants ? "Base Price (৳)" : "Price (৳)"}{" "}
                 <span className="text-red-500">*</span>
               </Label>
               <Input
-                id="price"
+                id="edit-price"
                 type="number"
                 placeholder="120000"
                 {...register("price", {
@@ -452,11 +474,11 @@ const AddProduct = () => {
             {/* Stock (only when no variants) */}
             {!hasVariants && (
               <div className="space-y-2">
-                <Label htmlFor="stock">
+                <Label htmlFor="edit-stock">
                   Stock Quantity <span className="text-red-500">*</span>
                 </Label>
                 <Input
-                  id="stock"
+                  id="edit-stock"
                   type="number"
                   placeholder="25"
                   {...register("stock", {
@@ -472,9 +494,9 @@ const AddProduct = () => {
 
             {/* Discount */}
             <div className="space-y-2">
-              <Label htmlFor="discount">Discount (%)</Label>
+              <Label htmlFor="edit-discount">Discount (%)</Label>
               <Input
-                id="discount"
+                id="edit-discount"
                 type="number"
                 placeholder="10"
                 {...register("discount", {
@@ -491,24 +513,28 @@ const AddProduct = () => {
 
             {/* SKU */}
             <div className="space-y-2">
-              <Label htmlFor="sku">SKU</Label>
-              <Input id="sku" placeholder="SKU-123456" {...register("sku")} />
+              <Label htmlFor="edit-sku">SKU</Label>
+              <Input
+                id="edit-sku"
+                placeholder="SKU-123456"
+                {...register("sku")}
+              />
             </div>
 
-            {/* Initial Rating */}
+            {/* Rating */}
             <div className="space-y-2">
               <Label
-                htmlFor="ratingAverage"
+                htmlFor="edit-ratingAverage"
                 className="flex items-center gap-1.5"
               >
                 <Star className="w-3.5 h-3.5 text-yellow-500" />
-                Initial Rating{" "}
+                Rating{" "}
                 <span className="text-xs text-muted-foreground font-normal">
-                  (optional, 0–5)
+                  (0–5)
                 </span>
               </Label>
               <Input
-                id="ratingAverage"
+                id="edit-ratingAverage"
                 type="number"
                 step="0.1"
                 placeholder="0"
@@ -524,15 +550,15 @@ const AddProduct = () => {
               )}
             </div>
 
-            {/* Status — draft or archived only; publish is controlled by the switch below */}
+            {/* Status */}
             <div className="space-y-2">
-              <Label htmlFor="status">Status</Label>
+              <Label htmlFor="edit-status">Status</Label>
               <Controller
                 name="status"
                 control={control}
                 render={({ field }) => (
                   <Select onValueChange={field.onChange} value={field.value}>
-                    <SelectTrigger id="status">
+                    <SelectTrigger id="edit-status">
                       <SelectValue placeholder="Select status" />
                     </SelectTrigger>
                     <SelectContent>
@@ -544,7 +570,7 @@ const AddProduct = () => {
               />
             </div>
 
-            {/* Publish switch — the real source of truth for isPublished */}
+            {/* Publish switch */}
             <div className="flex items-center gap-3 pt-6">
               <Controller
                 name="isPublished"
@@ -594,12 +620,11 @@ const AddProduct = () => {
           {hasVariants && (
             <>
               <div className="grid gap-6 md:grid-cols-2">
-                {/* Sizes */}
                 <div className="space-y-2">
                   <Label>Sizes (optional)</Label>
                   <div className="flex gap-2">
                     <Input
-                      placeholder="e.g. S, M, L or 128GB, 256GB"
+                      placeholder="e.g. S, M, L or 3ML, 6ML"
                       value={sizeInput}
                       onChange={(e) => setSizeInput(e.target.value)}
                       onKeyDown={(e) => {
@@ -635,7 +660,6 @@ const AddProduct = () => {
                   )}
                 </div>
 
-                {/* Colors */}
                 <div className="space-y-2">
                   <Label>Colors (optional)</Label>
                   <div className="flex gap-2">
@@ -677,7 +701,6 @@ const AddProduct = () => {
                 </div>
               </div>
 
-              {/* Generated variant rows */}
               {fields.length > 0 && (
                 <div className="space-y-3">
                   <Label className="text-base font-medium">
@@ -736,7 +759,7 @@ const AddProduct = () => {
         </CardContent>
       </Card>
 
-      {/* Image Upload Section */}
+      {/* Images */}
       <Card>
         <CardContent className="pt-6">
           <div className="space-y-4">
@@ -744,18 +767,48 @@ const AddProduct = () => {
               Product Images (Max 5)
             </Label>
 
+            {/* Existing images already on the product */}
+            {existingImages.length > 0 && (
+              <div className="space-y-2">
+                <p className="text-xs text-muted-foreground">Current images</p>
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+                  {existingImages.map((img) => (
+                    <div key={img.url} className="relative group">
+                      <img
+                        src={img.url}
+                        alt="Product"
+                        className="w-full h-32 object-cover rounded-lg border"
+                      />
+                      <Button
+                        type="button"
+                        variant="destructive"
+                        size="icon"
+                        className="absolute top-1 right-1 h-6 w-6 opacity-0 group-hover:opacity-100"
+                        onClick={() => markExistingImageRemoved(img.url)}
+                      >
+                        <X className="h-3 w-3" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Upload new images */}
             <div className="flex items-center gap-4">
               <Button
                 type="button"
                 variant="outline"
-                onClick={() => document.getElementById("image-upload").click()}
-                disabled={images.length >= 5}
+                onClick={() =>
+                  document.getElementById("edit-image-upload").click()
+                }
+                disabled={totalImageCount >= 5}
               >
                 <Upload className="mr-2 h-4 w-4" />
-                Upload Images
+                Upload New Images
               </Button>
               <input
-                id="image-upload"
+                id="edit-image-upload"
                 type="file"
                 multiple
                 accept="image/*"
@@ -763,30 +816,35 @@ const AddProduct = () => {
                 onChange={handleImageUpload}
               />
               <span className="text-sm text-muted-foreground">
-                {images.length}/5 images
+                {totalImageCount}/5 images
               </span>
             </div>
 
             {images.length > 0 && (
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
-                {images.map((image) => (
-                  <div key={image.id} className="relative group">
-                    <img
-                      src={image.preview}
-                      alt="Preview"
-                      className="w-full h-32 object-cover rounded-lg border"
-                    />
-                    <Button
-                      type="button"
-                      variant="destructive"
-                      size="icon"
-                      className="absolute top-1 right-1 h-6 w-6 opacity-0 group-hover:opacity-100"
-                      onClick={() => removeImage(image.id)}
-                    >
-                      <X className="h-3 w-3" />
-                    </Button>
-                  </div>
-                ))}
+              <div className="space-y-2">
+                <p className="text-xs text-muted-foreground">
+                  New images to upload
+                </p>
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+                  {images.map((image) => (
+                    <div key={image.id} className="relative group">
+                      <img
+                        src={image.preview}
+                        alt="Preview"
+                        className="w-full h-32 object-cover rounded-lg border"
+                      />
+                      <Button
+                        type="button"
+                        variant="destructive"
+                        size="icon"
+                        className="absolute top-1 right-1 h-6 w-6 opacity-0 group-hover:opacity-100"
+                        onClick={() => removeNewImage(image.id)}
+                      >
+                        <X className="h-3 w-3" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
 
@@ -794,8 +852,11 @@ const AddProduct = () => {
             <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <Label>Or Add Image URLs</Label>
-                {imageUrls.filter((url) => url.trim() !== "").length <
-                  5 - images.length && (
+
+                {imageUrls.filter((url) => url.trim() !== "").length +
+                  existingImages.length +
+                  images.length <
+                  5 && (
                   <Button
                     type="button"
                     variant="outline"
@@ -815,12 +876,13 @@ const AddProduct = () => {
                     value={url}
                     onChange={(e) => updateImageUrl(index, e.target.value)}
                   />
+
                   {imageUrls.length > 1 && (
                     <Button
                       type="button"
                       variant="ghost"
                       size="icon"
-                      onClick={() => removeImageUrl(index)}
+                      onClick={() => removeImageUrlField(index)}
                     >
                       <X className="h-4 w-4" />
                     </Button>
@@ -836,7 +898,7 @@ const AddProduct = () => {
       <Card>
         <CardContent className="pt-6">
           <div className="space-y-2">
-            <Label htmlFor="description">Description</Label>
+            <Label htmlFor="edit-description">Description</Label>
             <Controller
               name="description"
               control={control}
@@ -857,24 +919,16 @@ const AddProduct = () => {
         </CardContent>
       </Card>
 
-      {/* Submit Buttons */}
+      {/* Submit */}
       <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
-        <Button
-          variant="outline"
-          type="button"
-          onClick={resetForm}
-          disabled={isSubmitting}
-        >
-          Reset
-        </Button>
         <Button type="submit" disabled={isSubmitting}>
           {isSubmitting ? (
             <>
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              Logging...
+              Updating...
             </>
           ) : (
-            "Create Product"
+            "Save Changes"
           )}
         </Button>
       </div>
@@ -882,4 +936,4 @@ const AddProduct = () => {
   );
 };
 
-export default AddProduct;
+export default EditProduct;

@@ -22,6 +22,11 @@ export const getAdminProducts = async (params) => {
   return res.data;
 };
 
+export const getAdminProductById = async (id) => {
+  const res = await api.get(`/admin/products/${id}`);
+  return res.data;
+};
+
 export const getAdminOrders = async (params) => {
   const res = await api.get("/admin/orders", { params });
   return res.data;
