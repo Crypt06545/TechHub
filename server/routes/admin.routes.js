@@ -27,6 +27,7 @@ import {
   toggleFeaturedController,
   updateProductController,
   getAdminProductsController,
+  getAdminProductByIdController,
 } from "../controllers/product.contoller.js";
 
 const adminRouter = Router();
@@ -40,6 +41,7 @@ adminRouter.get("/users", getAllUserController);
 // ─── Products ─────────────────────────────────────────────────────────────────
 
 adminRouter.get("/products", getAdminProductsController);
+adminRouter.get("/products/:id", getAdminProductByIdController);
 adminRouter.post(
   "/products",
   upload.array("images", 5),

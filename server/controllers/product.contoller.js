@@ -115,6 +115,16 @@ export const getAdminProductsController = asyncHandler(async (req, res) => {
     .json(new ApiResponse(200, data, "Admin products fetched successfully"));
 });
 
+export const getAdminProductByIdController = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  assertValidId(id);
+
+  const product = await productService.getAdminProductById(id);
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, { product }, "Product fetched successfully"));
+});
 // ─── Admin: Create ────────────────────────────────────────────────────────
 
 export const createProductController = asyncHandler(async (req, res) => {
@@ -132,6 +142,7 @@ export const createProductController = asyncHandler(async (req, res) => {
     hasVariants,
     variants,
     imageUrls,
+    ratingAverage,
   } = req.body;
 
   const parsedVariants = parseJSON(variants, "variants") || [];
@@ -160,13 +171,13 @@ export const createProductController = asyncHandler(async (req, res) => {
     variants: parsedVariants,
     images,
     vendorId: req.user?._id,
+    ratingAverage,
   });
 
   return res
     .status(201)
     .json(new ApiResponse(201, { product }, "Product created successfully"));
 });
-
 // ─── Admin: Update ────────────────────────────────────────────────────────
 
 export const updateProductController = asyncHandler(async (req, res) => {
@@ -187,6 +198,7 @@ export const updateProductController = asyncHandler(async (req, res) => {
     hasVariants,
     variants,
     imagesToRemove,
+    ratingAverage,
   } = req.body;
 
   const parsedVariants = parseJSON(variants, "variants");
@@ -210,6 +222,7 @@ export const updateProductController = asyncHandler(async (req, res) => {
     variants: parsedVariants,
     imagesToRemove: parsedImagesToRemove,
     newImages,
+    ratingAverage,
   });
 
   if (removedImages.length) {

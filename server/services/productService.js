@@ -283,6 +283,13 @@ export const productService = {
    * isFeatured: true | false | undefined
    * sort: "latest" | "oldest" (default latest)
    */
+
+  async getAdminProductById(productId) {
+    const product = await productRepository.findById(productId);
+    if (!product) throw new ApiError(404, "Product not found");
+    return product;
+  },
+  
   async getAdminProducts({
     limit = 12,
     cursor,
@@ -470,6 +477,7 @@ export const productService = {
     variants,
     images,
     vendorId,
+    ratingAverage,
   }) {
     if (!title || !price || !category) {
       throw new ApiError(400, "title, price and category are required");
@@ -511,6 +519,9 @@ export const productService = {
       isPublished: isPublished === "true" || isPublished === true,
       isFeatured: toBool(isFeatured),
       vendorId,
+      ...(ratingAverage !== undefined && ratingAverage !== ""
+        ? { ratingAverage: Number(ratingAverage) }
+        : {}),
     });
 
     await invalidateProductCache();
@@ -535,6 +546,7 @@ export const productService = {
       variants,
       imagesToRemove,
       newImages,
+      ratingAverage,
     },
   ) {
     const product = await productRepository.findById(productId);
@@ -557,6 +569,8 @@ export const productService = {
     if (isPublished !== undefined)
       product.isPublished = isPublished === "true" || isPublished === true;
     if (isFeatured !== undefined) product.isFeatured = toBool(isFeatured);
+    if (ratingAverage !== undefined && ratingAverage !== "")
+      product.ratingAverage = Number(ratingAverage);
 
     if (hasVariants !== undefined) {
       const normalizedHasVariants = toBool(hasVariants);
