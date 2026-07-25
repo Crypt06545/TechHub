@@ -15,7 +15,7 @@ const ProductPrice = ({ price, oldPrice, stock }) => {
         )}
       </div>
 
-      <span className="text-[11px] font-semibold text-green-600">{stock}</span>
+      {/* <span className="text-[11px] font-semibold text-green-600">{stock}</span> */}
     </div>
   );
 };
