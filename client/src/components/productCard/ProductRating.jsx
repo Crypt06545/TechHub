@@ -16,7 +16,7 @@ const ProductRating = ({ rating, reviews }) => {
         />
       ))}
 
-      <span className="text-[11px] text-gray-500">({reviews})</span>
+      {/* <span className="text-[11px] text-gray-500">({reviews})</span> */}
     </div>
   );
 };

@@ -54,27 +54,29 @@ const FeaturedProducts = () => {
   return (
     <section className="py-12 px-4 container mx-auto sm:px-6 lg:px-8">
       {/* Real-World E-commerce Header Row */}
-      <div className="flex items-center justify-between mb-8 border-b border-gray-100 pb-4">
-        <div>
-          <h2 className="text-xl sm:text-2xl font-bold text-gray-900 tracking-tight">
-            Featured Products
-          </h2>
-          <p className="mt-1 text-xs sm:text-sm text-gray-500">
-            Our top picks and trending devices selected just for you.
-          </p>
-        </div>
+      <div className="mb-8 border-b border-gray-100 pb-4">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+          <div className="max-w-2xl">
+            <h2 className="text-xl font-bold tracking-tight text-gray-900 sm:text-2xl">
+              Featured Products
+            </h2>
 
-        {/* FIXED: Changed 'href' to 'to' for react-router-dom Link compatibility */}
-        <Link
-          to="/products"
-          className="group flex items-center gap-1 text-sm font-semibold text-black hover:text-gray-600 transition-colors"
-        >
-          See All
-          <ArrowRight
-            size={16}
-            className="transform transition-transform group-hover:translate-x-1"
-          />
-        </Link>
+            <p className="mt-1 text-sm leading-relaxed text-gray-500">
+              Our top picks and trending devices selected just for you.
+            </p>
+          </div>
+
+          <Link
+            to="/products"
+            className="group inline-flex items-center gap-1 self-start text-sm font-semibold text-black transition-colors hover:text-gray-600 sm:self-auto"
+          >
+            See All
+            <ArrowRight
+              size={16}
+              className="transition-transform duration-200 group-hover:translate-x-1"
+            />
+          </Link>
+        </div>
       </div>
 
       {/* Product Grid Loop */}
