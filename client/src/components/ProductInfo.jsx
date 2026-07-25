@@ -226,9 +226,9 @@ export const ProductInfo = ({ product }) => {
             <span className="font-medium text-gray-700">
               {product.ratingAverage}
             </span>
-            <span>({product.ratingCount} reviews)</span>
+            {/* <span>({product.ratingCount} reviews)</span> */}
           </div>
-          <span>·</span>
+          <span> | </span>
           <span>SKU: {product.sku || product._id.slice(-8).toUpperCase()}</span>
         </div>
       </div>

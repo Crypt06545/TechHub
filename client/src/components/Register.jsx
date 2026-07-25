@@ -220,19 +220,19 @@ const SignupForm = () => {
                 />
                 <Label
                   htmlFor="terms"
-                  className="text-sm font-normal leading-relaxed cursor-pointer"
+                  className="block text-sm leading-6 cursor-pointer text-muted-foreground"
                 >
                   I agree to the{" "}
                   <Link
-                    to={"/"}
-                    className="font-semibold text-red-500 hover:underline underline-offset-4"
+                    to="/terms"
+                    className="font-medium text-red-500 hover:underline underline-offset-4 break-words"
                   >
                     Terms &amp; Conditions
                   </Link>{" "}
                   and{" "}
                   <Link
-                    to={"/"}
-                    className="font-semibold text-red-500 hover:underline underline-offset-4"
+                    to="/privacy"
+                    className="font-medium text-red-500 hover:underline underline-offset-4 break-words"
                   >
                     Privacy Policy
                   </Link>

@@ -26,6 +26,7 @@ import CartPage from "@/pages/CartPage";
 import CheckoutPage from "@/pages/Checkout";
 import AboutUs from "@/components/AboutUs";
 import PrivacyPolicy from "@/components/DataPolicy";
+import GuestRoute from "./GuestRoute";
 
 const router = createBrowserRouter([
   {
@@ -33,23 +34,30 @@ const router = createBrowserRouter([
     element: <App />,
     children: [
       { index: true, element: <Home /> },
-      { path: "/products", element: <ProductsPage /> },
-      { path: "/products/:slug?", element: <ProductDetails /> },
-      { path: "/profile", element: <UserProfile /> },
-      { path: "/track-order", element: <TrackOrderPage /> },
-      { path: "/cart", element: <CartPage /> },
-      { path: "/checkout", element: <CheckoutPage /> },
-      { path: "/about", element: <AboutUs /> },
-      { path: "/datapolicy", element: <PrivacyPolicy /> },
+      { path: "products", element: <ProductsPage /> },
+      { path: "products/:slug?", element: <ProductDetails /> },
+      { path: "profile", element: <UserProfile /> },
+      { path: "track-order", element: <TrackOrderPage /> },
+      { path: "cart", element: <CartPage /> },
+      { path: "checkout", element: <CheckoutPage /> },
+      { path: "about", element: <AboutUs /> },
+      { path: "datapolicy", element: <PrivacyPolicy /> },
     ],
   },
-  { path: "login", element: <Login /> },
-  { path: "register", element: <Register /> },
-  { path: "forgot-password", element: <ForgotPasswordForm /> },
-  { path: "verify-otp", element: <VerifyOtpForm /> },
-  { path: "reset-password", element: <ResetPasswordForm /> },
 
-  // ── Dashboard ────────────────────────────────────
+  // Guest-only pages
+  {
+    element: <GuestRoute />,
+    children: [
+      { path: "login", element: <Login /> },
+      { path: "register", element: <Register /> },
+      { path: "forgot-password", element: <ForgotPasswordForm /> },
+      { path: "verify-otp", element: <VerifyOtpForm /> },
+      { path: "reset-password", element: <ResetPasswordForm /> },
+    ],
+  },
+
+  // Admin-only pages
   {
     element: <ProtectedRoute roles={["Admin"]} />,
     children: [
@@ -68,7 +76,7 @@ const router = createBrowserRouter([
       },
     ],
   },
-  // 2. Full-screen catch-all outside of <App />
+
   {
     path: "*",
     element: <NotFound />,
