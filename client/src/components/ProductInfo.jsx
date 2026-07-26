@@ -370,10 +370,17 @@ export const ProductInfo = ({ product }) => {
           <ShieldCheck className="w-4 h-4 shrink-0" />
           {activeStock > 0 ? (
             <span>
-              Availability:{" "}
-              <span className="text-green-600 font-medium">
-                Only {activeStock} left in stock
-              </span>
+              {activeStock > 0 ? (
+                <span>
+                  Availability:{" "}
+                  <span className="font-medium text-green-600">In Stock</span>
+                </span>
+              ) : (
+                <span>
+                  Availability:{" "}
+                  <span className="font-medium text-red-600">Out of Stock</span>
+                </span>
+              )}
             </span>
           ) : (
             <span className="text-red-500 font-medium">Out of stock</span>

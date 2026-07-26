@@ -53,11 +53,14 @@ const ProductCard = ({
       />
 
       <Link to={`/products/${slug}`} className="block">
-        <div className="relative mb-3 flex h-[120px] items-center justify-center overflow-hidden rounded-lg bg-gray-50 p-2 sm:h-[140px] md:h-[150px]">
+        {/* Same container size as original (h-120/140/150) — only the inner
+            padding/max-h ratio was tightened so the image fills more of the box
+            instead of floating with a visible margin on every side. */}
+        <div className="relative mb-3 flex h-[120px] items-center justify-center overflow-hidden rounded-lg bg-gray-50 sm:h-[140px] md:h-[150px]">
           <img
             src={image}
             alt={title}
-            className="max-h-[100px] max-w-full object-contain transition-transform duration-500 group-hover:scale-105 sm:max-h-[120px] md:max-h-[130px]"
+            className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
           />
 
           {!outOfStock && <ProductActions slug={slug} />}

@@ -10,7 +10,6 @@ import { ProductGallery } from "@/components/ProductGallery";
 import { ProductInfo } from "@/components/ProductInfo";
 import ProductCard from "@/components/productCard/ProductCard";
 import ProductCardSkeleton from "@/components/productCard/ProductCardSkeleton";
-import { ShieldCheck, Truck, RefreshCw, BadgeCheck } from "lucide-react";
 
 // ─────────────────────────────────────────────────────────────
 // Helper
@@ -20,7 +19,7 @@ const mapProductToCard = (product) => ({
   slug: product.slug,
   image: product.images?.[0]?.url,
   title: product.title,
-  subtitle: product.category?.name,
+  subtitle: product.description, // FIXED: was product.category?.name
   price: product.price,
   oldPrice: product.compareAtPrice,
   rating: product.ratingAverage,
@@ -28,43 +27,6 @@ const mapProductToCard = (product) => ({
   stock: product.stock,
   outOfStock: product.stock === 0,
 });
-
-// ─────────────────────────────────────────────────────────────
-// Gallery-side trust/info strip — sits under the image gallery
-// ─────────────────────────────────────────────────────────────
-const GalleryInfoStrip = () => (
-  <div className="mt-4 grid grid-cols-2 gap-3">
-    {[
-      {
-        icon: BadgeCheck,
-        label: "100% Authentic",
-        sub: "Verified sellers only",
-      },
-      { icon: Truck, label: "Fast Delivery", sub: "3–5 business days" },
-      { icon: RefreshCw, label: "Easy Returns", sub: "Within 30 days" },
-      {
-        icon: ShieldCheck,
-        label: "Secure Checkout",
-        sub: "Encrypted payments",
-      },
-    ].map(({ icon: Icon, label, sub }) => (
-      <div
-        key={label}
-        className="flex items-start gap-2.5 rounded-xl border border-gray-100 bg-gray-50/60 px-3 py-2.5"
-      >
-        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white shadow-sm">
-          <Icon className="h-4 w-4 text-gray-700" />
-        </div>
-        <div className="min-w-0">
-          <p className="text-xs font-semibold text-gray-900 leading-tight">
-            {label}
-          </p>
-          <p className="text-[11px] text-gray-500 leading-tight">{sub}</p>
-        </div>
-      </div>
-    ))}
-  </div>
-);
 
 // ─────────────────────────────────────────────────────────────
 // Skeleton
@@ -151,7 +113,6 @@ const ProductDetails = () => {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 mb-10">
         <div>
           <ProductGallery images={product.images} title={product.title} />
-          <GalleryInfoStrip />
         </div>
         <ProductInfo product={product} />
       </div>
@@ -212,9 +173,13 @@ const ProductDetails = () => {
                 </span>
               </div>
               <div className="flex justify-between border-b border-gray-100 py-2">
-                <span className="text-gray-500">Stock</span>
-                <span className="font-medium text-gray-900">
-                  {product.stock ?? "—"}
+                <span className="text-gray-500">Availability</span>
+                <span
+                  className={`font-medium ${
+                    (product.stock ?? 0) > 0 ? "text-green-600" : "text-red-600"
+                  }`}
+                >
+                  {(product.stock ?? 0) > 0 ? "In Stock" : "Out of Stock"}
                 </span>
               </div>
             </div>

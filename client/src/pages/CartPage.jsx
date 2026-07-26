@@ -20,7 +20,7 @@ import { AuthToast } from "@/components/common/AuthToast";
 
 /* ── free shipping threshold ── */
 const FREE_SHIPPING_AT = 2000;
-const SHIPPING_FEE = 120;
+const SHIPPING_FEE = 130;
 
 /* ─────────────────────────────────────────────────────────────────────
    Empty state

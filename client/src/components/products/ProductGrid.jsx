@@ -8,7 +8,7 @@ const mapProductToCard = (product) => ({
   slug: product.slug,
   image: product.images?.[0]?.url,
   title: product.title,
-  subtitle: product.category?.name,
+  subtitle: product.description || product.category?.name || "",
   price: product.price,
   oldPrice: product.compareAtPrice,
   rating: product.ratingAverage,

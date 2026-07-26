@@ -1,16 +1,16 @@
 import React from "react";
 import { Link } from "react-router-dom";
-import { Truck, RefreshCw, Headset, ChevronDown, Globe } from "lucide-react";
+import { Truck, Gift, Headset, ChevronDown, Globe } from "lucide-react";
 
 const UtilityBar = () => (
   <div className="w-full hidden lg:block bg-white border-b border-gray-100 text-[13px] text-gray-600 py-2">
     <div className="container mx-auto px-4 lg:px-6 flex justify-between items-center">
       <div className="flex items-center gap-6">
         <span className="flex items-center gap-1.5">
-          <Truck size={14} /> Free Shipping on orders over $50
+          <Truck size={14} /> Free Shipping on orders over ৳2000
         </span>
         <span className="flex items-center gap-1.5">
-          <RefreshCw size={14} /> 30-Day Money-Back Guarantee
+          <Gift size={14} /> Gift Certificates ৳1500 to ৳2500
         </span>
         <span className="flex items-center gap-1.5">
           <Headset size={14} /> 24/7 Expert Support

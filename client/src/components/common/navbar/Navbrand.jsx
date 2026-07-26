@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import ZUHR from "@/assets/logo.png";
 
 const NavBrand = () => (
-  <div className="flex items-center flex-shrink-0 h-full">
+  <div className="flex items-center shrink-0 h-full">
     <Link to="/" className="flex items-center h-full cursor-pointer">
       <img
         src={ZUHR}

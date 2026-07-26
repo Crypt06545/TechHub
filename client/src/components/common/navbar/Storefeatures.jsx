@@ -1,13 +1,13 @@
 import React from "react";
-import { Truck, ShieldCheck, RefreshCw, Headset, Award, Tag } from "lucide-react";
+import { Truck, ShieldCheck, RefreshCw, Headset, Award, Tag, Gift } from "lucide-react";
 
 const FEATURES = [
-  { Icon: Truck,       title: "Free Shipping",   desc: "On orders over $50"    },
-  { Icon: ShieldCheck, title: "Secure Payment",  desc: "100% secure checkout"  },
-  { Icon: RefreshCw,   title: "Easy Returns",    desc: "30 days return policy"  },
-  { Icon: Headset,     title: "24/7 Support",    desc: "Dedicated support"      },
-  { Icon: Award,       title: "Trusted Store",   desc: "100% verified seller"   },
-  { Icon: Tag,         title: "Exclusive Offers",desc: "Save more every day"    },
+  { Icon: Truck, title: "Free Shipping", desc: "On orders over ৳2000" },
+  { Icon: ShieldCheck, title: "Secure Payment", desc: "100% secure checkout" },
+  { Icon: Gift, title: "Gift Certificates", desc: "৳1500 to ৳2500" },
+  { Icon: Headset, title: "24/7 Support", desc: "Dedicated support" },
+  { Icon: Award, title: "Trusted Store", desc: "100% verified seller" },
+  { Icon: Tag, title: "Exclusive Offers", desc: "Save more every day" },
 ];
 
 const StoreFeatures = () => (
