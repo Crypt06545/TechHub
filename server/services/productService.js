@@ -171,7 +171,7 @@ export const productService = {
 
     const products = await Product.find(query)
       .select(
-        "title slug price compareAtPrice images stock ratingAverage category",
+        "title slug description price compareAtPrice images stock ratingAverage ratingCount category",
       )
       .populate("category", "name slug")
       .sort(sortSpec)
@@ -289,7 +289,7 @@ export const productService = {
     if (!product) throw new ApiError(404, "Product not found");
     return product;
   },
-  
+
   async getAdminProducts({
     limit = 12,
     cursor,
@@ -336,7 +336,7 @@ export const productService = {
 
     const products = await Product.find(query)
       .select(
-        "title slug price compareAtPrice images stock ratingAverage category isPublished isArchived isFeatured createdAt",
+        "title slug description price compareAtPrice images stock ratingAverage ratingCount category isPublished isArchived isFeatured createdAt",
       )
       .populate("category", "name slug")
       .sort(sortSpec)
