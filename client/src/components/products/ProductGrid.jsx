@@ -8,7 +8,7 @@ const mapProductToCard = (product) => ({
   slug: product.slug,
   image: product.images?.[0]?.url,
   title: product.title,
-  subtitle: product.description || product.category?.name || "",
+  subtitle: product.description,
   price: product.price,
   oldPrice: product.compareAtPrice,
   rating: product.ratingAverage,
@@ -16,7 +16,6 @@ const mapProductToCard = (product) => ({
   stock: product.stock,
   outOfStock: product.stock === 0,
 });
-
 const ProductGrid = ({ data, isLoading, isError, isFetching }) => {
   const cursorStack = useFilterStore((s) => s.cursorStack);
   const goNextPage = useFilterStore((s) => s.goNextPage);
