@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Separator } from "@/components/ui/separator";
-import { Eye, EyeOff, Mail, Lock, Shield } from "lucide-react";
+import { Eye, EyeOff, Mail, Lock, Shield, Loader2 } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import login from "@/assets/login.png";
 import { useLoginUser } from "@/hooks/user.query";
@@ -55,9 +55,9 @@ const LoginForm = () => {
             {/* Logo */}
             <div className="flex items-center gap-2">
               <div className="w-7 h-7 bg-black rounded-sm flex items-center justify-center">
-                <span className="text-white font-black text-xs">T</span>
+                <span className="text-white font-black text-xs">Z</span>
               </div>
-              <span className="font-bold text-lg tracking-tight">TechHub</span>
+              <span className="font-bold text-lg tracking-tight">ZUHR</span>
             </div>
 
             {/* Heading */}
@@ -152,29 +152,32 @@ const LoginForm = () => {
             </div>
 
             {/* Submit */}
-            <Button
-              type="submit"
-              disabled={isSubmitting}
-              className="h-11 bg-black hover:bg-gray-900 text-white font-semibold text-base rounded-md transition-all duration-200 hover:shadow-lg"
-            >
-              {isSubmitting ? "Signing in..." : "Sign In"}
+            <Button type="submit" disabled={isPending}>
+              {isPending ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Signing in...
+                </>
+              ) : (
+                "Sign In"
+              )}
             </Button>
 
             {/* Divider */}
-            <div className="relative flex items-center gap-3 text-sm text-muted-foreground">
+            {/* <div className="relative flex items-center gap-3 text-sm text-muted-foreground">
               <Separator className="flex-1" />
               <span className="shrink-0">or continue with</span>
               <Separator className="flex-1" />
-            </div>
-
-            {/* Social buttons */}
+            </div> */}
+            {/***
+ *
             <div className="grid grid-cols-3 gap-3">
               <Button
                 variant="outline"
                 type="button"
                 className="h-11 gap-2 border-gray-300 hover:border-gray-400 font-medium"
               >
-                {/* Google */}
+
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
                   viewBox="0 0 24 24"
@@ -192,7 +195,7 @@ const LoginForm = () => {
                 type="button"
                 className="h-11 gap-2 border-gray-300 hover:border-gray-400 font-medium"
               >
-                {/* Apple */}
+
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
                   viewBox="0 0 24 24"
@@ -210,7 +213,7 @@ const LoginForm = () => {
                 type="button"
                 className="h-11 gap-2 border-gray-300 hover:border-gray-400 font-medium"
               >
-                {/* Facebook */}
+
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
                   viewBox="0 0 24 24"
@@ -224,6 +227,7 @@ const LoginForm = () => {
                 <span className="text-xs">Facebook</span>
               </Button>
             </div>
+ */}
 
             {/* Sign up link */}
             <p className="text-center text-sm text-muted-foreground">

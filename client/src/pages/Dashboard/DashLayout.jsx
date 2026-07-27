@@ -26,43 +26,72 @@ import { Separator } from "@/components/ui/separator";
 
 /* ── nav ── */
 const NAV_MAIN = [
-  { title: "Dashboard", to: "/dashboard", icon: LayoutDashboard },
-  { title: "Orders", to: "/dashboard/orders", icon: ShoppingBag, badge: "12" },
-  { title: "Products", to: "/dashboard/products", icon: Package },
-  { title: "Categories", to: "/dashboard/categories", icon: Tags },
-  { title: "Coupons", to: "/dashboard/coupons", icon: TicketPercent },
-  { title: "Customers", to: "/dashboard/customers", icon: Users },
-  { title: "Analytics", to: "/dashboard/analytics", icon: BarChart3 },
+  {
+    title: "Dashboard",
+    to: "/admin/dashboard",
+    icon: LayoutDashboard,
+  },
+  {
+    title: "Orders",
+    to: "/admin/dashboard/orders",
+    icon: ShoppingBag,
+    badge: "12",
+  },
+  {
+    title: "Products",
+    to: "/admin/dashboard/products",
+    icon: Package,
+  },
+  {
+    title: "Categories",
+    to: "/admin/dashboard/categories",
+    icon: Tags,
+  },
+  {
+    title: "Coupons",
+    to: "/admin/dashboard/coupons",
+    icon: TicketPercent,
+  },
+  {
+    title: "Customers",
+    to: "/admin/dashboard/customers",
+    icon: Users,
+  },
+  {
+    title: "Analytics",
+    to: "/admin/dashboard/analytics",
+    icon: BarChart3,
+  },
 ];
 
 const NAV_RESOURCES = [
   {
     title: "Inventory", icon: Database,
     children: [
-      { title: "Stock Levels", to: "/dashboard/inventory/stock" },
-      { title: "Suppliers",    to: "/dashboard/inventory/suppliers" },
+      { title: "Stock Levels", to: "/admin/dashboard/inventory/stock" },
+      { title: "Suppliers",    to: "/admin/dashboard/inventory/suppliers" },
     ],
   },
   {
     title: "Reports", icon: FileText,
     children: [
-      { title: "Sales Report", to: "/dashboard/reports/sales" },
-      { title: "Export Data",  to: "/dashboard/reports/export" },
+      { title: "Sales Report", to: "/admin/dashboard/reports/sales" },
+      { title: "Export Data",  to: "/admin/dashboard/reports/export" },
     ],
   },
-  { title: "Automation", to: "/dashboard/automation", icon: Zap },
+  { title: "Automation", to: "/admin/dashboard/automation", icon: Zap },
 ];
 
 const NAV_SECONDARY = [
-  { title: "Settings", to: "/dashboard/settings", icon: Settings },
-  { title: "Help",     to: "/dashboard/help",     icon: HelpCircle },
+  { title: "Settings", to: "/admin/dashboard/settings", icon: Settings },
+  { title: "Help",     to: "/admin/dashboard/help",     icon: HelpCircle },
 ];
 
 /* ── NavItem ── */
 const NavItem = ({ item }) => {
   const { pathname } = useLocation();
-  const isActive = item.to === "/dashboard"
-    ? pathname === "/dashboard"
+  const isActive = item.to === "/admin/dashboard"
+    ? pathname === "/admin/dashboard"
     : pathname.startsWith(item.to);
 
   return (

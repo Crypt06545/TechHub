@@ -63,11 +63,12 @@ const SignupForm = () => {
             className="p-8 md:p-10 flex flex-col gap-5"
           >
             {/* Logo */}
+
             <div className="flex items-center gap-2">
               <div className="w-7 h-7 bg-black rounded-sm flex items-center justify-center">
-                <span className="text-white font-black text-xs">T</span>
+                <span className="text-white font-black text-xs">Z</span>
               </div>
-              <span className="font-bold text-lg tracking-tight">TechHub</span>
+              <span className="font-bold text-lg tracking-tight">ZUHR</span>
             </div>
 
             {/* Heading */}
@@ -224,14 +225,14 @@ const SignupForm = () => {
                 >
                   I agree to the{" "}
                   <Link
-                    to="/terms"
+                    to="/datapolicy"
                     className="font-medium text-red-500 hover:underline underline-offset-4 break-words"
                   >
                     Terms &amp; Conditions
                   </Link>{" "}
                   and{" "}
                   <Link
-                    to="/privacy"
+                    to="/datapolicy"
                     className="font-medium text-red-500 hover:underline underline-offset-4 break-words"
                   >
                     Privacy Policy
@@ -246,20 +247,20 @@ const SignupForm = () => {
             {/* Submit */}
             <Button
               type="submit"
-              disabled={isSubmitting}
+              disabled={isPending}
               className="h-11 bg-black hover:bg-gray-900 text-white font-semibold text-base rounded-md transition-all duration-200 hover:shadow-lg"
             >
-              {isSubmitting ? "Creating account..." : "Create Account"}
+              {isPending ? "Creating account..." : "Create Account"}
             </Button>
 
             {/* Divider */}
-            <div className="relative flex items-center gap-3 text-sm text-muted-foreground">
+            {/* <div className="relative flex items-center gap-3 text-sm text-muted-foreground">
               <Separator className="flex-1" />
               <span className="shrink-0">or continue with</span>
               <Separator className="flex-1" />
-            </div>
+            </div> */}
 
-            {/* Social buttons */}
+            {/* Social buttons
             <div className="grid grid-cols-3 gap-3">
               <Button
                 variant="outline"
@@ -312,7 +313,7 @@ const SignupForm = () => {
                 </svg>
                 <span className="text-xs">Facebook</span>
               </Button>
-            </div>
+            </div> */}
 
             {/* Sign in link */}
             <p className="text-center text-sm text-muted-foreground">

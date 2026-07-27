@@ -207,11 +207,12 @@ const TrackOrderForm = ({ onSubmit, isSubmitting, submitError }) => {
             className="p-8 md:p-10 flex flex-col gap-6"
           >
             {/* Logo */}
+
             <div className="flex items-center gap-2">
               <div className="w-7 h-7 bg-black rounded-sm flex items-center justify-center">
-                <span className="text-white font-black text-xs">T</span>
+                <span className="text-white font-black text-xs">Z</span>
               </div>
-              <span className="font-bold text-lg tracking-tight">TechHub</span>
+              <span className="font-bold text-lg tracking-tight">ZUHR</span>
             </div>
 
             {/* Heading */}
