@@ -171,7 +171,7 @@ export const productService = {
 
     const products = await Product.find(query)
       .select(
-        "title slug description price compareAtPrice images stock ratingAverage ratingCount category",
+        "title slug description price compareAtPrice images stock ratingAverage ratingCount category hasVariants variants",
       )
       .populate("category", "name slug")
       .sort(sortSpec)

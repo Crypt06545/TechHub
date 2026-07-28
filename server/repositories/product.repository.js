@@ -10,6 +10,8 @@ images
 category
 brand
 stock
+hasVariants
+variants
 ratingAverage
 ratingCount
 isFeatured
