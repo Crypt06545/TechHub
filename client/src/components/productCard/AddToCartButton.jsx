@@ -1,6 +1,6 @@
-import React, { useState } from "react";
+import React from "react";
 import { ShoppingCart, Minus, Plus } from "lucide-react";
-import { useCartStore } from "@/store/cartStore";
+import { useCartStore, getLineId } from "@/store/cartStore";
 
 const AddToCartButton = ({
   productId,
@@ -12,42 +12,50 @@ const AddToCartButton = ({
   price,
   oldPrice,
   slug,
+  hasVariants = false,
+  defaultVariant = null,
 }) => {
   const addItem = useCartStore((s) => s.addItem);
   const updateQty = useCartStore((s) => s.updateQty);
   const removeItem = useCartStore((s) => s.removeItem);
 
-  // Local state only — never reads from persisted cart on mount
-  const [quantity, setQuantity] = useState(0);
+  const lineId =
+    hasVariants && defaultVariant
+      ? `${productId}__${defaultVariant._id}`
+      : productId;
+
+  // Always derived from the store — reacts instantly to add/remove/clear
+  // from ANY source: this card, the cart page, another card, checkout, etc.
+  const quantity = useCartStore(
+    (s) => s.items.find((i) => getLineId(i) === lineId)?.quantity ?? 0,
+  );
 
   const handleAdd = () => {
     addItem({
       _id: productId,
       name: title,
-      variant: subtitle ?? null,
       image,
       price,
       originalPrice: oldPrice ?? null,
       slug,
+      variantId: hasVariants && defaultVariant ? defaultVariant._id : null,
+      size:
+        hasVariants && defaultVariant ? (defaultVariant.size ?? null) : null,
+      color:
+        hasVariants && defaultVariant ? (defaultVariant.color ?? null) : null,
     });
-    setQuantity(1);
   };
 
   const handleIncrease = () => {
     if (quantity >= stock) return;
-    const next = quantity + 1;
-    updateQty(productId, next);
-    setQuantity(next);
+    updateQty(lineId, quantity + 1);
   };
 
   const handleDecrease = () => {
     if (quantity <= 1) {
-      removeItem(productId);
-      setQuantity(0);
+      removeItem(lineId);
     } else {
-      const next = quantity - 1;
-      updateQty(productId, next);
-      setQuantity(next);
+      updateQty(lineId, quantity - 1);
     }
   };
 

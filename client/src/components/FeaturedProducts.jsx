@@ -4,6 +4,33 @@ import { Link } from "react-router-dom";
 import { ArrowRight } from "lucide-react";
 import ProductCard from "./productCard/ProductCard";
 
+const getDefaultVariant = (product) => {
+  if (!product.hasVariants || !product.variants?.length) return null;
+  return product.variants.find((v) => v.stock > 0) || product.variants[0];
+};
+
+const mapProductToCard = (product) => {
+  const defaultVariant = getDefaultVariant(product);
+
+  return {
+    productId: product._id,
+    slug: product.slug,
+    image: product.images?.[0]?.url || "/placeholder.png",
+    title: product.title,
+    subtitle: product.description,
+    price: defaultVariant ? defaultVariant.price : product.price,
+    oldPrice: product.compareAtPrice,
+    rating: product.ratingAverage,
+    reviews: product.ratingCount,
+    stock: defaultVariant ? defaultVariant.stock : product.stock,
+    outOfStock: defaultVariant
+      ? defaultVariant.stock === 0
+      : product.stock === 0,
+    hasVariants: product.hasVariants,
+    defaultVariant,
+  };
+};
+
 const FeaturedProducts = () => {
   const { data, isLoading, error } = useFeaturedProducts();
   // console.log(data);
@@ -86,23 +113,16 @@ const FeaturedProducts = () => {
         </div>
       ) : (
         <div className="grid gap-4 grid-cols-2 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-5">
-          {products.map((product, index) => (
-            <ProductCard
-              key={product._id}
-              productId={product._id}
-              slug={product.slug}
-              title={product.title}
-              subtitle={product.description}
-              price={product.price}
-              oldPrice={product.compareAtPrice}
-              rating={product.ratingAverage}
-              reviews={product.ratingCount}
-              stock={product.stock}
-              image={product.images?.[0]?.url || "/placeholder.png"}
-              badge={getProductBadge(product)}
-              outOfStock={product.stock === 0}
-            />
-          ))}
+          {products.map((product) => {
+            const card = mapProductToCard(product);
+            return (
+              <ProductCard
+                key={product._id}
+                {...card}
+                badge={getProductBadge(product)}
+              />
+            );
+          })}
         </div>
       )}
     </section>

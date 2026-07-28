@@ -20,20 +20,14 @@ const ProductCard = ({
   outOfStock,
   productId,
   slug,
+  hasVariants,
+  defaultVariant, // 👈 add this
 }) => {
-  // Convert Quill HTML -> Plain Text
   const getPlainText = (html = "") => {
-    // Remove dangerous HTML
     const clean = DOMPurify.sanitize(html);
-
-    // Create temporary DOM element
     const div = document.createElement("div");
     div.innerHTML = clean;
-
-    // Get plain text (decodes &nbsp; &amp; etc.)
     const text = div.textContent || div.innerText || "";
-
-    // Remove extra spaces/new lines
     return text.replace(/\s+/g, " ").trim();
   };
 
@@ -53,9 +47,6 @@ const ProductCard = ({
       />
 
       <Link to={`/products/${slug}`} className="block">
-        {/* Same container size as original (h-120/140/150) — only the inner
-            padding/max-h ratio was tightened so the image fills more of the box
-            instead of floating with a visible margin on every side. */}
         <div className="relative mb-3 flex h-[120px] items-center justify-center overflow-hidden rounded-lg bg-gray-50 sm:h-[140px] md:h-[150px]">
           <img
             src={image}
@@ -93,6 +84,8 @@ const ProductCard = ({
             price={price}
             oldPrice={oldPrice}
             slug={slug}
+            hasVariants={hasVariants}
+            defaultVariant={defaultVariant} // 👈 add this
           />
         </div>
       </div>

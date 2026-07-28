@@ -3,19 +3,33 @@ import ProductCardSkeleton from "../productCard/ProductCardSkeleton";
 import ProductCard from "../productCard/ProductCard";
 import ProductPagination from "./ProductPagination";
 
-const mapProductToCard = (product) => ({
-  productId: product._id,
-  slug: product.slug,
-  image: product.images?.[0]?.url,
-  title: product.title,
-  subtitle: product.description,
-  price: product.price,
-  oldPrice: product.compareAtPrice,
-  rating: product.ratingAverage,
-  reviews: product.ratingCount,
-  stock: product.stock,
-  outOfStock: product.stock === 0,
-});
+const getDefaultVariant = (product) => {
+  if (!product.hasVariants || !product.variants?.length) return null;
+  return product.variants.find((v) => v.stock > 0) || product.variants[0];
+};
+
+const mapProductToCard = (product) => {
+  const defaultVariant = getDefaultVariant(product);
+
+  return {
+    productId: product._id,
+    slug: product.slug,
+    image: product.images?.[0]?.url,
+    title: product.title,
+    subtitle: product.description,
+    price: defaultVariant ? defaultVariant.price : product.price,
+    oldPrice: product.compareAtPrice,
+    rating: product.ratingAverage,
+    reviews: product.ratingCount,
+    stock: defaultVariant ? defaultVariant.stock : product.stock,
+    outOfStock: defaultVariant
+      ? defaultVariant.stock === 0
+      : product.stock === 0,
+    hasVariants: product.hasVariants,
+    defaultVariant, // 👈 pass the whole variant object down
+  };
+};
+
 const ProductGrid = ({ data, isLoading, isError, isFetching }) => {
   const cursorStack = useFilterStore((s) => s.cursorStack);
   const goNextPage = useFilterStore((s) => s.goNextPage);
