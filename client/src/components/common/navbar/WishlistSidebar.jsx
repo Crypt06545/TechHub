@@ -1,3 +1,6 @@
+// PATH: src/components/wishlist/WishlistSidebar.jsx
+// FILE: WishlistSidebar.jsx
+
 import React from "react";
 import { Link } from "react-router-dom";
 import { Heart, ShoppingCart, Trash2, X } from "lucide-react";
@@ -7,7 +10,7 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
-import { useWishlistStore } from "@/store/wishlistStore"; // adjust path if needed
+import { useWishlistStore, getLineId } from "@/store/wishlistStore";
 import { useCartStore } from "@/store/cartStore";
 
 /* ── Empty state ── */
@@ -27,6 +30,8 @@ const EmptyWishlist = () => (
 
 /* ── Single wishlist row ── */
 const WishlistRow = ({ item, onRemove, onAddToCart }) => {
+  const variantLabel = [item.size, item.color].filter(Boolean).join(" / ");
+
   return (
     <div className="flex gap-3 py-3.5">
       <Link to={`/products/${item.slug}`} className="shrink-0">
@@ -46,9 +51,9 @@ const WishlistRow = ({ item, onRemove, onAddToCart }) => {
               </p>
             </Link>
 
-            {item.subtitle && (
+            {(variantLabel || item.subtitle) && (
               <p className="mt-0.5 truncate text-[11px] text-gray-400">
-                {item.subtitle}
+                {variantLabel || item.subtitle}
               </p>
             )}
 
@@ -64,7 +69,7 @@ const WishlistRow = ({ item, onRemove, onAddToCart }) => {
 
           <button
             type="button"
-            onClick={() => onRemove(item._id)}
+            onClick={() => onRemove(getLineId(item))}
             className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-gray-400 transition-all hover:bg-red-50 hover:text-red-600"
             aria-label="Remove item"
           >
@@ -93,7 +98,7 @@ const WishlistSidebar = ({ open, onOpenChange }) => {
 
   const handleAddToCart = (item) => {
     addToCart(item);
-    removeItem(item._id);
+    removeItem(getLineId(item));
   };
 
   return (
@@ -127,7 +132,7 @@ const WishlistSidebar = ({ open, onOpenChange }) => {
           ) : (
             items.map((item) => (
               <WishlistRow
-                key={item._id}
+                key={getLineId(item)}
                 item={item}
                 onRemove={removeItem}
                 onAddToCart={handleAddToCart}

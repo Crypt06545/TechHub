@@ -1,3 +1,6 @@
+// PATH: src/components/products/ProductInfo.jsx
+// FILE: ProductInfo.jsx
+
 import { useState, useEffect, useMemo } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -16,6 +19,7 @@ import {
   Minus,
 } from "lucide-react";
 import { useCartStore } from "@/store/cartStore";
+import { useWishlistStore, getLineId } from "@/store/wishlistStore";
 
 // ─── Small presentational pieces (kept in-file since they're only used here) ──
 
@@ -96,6 +100,8 @@ const ColorSelector = ({ colors, selected, onSelect, isAvailable }) => (
 export const ProductInfo = ({ product }) => {
   const navigate = useNavigate();
   const { setItemQuantity, items } = useCartStore();
+  const toggleWishlist = useWishlistStore((s) => s.toggleItem);
+  const wishlistItems = useWishlistStore((s) => s.items);
 
   const variants = product.variants || [];
   const hasVariants = product.hasVariants && variants.length > 0;
@@ -150,20 +156,41 @@ export const ProductInfo = ({ product }) => {
     setQty((q) => Math.min(Math.max(q, 1), activeStock || 1));
   }, [activeStock]);
 
+  const productImage =
+    product.thumbnail || product.images?.[0]?.url || product.images?.[0] || "";
+
   const cartProduct = {
     _id: product._id,
     name: product.title,
-    image:
-      product.thumbnail ||
-      product.images?.[0]?.url ||
-      product.images?.[0] ||
-      "",
+    image: productImage,
     price: activePrice,
     originalPrice: product.compareAtPrice ?? null,
     slug: product.slug,
     variantId: selectedVariant?._id ?? null,
     size: selectedVariant?.size ?? null,
     color: selectedVariant?.color ?? null,
+  };
+
+  // ── Wishlist wiring — same variant-aware shape as the cart line above ──────
+  const wishlistProduct = {
+    _id: product._id,
+    name: product.title,
+    image: productImage,
+    subtitle: product.category?.name ?? null,
+    price: activePrice,
+    oldPrice: product.compareAtPrice ?? null,
+    slug: product.slug,
+    variantId: selectedVariant?._id ?? null,
+    size: selectedVariant?.size ?? null,
+    color: selectedVariant?.color ?? null,
+  };
+
+  const isWishlisted = wishlistItems.some(
+    (i) => getLineId(i) === getLineId(wishlistProduct),
+  );
+
+  const handleWishlistToggle = () => {
+    toggleWishlist(wishlistProduct);
   };
 
   const handleIncrement = () => {
@@ -331,8 +358,14 @@ export const ProductInfo = ({ product }) => {
 
       {/* Meta actions */}
       <div className="flex items-center gap-5 text-sm text-gray-500">
-        <button className="flex items-center gap-1.5 hover:text-gray-800 transition-colors">
-          <Heart className="w-4 h-4" /> Add to Wishlist
+        <button
+          onClick={handleWishlistToggle}
+          className={`flex items-center gap-1.5 transition-colors ${
+            isWishlisted ? "text-red-500" : "hover:text-gray-800"
+          }`}
+        >
+          <Heart className={`w-4 h-4 ${isWishlisted ? "fill-red-500" : ""}`} />
+          {isWishlisted ? "Wishlisted" : "Add to Wishlist"}
         </button>
         <button
           onClick={handleShare}

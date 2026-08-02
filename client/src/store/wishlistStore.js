@@ -1,5 +1,14 @@
+// PATH: src/store/wishlistStore.js
+// FILE: wishlistStore.js
+
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+
+// Same identity rule as cartStore: a wishlist "line" is product + variant.
+// Non-variant products fall back to plain _id, so nothing else changes
+// for existing non-variant flows.
+export const getLineId = (item) =>
+  item.variantId ? `${item._id}__${item.variantId}` : item._id;
 
 export const useWishlistStore = create(
   persist(
@@ -11,11 +20,12 @@ export const useWishlistStore = create(
       // ===========================
       toggleItem: (product) => {
         set((state) => {
-          const exists = state.items.find((i) => i._id === product._id);
+          const lineId = getLineId(product);
+          const exists = state.items.find((i) => getLineId(i) === lineId);
 
           if (exists) {
             return {
-              items: state.items.filter((i) => i._id !== product._id),
+              items: state.items.filter((i) => getLineId(i) !== lineId),
             };
           }
 
@@ -30,7 +40,8 @@ export const useWishlistStore = create(
       // ===========================
       addItem: (product) => {
         set((state) => {
-          const exists = state.items.find((i) => i._id === product._id);
+          const lineId = getLineId(product);
+          const exists = state.items.find((i) => getLineId(i) === lineId);
           if (exists) return state;
 
           return {
@@ -41,10 +52,12 @@ export const useWishlistStore = create(
 
       // ===========================
       // Remove Item
+      // lineId: plain productId for non-variant items, or
+      //         `${productId}__${variantId}` for variant lines
       // ===========================
-      removeItem: (id) =>
+      removeItem: (lineId) =>
         set((state) => ({
-          items: state.items.filter((item) => item._id !== id),
+          items: state.items.filter((item) => getLineId(item) !== lineId),
         })),
 
       // ===========================
@@ -55,7 +68,8 @@ export const useWishlistStore = create(
       // ===========================
       // Helpers
       // ===========================
-      isInWishlist: (id) => get().items.some((i) => i._id === id),
+      isInWishlist: (lineId) =>
+        get().items.some((i) => getLineId(i) === lineId),
 
       totalItems: () => get().items.length,
     }),

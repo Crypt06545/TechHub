@@ -21,7 +21,7 @@ const ProductCard = ({
   productId,
   slug,
   hasVariants,
-  defaultVariant, // 👈 add this
+  defaultVariant,
 }) => {
   const getPlainText = (html = "") => {
     const clean = DOMPurify.sanitize(html);
@@ -31,6 +31,7 @@ const ProductCard = ({
     return text.replace(/\s+/g, " ").trim();
   };
 
+  const plainTitle = getPlainText(title);
   const plainSubtitle = getPlainText(subtitle);
 
   return (
@@ -39,18 +40,20 @@ const ProductCard = ({
         badge={badge}
         productId={productId}
         image={image}
-        title={title}
+        title={plainTitle}
         subtitle={plainSubtitle}
         price={price}
         oldPrice={oldPrice}
         slug={slug}
+        hasVariants={hasVariants}
+        defaultVariant={defaultVariant}
       />
 
       <Link to={`/products/${slug}`} className="block">
         <div className="relative mb-3 flex h-[120px] items-center justify-center overflow-hidden rounded-lg bg-gray-50 sm:h-[140px] md:h-[150px]">
           <img
             src={image}
-            alt={title}
+            alt={plainTitle}
             className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
           />
 
@@ -61,7 +64,7 @@ const ProductCard = ({
       <div className="flex flex-1 flex-col gap-2">
         <Link to={`/products/${slug}`} className="block">
           <h3 className="line-clamp-2 break-words text-sm font-semibold leading-snug text-gray-900 transition-colors hover:text-gray-600 sm:text-[15px]">
-            {title}
+            {plainTitle}
           </h3>
 
           <p className="mt-1 line-clamp-2 text-xs leading-5 text-gray-500">
@@ -79,13 +82,13 @@ const ProductCard = ({
             stock={stock}
             outOfStock={outOfStock}
             image={image}
-            title={title}
+            title={plainTitle}
             subtitle={plainSubtitle}
             price={price}
             oldPrice={oldPrice}
             slug={slug}
             hasVariants={hasVariants}
-            defaultVariant={defaultVariant} // 👈 add this
+            defaultVariant={defaultVariant}
           />
         </div>
       </div>

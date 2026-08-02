@@ -3,7 +3,7 @@
 
 import React from "react";
 import { Heart } from "lucide-react";
-import { useWishlistStore } from "@/store/wishlistStore";
+import { useWishlistStore, getLineId } from "@/store/wishlistStore";
 
 const ProductBadge = ({
   badge,
@@ -14,6 +14,8 @@ const ProductBadge = ({
   price,
   oldPrice,
   slug,
+  hasVariants,
+  defaultVariant,
 }) => {
   const badgeStyles = {
     warning: "bg-orange-50 text-orange-500",
@@ -22,8 +24,13 @@ const ProductBadge = ({
     dark: "bg-gray-100 text-gray-700",
   };
 
+  const lineId =
+    hasVariants && defaultVariant
+      ? `${productId}__${defaultVariant._id}`
+      : productId;
+
   const isWishlisted = useWishlistStore((s) =>
-    s.items.some((i) => i._id === productId),
+    s.items.some((i) => getLineId(i) === lineId),
   );
   const toggleItem = useWishlistStore((s) => s.toggleItem);
 
@@ -38,6 +45,11 @@ const ProductBadge = ({
       price,
       oldPrice,
       slug,
+      variantId: hasVariants && defaultVariant ? defaultVariant._id : null,
+      size:
+        hasVariants && defaultVariant ? (defaultVariant.size ?? null) : null,
+      color:
+        hasVariants && defaultVariant ? (defaultVariant.color ?? null) : null,
     });
   };
 
