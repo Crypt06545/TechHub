@@ -53,10 +53,10 @@ export const NAV_LINKS = [
     name: "About Us",
     path: "/about",
   },
-  {
-    name: "Contact Us",
-    path: "/contact",
-  },
+  // {
+  //   name: "Contact Us",
+  //   path: "/contact",
+  // },
 ];
 
 export const SIDEBAR_DATA = {
