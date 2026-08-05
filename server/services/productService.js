@@ -75,6 +75,38 @@ const normalizeVariants = (rawVariants) => {
 
 const toBool = (val) => val === true || val === "true";
 
+// Must match the `badge` enum in product.model.js exactly.
+const BADGE_OPTIONS = [
+  "Hot Deal",
+  "New Arrival",
+  "Best Seller",
+  "Top Rated",
+  "Limited Stock",
+  "Trending",
+];
+
+/**
+ * "" / undefined / null all mean "no badge" — the admin form sends
+ * nothing (or "none") for that case, not an omitted field.
+ */
+const normalizeBadge = (badge) => {
+  if (
+    badge === undefined ||
+    badge === null ||
+    badge === "" ||
+    badge === "none"
+  ) {
+    return null;
+  }
+  if (!BADGE_OPTIONS.includes(badge)) {
+    throw new ApiError(
+      400,
+      `Invalid badge "${badge}". Must be one of: ${BADGE_OPTIONS.join(", ")}`,
+    );
+  }
+  return badge;
+};
+
 // ─── Cache Invalidation ───────────────────────────────────────────────────────
 
 const invalidateProductCache = async (slug = null) => {
@@ -171,7 +203,7 @@ export const productService = {
 
     const products = await Product.find(query)
       .select(
-        "title slug description price compareAtPrice images stock ratingAverage ratingCount category hasVariants variants",
+        "title slug description price compareAtPrice images stock ratingAverage ratingCount category hasVariants variants badge",
       )
       .populate("category", "name slug")
       .sort(sortSpec)
@@ -336,7 +368,7 @@ export const productService = {
 
     const products = await Product.find(query)
       .select(
-        "title slug description price compareAtPrice images stock ratingAverage ratingCount category isPublished isArchived isFeatured createdAt",
+        "title slug description price compareAtPrice images stock ratingAverage ratingCount category isPublished isArchived isFeatured badge createdAt",
       )
       .populate("category", "name slug")
       .sort(sortSpec)
@@ -473,6 +505,7 @@ export const productService = {
     stock,
     isPublished,
     isFeatured,
+    badge,
     hasVariants,
     variants,
     images,
@@ -518,6 +551,7 @@ export const productService = {
       variants: normalizedVariants,
       isPublished: isPublished === "true" || isPublished === true,
       isFeatured: toBool(isFeatured),
+      badge: normalizeBadge(badge),
       vendorId,
       ...(ratingAverage !== undefined && ratingAverage !== ""
         ? { ratingAverage: Number(ratingAverage) }
@@ -542,6 +576,7 @@ export const productService = {
       stock,
       isPublished,
       isFeatured,
+      badge,
       hasVariants,
       variants,
       imagesToRemove,
@@ -569,6 +604,7 @@ export const productService = {
     if (isPublished !== undefined)
       product.isPublished = isPublished === "true" || isPublished === true;
     if (isFeatured !== undefined) product.isFeatured = toBool(isFeatured);
+    if (badge !== undefined) product.badge = normalizeBadge(badge);
     if (ratingAverage !== undefined && ratingAverage !== "")
       product.ratingAverage = Number(ratingAverage);
 

@@ -57,6 +57,25 @@ const ProductSchema = new mongoose.Schema(
     isArchived: { type: Boolean, default: false },
     isFeatured: { type: Boolean, default: false },
 
+    // Single marketing badge shown on the product card (ProductBadge
+    // reads this). null/omitted = no badge. Kept as one value, not an
+    // array -- a card only has room to show one ribbon at a time.
+    badge: {
+      type: String,
+      enum: {
+        values: [
+          "Hot Deal",
+          "New Arrival",
+          "Best Seller",
+          "Top Rated",
+          "Limited Stock",
+          "Trending",
+        ],
+        message: "{VALUE} is not a valid badge",
+      },
+      default: null,
+    },
+
     vendorId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
@@ -85,6 +104,9 @@ ProductSchema.index({ isPublished: 1, isArchived: 1, brand: 1 });
 
 // featured products
 ProductSchema.index({ isFeatured: 1, isPublished: 1, isArchived: 1 });
+
+// badge filtering (e.g. a "Hot Deals" or "New Arrivals" storefront page)
+ProductSchema.index({ badge: 1, isPublished: 1, isArchived: 1 });
 
 // vendor dashboard
 ProductSchema.index({ vendorId: 1, isArchived: 1, _id: -1 });

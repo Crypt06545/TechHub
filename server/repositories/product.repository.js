@@ -12,6 +12,7 @@ brand
 stock
 hasVariants
 variants
+badge
 ratingAverage
 ratingCount
 isFeatured
@@ -31,6 +32,7 @@ sku
 stock
 hasVariants
 variants
+badge
 ratingAverage
 ratingCount
 vendorId
