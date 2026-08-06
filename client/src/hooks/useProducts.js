@@ -3,7 +3,7 @@ import {
   getProducts,
   getProductFilters,
   getCategories,
-  getFeaturedProducts,
+  getProductSection,
   getProductDetails,
 } from "@/api/product.api";
 
@@ -44,11 +44,18 @@ export const useGetCategories = () =>
     staleTime: 15 * 60 * 1000,
   });
 
-export const useFeaturedProducts = () =>
+/**
+ * ONE hook, every homepage section — Featured, Hot Deal, New Arrival,
+ * Best Seller, Trending, etc. Calls the single /products/section/:type
+ * endpoint. No branching here anymore -- the backend decides what
+ * "featured" vs a badge means, this hook just passes the value through.
+ */
+export const useProductSection = (type) =>
   useQuery({
-    queryKey: ["featuredProducts"],
-    queryFn: getFeaturedProducts,
+    queryKey: ["product-section", type],
+    queryFn: () => getProductSection(type),
     staleTime: 5 * 60 * 1000,
+    enabled: !!type,
   });
 
 export const useProductDetails = (slug) =>

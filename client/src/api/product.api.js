@@ -15,8 +15,10 @@ export const getCategories = async () => {
   return res.data;
 };
 
-export const getFeaturedProducts = async () => {
-  const res = await api.get("/products/featured");
+// ONE function for every homepage section. type = "featured" or any
+// badge value ("Hot Deal", "New Arrival", "Best Seller", ...).
+export const getProductSection = async (type) => {
+  const res = await api.get(`/products/section/${encodeURIComponent(type)}`);
   return res.data;
 };
 

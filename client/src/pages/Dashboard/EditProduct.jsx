@@ -33,6 +33,15 @@ const brands = [
   "Microsoft",
 ];
 
+const badgeOptions = [
+  "Hot Deal",
+  "New Arrival",
+  "Best Seller",
+  "Top Rated",
+  "Limited Stock",
+  "Trending",
+];
+
 const quillModules = {
   toolbar: [
     [{ header: [1, 2, 3, 4, 5, 6, false] }],
@@ -138,6 +147,7 @@ const EditProduct = ({ product, onSuccess }) => {
       status: product.isArchived ? "archived" : "draft",
       isPublished: Boolean(product.isPublished),
       isFeatured: Boolean(product.isFeatured),
+      badge: product.badge || "none",
       variants: (product.variants || []).map((v) => ({
         size: v.size,
         color: v.color,
@@ -294,6 +304,7 @@ const EditProduct = ({ product, onSuccess }) => {
     formData.append("sku", data.sku || "");
     formData.append("hasVariants", hasVariants);
     formData.append("isFeatured", data.isFeatured);
+    formData.append("badge", data.badge);
 
     if (data.ratingAverage !== "") {
       formData.append("ratingAverage", Number(data.ratingAverage));
@@ -564,6 +575,30 @@ const EditProduct = ({ product, onSuccess }) => {
                     <SelectContent>
                       <SelectItem value="draft">Draft</SelectItem>
                       <SelectItem value="archived">Archived</SelectItem>
+                    </SelectContent>
+                  </Select>
+                )}
+              />
+            </div>
+
+            {/* Badge — single marketing ribbon shown on the product card */}
+            <div className="space-y-2">
+              <Label htmlFor="edit-badge">Badge</Label>
+              <Controller
+                name="badge"
+                control={control}
+                render={({ field }) => (
+                  <Select onValueChange={field.onChange} value={field.value}>
+                    <SelectTrigger id="edit-badge">
+                      <SelectValue placeholder="No badge" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">No badge</SelectItem>
+                      {badgeOptions.map((badge) => (
+                        <SelectItem key={badge} value={badge}>
+                          {badge}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 )}

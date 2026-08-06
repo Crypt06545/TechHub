@@ -1,4 +1,4 @@
-import { useFeaturedProducts } from "@/hooks/useProducts";
+// import { useFeaturedProducts } from "@/hooks/useProducts";
 import ProductCardSkeleton from "./productCard/ProductCardSkeleton";
 import { Link } from "react-router-dom";
 import { ArrowRight } from "lucide-react";
@@ -32,7 +32,7 @@ const mapProductToCard = (product) => {
 };
 
 const FeaturedProducts = () => {
-  const { data, isLoading, error } = useFeaturedProducts();
+  // const { data, isLoading, error } = useFeaturedProducts();
   // console.log(data);
 
   // FIXED: Flipped logic rules so 'isFeatured' takes priority over 'Sale'
