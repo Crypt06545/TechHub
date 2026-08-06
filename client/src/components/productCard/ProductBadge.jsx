@@ -5,27 +5,30 @@ import React from "react";
 import { Heart } from "lucide-react";
 import { useWishlistStore, getLineId } from "@/store/wishlistStore";
 
+// Tinted background + matching text + a thin matching border — reads as
+// deliberate and calm rather than loud. Keyed lowercase so it can never
+// silently miss a match on casing ("Hot Deal" vs "hot deal").
 const badgeStyles = {
-  warning: "bg-orange-50 text-orange-500",
-  sale: "bg-red-50 text-red-600",
-  success: "bg-emerald-50 text-emerald-600",
-  dark: "bg-gray-100 text-gray-700",
-  // Custom marketing badges — matched by exact text
-  "Hot Deal": "bg-red-50 text-red-600",
-  "New Arrival": "bg-blue-50 text-blue-600",
-  "Best Seller": "bg-amber-50 text-amber-700",
-  "Top Rated": "bg-violet-50 text-violet-600",
-  "Limited Stock": "bg-rose-50 text-rose-600",
-  Trending: "bg-fuchsia-50 text-fuchsia-600",
+  warning: "bg-amber-50 text-amber-700 ring-1 ring-inset ring-amber-200",
+  sale: "bg-rose-50 text-rose-600 ring-1 ring-inset ring-rose-200",
+  success: "bg-emerald-50 text-emerald-700 ring-1 ring-inset ring-emerald-200",
+  dark: "bg-gray-100 text-gray-500 ring-1 ring-inset ring-gray-200",
+  featured: "bg-indigo-50 text-indigo-700 ring-1 ring-inset ring-indigo-200",
+  "hot deal": "bg-rose-50 text-rose-600 ring-1 ring-inset ring-rose-200",
+  "new arrival": "bg-sky-50 text-sky-700 ring-1 ring-inset ring-sky-200",
+  "best seller": "bg-amber-50 text-amber-700 ring-1 ring-inset ring-amber-200",
+  "top rated": "bg-violet-50 text-violet-700 ring-1 ring-inset ring-violet-200",
+  "limited stock":
+    "bg-orange-50 text-orange-700 ring-1 ring-inset ring-orange-200",
+  trending: "bg-fuchsia-50 text-fuchsia-700 ring-1 ring-inset ring-fuchsia-200",
 };
 
 const getBadgeClass = (badge) => {
   if (!badge) return "";
-  // exact text match takes priority (custom badges), fall back to type
+  const key = (badge.text || badge.type || "").toLowerCase();
   return (
-    badgeStyles[badge.text] ||
-    badgeStyles[badge.type] ||
-    "bg-gray-50 text-gray-600"
+    badgeStyles[key] ||
+    "bg-gray-50 text-gray-600 ring-1 ring-inset ring-gray-200"
   );
 };
 
@@ -71,21 +74,23 @@ const ProductBadge = ({
   };
 
   return (
-    <div className="mb-2 flex items-center justify-between gap-2 min-h-[24px] relative z-10">
+    <div className="mb-2 flex min-h-[24px] items-center justify-between gap-2 relative z-10">
       {badge?.text ? (
         <span
-          className={`rounded-md px-2 py-0.5 text-[10px] sm:text-[11px] font-semibold ${getBadgeClass(badge)}`}
+          className={`rounded-md px-2 py-0.5 text-[10px] font-semibold sm:text-[11px] ${getBadgeClass(badge)}`}
         >
           {badge.text}
         </span>
       ) : (
-        <div></div>
+        <span />
       )}
 
       <button
         type="button"
         onClick={handleWishlistClick}
-        className="text-gray-400 hover:text-red-500 transition-colors p-1"
+        aria-label={isWishlisted ? "Remove from wishlist" : "Add to wishlist"}
+        aria-pressed={isWishlisted}
+        className="rounded-full p-1 text-gray-400 transition-colors hover:text-red-500"
       >
         <Heart
           size={17}
