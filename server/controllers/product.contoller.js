@@ -72,8 +72,13 @@ export const getProductFiltersController = asyncHandler(async (req, res) => {
     .json(new ApiResponse(200, data, "Filters fetched successfully"));
 });
 
-export const getFeaturedProductConroller = asyncHandler(async (req, res) => {
-  const products = await productService.getFeaturedProducts();
+// Single controller for every homepage section — Featured, Hot Deal,
+// New Arrival, Best Seller, Top Rated, Limited Stock, Trending.
+// Frontend calls this once per section with a different :type value
+// (":type" is either the literal "featured" or a badge value).
+export const getProductSectionController = asyncHandler(async (req, res) => {
+  const { type } = req.params;
+  const products = await productService.getProductSection(type);
 
   return res
     .status(200)
@@ -81,7 +86,7 @@ export const getFeaturedProductConroller = asyncHandler(async (req, res) => {
       new ApiResponse(
         200,
         { products, total: products.length },
-        "Featured products fetched successfully",
+        `${type} products fetched successfully`,
       ),
     );
 });

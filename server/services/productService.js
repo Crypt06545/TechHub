@@ -7,15 +7,18 @@ import Category from "../models/category.mode.js";
 // ─── TTLs ─────────────────────────────────────────────────────────────────────
 
 const PRODUCT_LIST_TTL = 3_600; // 1h
-const FEATURED_TTL = 86_400; // 24h
 const SINGLE_PRODUCT_TTL = 86_400; // 24h
+const SECTION_TTL = 3_600; // 1h — shared by "featured" and every badge section
 
 // ─── Cache Key Helpers ────────────────────────────────────────────────────────
 // NOTE: admin product list is NEVER cached — no key helper needed for it.
 
-const featuredKey = () => "featured_products";
 const singleKey = (slug) => `product:${slug}`;
 const productListKey = (params) => `all_products:${JSON.stringify(params)}`;
+// One cache namespace for every homepage section — "featured" and every
+// badge value ("Hot Deal", "New Arrival", ...) all live under the same
+// prefix, since they're conceptually the same thing: a filtered product list.
+const sectionKey = (type) => `products_section:${type}`;
 
 // ─── Internal Helpers ─────────────────────────────────────────────────────────
 
@@ -111,11 +114,19 @@ const normalizeBadge = (badge) => {
 
 const invalidateProductCache = async (slug = null) => {
   try {
-    const keysToDelete = [featuredKey(), "product:filters:facets"];
+    const keysToDelete = ["product:filters:facets"];
     if (slug) keysToDelete.push(singleKey(slug));
 
     const listKeys = await redis.keys("all_products:*");
     if (listKeys.length) keysToDelete.push(...listKeys);
+
+    // A product's featured flag or badge can change on update (e.g. Hot
+    // Deal -> New Arrival, or featured toggled off), so we can't know just
+    // from `slug` which section list(s) it used to belong to. Clearing all
+    // section caches is simplest and cheap given the 1h TTL already caps
+    // staleness.
+    const sectionKeys = await redis.keys("products_section:*");
+    if (sectionKeys.length) keysToDelete.push(...sectionKeys);
 
     if (keysToDelete.length) await redis.del(...keysToDelete);
   } catch (err) {
@@ -269,17 +280,48 @@ export const productService = {
     return facets;
   },
 
-  async getFeaturedProducts() {
-    const cached = await safeRedisGet(featuredKey());
+  /**
+   * ONE method for every homepage section — Featured, Hot Deal, New
+   * Arrival, Best Seller, Top Rated, Limited Stock, Trending.
+   *
+   * type === "featured" → filters on isFeatured
+   * type === any BADGE_OPTIONS value → filters on badge
+   *
+   * Same query shape, same field selection, same cache pattern, same TTL
+   * for both — they're the same kind of thing (a filtered product list),
+   * so they get the same code path instead of two parallel ones that can
+   * drift out of sync.
+   */
+  async getProductSection(type) {
+    const isFeatured = type === "featured";
+
+    if (!isFeatured && !BADGE_OPTIONS.includes(type)) {
+      throw new ApiError(
+        400,
+        `Invalid section "${type}". Must be "featured" or one of: ${BADGE_OPTIONS.join(", ")}`,
+      );
+    }
+
+    const cacheKey = sectionKey(type);
+    const cached = await safeRedisGet(cacheKey);
     if (cached) return cached;
 
-    const products = await productRepository.findFeatured();
-    if (!products.length) throw new ApiError(404, "No featured products found");
+    const query = isFeatured
+      ? { isFeatured: true, isPublished: true, isArchived: false }
+      : { badge: type, isPublished: true, isArchived: false };
+
+    const products = await Product.find(query)
+      .select(
+        "title slug description price compareAtPrice images stock ratingAverage ratingCount category hasVariants variants badge isFeatured",
+      )
+      .populate("category", "name slug")
+      .sort({ _id: -1 })
+      .lean();
 
     redis
-      .set(featuredKey(), JSON.stringify(products), { ex: FEATURED_TTL })
+      .set(cacheKey, JSON.stringify(products), { ex: SECTION_TTL })
       .catch((err) =>
-        console.error("[Redis] featured cache failed:", err.message),
+        console.error("[Redis] section cache failed:", err.message),
       );
 
     return products;
