@@ -13,6 +13,12 @@ import {
   getAdminCategories,
   getAdminProducts,
   getAdminProductById,
+  getAdminCoupons,
+  getAdminCouponById,
+  createCoupon,
+  updateCoupon,
+  deleteCoupon,
+  toggleCouponActive,
 } from "@/api/admin.api";
 
 export const useAdminCategories = () =>
@@ -46,7 +52,7 @@ export const useAdminProductDetails = (id) =>
     enabled: !!id,
     staleTime: 0,
   });
-  
+
 export const useCreateProduct = () => {
   const queryClient = useQueryClient();
   return useMutation({
@@ -145,3 +151,63 @@ export const useRecentOrders = (limit = 5) =>
     queryFn: () => getRecentOrders(limit),
     staleTime: 60 * 1000,
   });
+
+export const useAdminCoupons = (filters = {}, cursor = null, limit = 20) =>
+  useQuery({
+    queryKey: ["admin-coupons", filters, cursor, limit],
+    queryFn: () =>
+      getAdminCoupons({
+        limit,
+        cursor: cursor || undefined,
+        isActive: filters.isActive ?? undefined,
+        search: filters.search || undefined,
+      }),
+    staleTime: 30 * 1000,
+    placeholderData: (previousData) => previousData,
+  });
+export const useAdminCouponDetails = (id) =>
+  useQuery({
+    queryKey: ["admin-coupon", id],
+    queryFn: () => getAdminCouponById(id),
+    enabled: !!id,
+  });
+
+export const useCreateCoupon = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: createCoupon,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin-coupons"] });
+    },
+  });
+};
+
+export const useUpdateCoupon = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: updateCoupon,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin-coupons"] });
+    },
+  });
+};
+
+export const useDeleteCoupon = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: deleteCoupon,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin-coupons"] });
+    },
+  });
+};
+
+export const useToggleCouponActive = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: toggleCouponActive,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin-coupons"] });
+    },
+  });
+};

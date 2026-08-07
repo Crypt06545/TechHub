@@ -66,3 +66,32 @@ export const toggleFeaturedProduct = async (id) => {
   const res = await api.patch(`/admin/products/${id}/featured`);
   return res.data;
 };
+
+export const getAdminCoupons = async (params) => {
+  const res = await api.get("/admin/coupons", { params });
+  return res.data;
+};
+export const getAdminCouponById = async (id) => {
+  const res = await api.get(`/admin/coupons/${id}`);
+  return res.data;
+};
+
+export const createCoupon = async (payload) => {
+  const res = await api.post("/admin/coupons", payload);
+  return res.data;
+};
+
+export const updateCoupon = async ({ id, payload }) => {
+  const res = await api.put(`/admin/coupons/${id}`, payload);
+  return res.data;
+};
+
+export const deleteCoupon = async (id) => {
+  const res = await api.delete(`/admin/coupons/${id}`);
+  return res.data;
+};
+
+export const toggleCouponActive = async (id) => {
+  const res = await api.patch(`/admin/coupons/${id}/toggle`);
+  return res.data;
+};
