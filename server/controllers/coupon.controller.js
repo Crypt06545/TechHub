@@ -10,13 +10,13 @@ export const createCouponController = asyncHandler(async (req, res) => {
 });
 
 export const getAllCouponsController = asyncHandler(async (req, res) => {
-  const { isActive, search, page = 1, limit = 20 } = req.query;
+  const { isActive, search, cursor, limit = 20 } = req.query;
 
   const data = await couponService.getAllCoupons({
     isActive:
       isActive === "true" ? true : isActive === "false" ? false : undefined,
     search,
-    skip: (Number(page) - 1) * Number(limit),
+    cursor: cursor || undefined,
     limit: Number(limit),
   });
 

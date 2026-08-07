@@ -80,7 +80,8 @@ adminRouter.get("/analytics/new-users", getNewUsersAnalyticsController);
 adminRouter.post("/coupons", createCouponController);
 adminRouter.get("/coupons", getAllCouponsController);
 adminRouter.get("/coupons/:id", getCouponByIdController);
-adminRouter.patch("/coupons/:id", updateCouponController);
-adminRouter.patch("/coupons/:id", toggleCouponActiveController);
+adminRouter.put("/coupons/:id", updateCouponController);
+adminRouter.patch("/coupons/:id/toggle", toggleCouponActiveController);
+adminRouter.delete("/coupons/:id", deleteCouponController);
 
 export default adminRouter;

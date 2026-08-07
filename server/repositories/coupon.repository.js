@@ -87,26 +87,29 @@ export const couponRepository = {
     return Coupon.findById(id);
   },
 
-  async findAll({ isActive, search, skip = 0, limit = 20 } = {}) {
-    const cacheKey = listKey({ isActive, search, skip, limit });
+  async findAll({ isActive, search, cursor, limit = 20 } = {}) {
+    const cacheKey = listKey({ isActive, search, cursor, limit });
     const cached = await safeRedisGet(cacheKey);
     if (cached) return cached;
 
     const filter = {};
     if (isActive !== undefined) filter.isActive = isActive;
     if (search) filter.code = { $regex: search, $options: "i" };
+    if (cursor) filter._id = { $lt: cursor };
 
-    const [coupons, total] = await Promise.all([
-      Coupon.find(filter)
-        .populate("applicableCategories", "name slug")
-        .sort({ createdAt: -1 })
-        .skip(skip)
-        .limit(limit)
-        .lean(),
-      Coupon.countDocuments(filter),
-    ]);
+    // Fetch one extra row to know if there's a next page without a
+    // separate count query.
+    const coupons = await Coupon.find(filter)
+      .populate("applicableCategories", "name slug")
+      .sort({ _id: -1 })
+      .limit(limit + 1)
+      .lean();
 
-    const result = { coupons, total };
+    const hasMore = coupons.length > limit;
+    const page = hasMore ? coupons.slice(0, limit) : coupons;
+    const nextCursor = hasMore ? String(page[page.length - 1]._id) : null;
+
+    const result = { coupons: page, nextCursor, hasMore };
 
     redis
       .set(cacheKey, JSON.stringify(result), { ex: ADMIN_LIST_TTL })
