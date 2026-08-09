@@ -74,30 +74,30 @@ const ProductBadge = ({
   };
 
   return (
-    <div className="mb-2 flex min-h-[24px] items-center justify-between gap-2 relative z-10">
-      {badge?.text ? (
+    <>
+      {badge?.text && (
         <span
-          className={`rounded-md px-2 py-0.5 text-[10px] font-semibold sm:text-[11px] ${getBadgeClass(badge)}`}
+          className={`absolute left-2.5 top-2.5 z-[3] rounded-full px-2 py-0.5 text-[11px] font-medium ${getBadgeClass(badge)}`}
         >
           {badge.text}
         </span>
-      ) : (
-        <span />
       )}
 
-      <button
-        type="button"
-        onClick={handleWishlistClick}
-        aria-label={isWishlisted ? "Remove from wishlist" : "Add to wishlist"}
-        aria-pressed={isWishlisted}
-        className="rounded-full p-1 text-gray-400 transition-colors hover:text-red-500"
-      >
-        <Heart
-          size={17}
-          className={isWishlisted ? "fill-red-500 text-red-500" : ""}
-        />
-      </button>
-    </div>
+      <div className="absolute right-2.5 top-2.5 z-[3] flex flex-col gap-2">
+        <button
+          type="button"
+          onClick={handleWishlistClick}
+          aria-label={isWishlisted ? "Remove from wishlist" : "Add to wishlist"}
+          aria-pressed={isWishlisted}
+          className="flex size-8 items-center justify-center rounded-full bg-white text-gray-400 shadow-sm transition-colors hover:text-red-500"
+        >
+          <Heart
+            size={16}
+            className={isWishlisted ? "fill-red-500 text-red-500" : ""}
+          />
+        </button>
+      </div>
+    </>
   );
 };
 

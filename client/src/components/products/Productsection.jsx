@@ -50,7 +50,7 @@ const mapProductToCard = (product, section) => {
     slug: product.slug,
     image: product.images?.[0]?.url || "/placeholder.png",
     title: product.title,
-    subtitle: product.category?.name || product.description,
+    subtitle: product.description,
     price: defaultVariant ? defaultVariant.price : product.price,
     oldPrice: product.compareAtPrice,
     rating: product.ratingAverage,
@@ -94,7 +94,6 @@ const ProductSection = ({
                 <h2 className="text-xl font-bold tracking-tight text-gray-900 sm:text-2xl">
                   {title}
                 </h2>
-
               </div>
               {subtitle && (
                 <p className="mt-1 text-sm leading-relaxed text-gray-500">

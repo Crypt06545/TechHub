@@ -24,8 +24,6 @@ const AddToCartButton = ({
       ? `${productId}__${defaultVariant._id}`
       : productId;
 
-  // Always derived from the store — reacts instantly to add/remove/clear
-  // from ANY source: this card, the cart page, another card, checkout, etc.
   const quantity = useCartStore(
     (s) => s.items.find((i) => getLineId(i) === lineId)?.quantity ?? 0,
   );
@@ -64,7 +62,7 @@ const AddToCartButton = ({
     return (
       <button
         disabled
-        className="mt-1 flex h-9 w-full items-center justify-center rounded-lg bg-gray-100 text-xs font-medium text-gray-400 cursor-not-allowed select-none"
+        className="flex h-[34px] w-full items-center justify-center rounded-full bg-gray-100 text-[13px] font-medium text-gray-400 cursor-not-allowed select-none"
       >
         Out of Stock
       </button>
@@ -77,7 +75,7 @@ const AddToCartButton = ({
       <button
         type="button"
         onClick={handleAdd}
-        className="mt-1 flex h-9 w-full items-center justify-center gap-1.5 rounded-lg bg-gray-900 text-xs font-semibold text-white transition-colors hover:bg-gray-700 active:scale-[.98]"
+        className="flex h-[34px] w-full items-center justify-center gap-1.5 rounded-full bg-gray-900 text-[13px] font-semibold text-white transition-colors hover:bg-gray-700 active:scale-[.98]"
       >
         <ShoppingCart size={13} strokeWidth={2} />
         Add to Cart
@@ -89,7 +87,7 @@ const AddToCartButton = ({
   const atMax = quantity >= stock;
 
   return (
-    <div className="mt-1 flex h-9 w-full items-center rounded-lg border border-gray-200 overflow-hidden bg-white">
+    <div className="flex h-[34px] w-full items-center rounded-full border border-gray-200 overflow-hidden bg-white">
       <button
         type="button"
         onClick={handleDecrease}
