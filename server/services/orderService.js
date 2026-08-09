@@ -2,7 +2,6 @@ import mongoose from "mongoose";
 import { orderRepository } from "../repositories/order.repository.js";
 import { productRepository } from "../repositories/product.repository.js";
 import { Product } from "../models/product.model.js";
-import Address from "../models/address.model.js";
 import { generateOrderId } from "../utils/generateOrderId.js";
 import { ApiError } from "../utils/ApiError.js";
 import { redis } from "../config/redis.js";
@@ -147,8 +146,9 @@ const applyCoupon = async ({
 const orderService = {
   /**
    * Places an order inside a single Mongo transaction: stock decrement,
-   * coupon usage, address save, and order creation either all succeed
-   * or all roll back together.
+   * coupon usage, and order creation either all succeed or all roll back
+   * together. The delivery address is stored only as a snapshot on the
+   * order itself — no separate Address document is created here.
    */
   async placeOrder({
     userId,
@@ -258,37 +258,18 @@ const orderService = {
         const shippingCharge = calcShipping(subTotalAmt, addressData.city);
         const totalAmt = subTotalAmt + shippingCharge - discountAmount;
 
-        const existingCount = await Address.countDocuments({ userId }).session(
-          session,
-        );
-        const [savedAddress] = await Address.create(
-          [
-            {
-              userId,
-              address_line: addressData.address_line,
-              city: addressData.city,
-              state: addressData.state,
-              pincode: addressData.pincode,
-              country: addressData.country || "Bangladesh",
-              mobile: addressData.mobile,
-              isDefault: existingCount === 0,
-            },
-          ],
-          { session },
-        );
-
         order = await orderRepository.create(
           {
             userId,
             orderId: generateOrderId(),
             items: orderItems,
             delivery_address: {
-              address_line: savedAddress.address_line,
-              city: savedAddress.city,
-              state: savedAddress.state,
-              pincode: savedAddress.pincode,
-              country: savedAddress.country,
-              mobile: savedAddress.mobile,
+              address_line: addressData.address_line,
+              city: addressData.city,
+              state: addressData.state,
+              pincode: addressData.pincode,
+              country: addressData.country || "Bangladesh",
+              mobile: addressData.mobile,
             },
             payment_method,
             payment_status: payment_method === "COD" ? "Pending" : "Paid",
