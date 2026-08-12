@@ -16,10 +16,14 @@ import {
   Truck,
   AlertCircle,
   Loader2,
+  Tag,
+  X,
+  CheckCircle2,
 } from "lucide-react";
-import { useCartStore, getLineId } from "@/store/cartStore"; // adjust path if needed
+import { useCartStore, getLineId } from "@/store/cartStore";
 import { useAuth } from "@/hooks/useAuth";
 import { usePlaceOrder } from "@/hooks/order.query";
+import { useCheckCoupon } from "@/hooks/coupon.query";
 import { AuthToast } from "@/components/common/AuthToast";
 import BkashIcon from "@/assets/BKash-Icon2-Logo.wine.svg";
 import NagadIcon from "@/assets/Nagad-Vertical-Logo.wine.svg";
@@ -50,9 +54,9 @@ const PAYMENT_METHODS = [
 
 // ── Must mirror calcShipping() in order.controller.js exactly ──
 // If the backend threshold/fees ever change, update both places.
-const FREE_SHIPPING_AT = 1000;
+const FREE_SHIPPING_AT = 3000;
 const LOCAL_SHIPPING_FEE = 60; // Bogura
-const OUTSIDE_SHIPPING_FEE = 120; // elsewhere
+const OUTSIDE_SHIPPING_FEE = 130; // elsewhere
 
 const fmt = (n) => `৳${Math.round(n).toLocaleString("en-US")}`;
 
@@ -66,6 +70,15 @@ const CheckoutPage = () => {
   const { user } = useAuth();
 
   const [paymentMethod, setPaymentMethod] = useState("COD");
+
+  // ── Coupon state ──
+  // appliedCoupon holds the last successfully validated coupon
+  // ({ code, discount }). It's cleared whenever the cart contents change,
+  // since the discount was computed against a specific set of items and
+  // may no longer be valid/accurate after the cart changes.
+  const [couponInput, setCouponInput] = useState("");
+  const [appliedCoupon, setAppliedCoupon] = useState(null);
+  const [couponError, setCouponError] = useState("");
 
   const {
     register,
@@ -84,6 +97,7 @@ const CheckoutPage = () => {
   const watchedCity = watch("city");
 
   const { mutate: placeOrder, isPending: isPlacingOrder } = usePlaceOrder();
+  const { mutate: checkCoupon, isPending: isCheckingCoupon } = useCheckCoupon();
 
   /* ── Guard: no browsing checkout with an empty cart ── */
   useEffect(() => {
@@ -92,13 +106,28 @@ const CheckoutPage = () => {
     }
   }, [items.length, navigate]);
 
+  // Cart contents changed after a coupon was applied (qty adjusted, item
+  // removed, etc.) — the previously-computed discount no longer matches
+  // reality, so drop it and make the user re-apply. Prevents a stale
+  // "-৳X" showing against a subtotal it was never actually validated for.
+  useEffect(() => {
+    if (appliedCoupon) {
+      setAppliedCoupon(null);
+      setCouponError("");
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    items.length,
+    items.map((i) => `${getLineId(i)}:${i.quantity}`).join(","),
+  ]);
+
   if (items.length === 0) {
     return null; // redirect effect above handles navigation
   }
 
   /* ── Totals — client-side estimate only. The backend recomputes
-     subtotal/shipping/total from live DB prices; this is purely for
-     UX display before submit, not what actually gets charged. ── */
+     subtotal/shipping/discount/total from live DB data; this is purely
+     for UX display before submit, not what actually gets charged. ── */
   const subTotal = items.reduce((acc, i) => acc + i.price * i.quantity, 0);
   const isBogura = watchedCity?.trim().toLowerCase() === "bogura";
   const shippingCharge =
@@ -107,7 +136,47 @@ const CheckoutPage = () => {
       : isBogura
         ? LOCAL_SHIPPING_FEE
         : OUTSIDE_SHIPPING_FEE;
-  const total = subTotal + shippingCharge;
+  const discountAmount = appliedCoupon?.discount || 0;
+  const total = subTotal + shippingCharge - discountAmount;
+
+  const cartItemsForApi = items.map((item) => ({
+    productId: item._id,
+    variantId: item.variantId || null,
+    quantity: item.quantity,
+  }));
+
+  const handleApplyCoupon = () => {
+    const code = couponInput.trim();
+    if (!code) return;
+
+    setCouponError("");
+
+    checkCoupon(
+      { code, items: cartItemsForApi },
+      {
+        onSuccess: (response) => {
+          setAppliedCoupon({
+            code: response?.data?.code || code.toUpperCase(),
+            discount: response?.data?.discount || 0,
+          });
+          AuthToast.success(response?.message || "Coupon applied");
+        },
+        onError: (err) => {
+          setAppliedCoupon(null);
+          setCouponError(
+            err?.response?.data?.message ||
+              "That code isn't valid or has expired",
+          );
+        },
+      },
+    );
+  };
+
+  const handleRemoveCoupon = () => {
+    setAppliedCoupon(null);
+    setCouponInput("");
+    setCouponError("");
+  };
 
   /* ── Submit ──
      Only sends fields placeOrderController actually reads. Cart items
@@ -116,6 +185,11 @@ const CheckoutPage = () => {
      backend resolves everything fresh from the DB in one batched query.
      Prices can drift between add-to-cart and checkout, so this is
      never optional — the client's price is never the source of truth.
+
+     couponCode is passed through so the backend can re-validate and
+     atomically redeem it inside the order transaction — the discount
+     shown here is only a preview; the number that actually gets charged
+     is computed server-side, same as subtotal/shipping/total.
 
      variantId matters just as much: without it the backend has no way
      to know a "Musk Al Haramain 12ml" was ordered vs the 3ml — it needs
@@ -134,11 +208,8 @@ const CheckoutPage = () => {
       payment_method: paymentMethod,
       ...(paymentMethod !== "COD" && { transactionId: data.transactionId }),
       payment_proof_images: [], // wire up a screenshot upload here later for bKash/Nagad
-      items: items.map((item) => ({
-        productId: item._id,
-        variantId: item.variantId || null,
-        quantity: item.quantity,
-      })),
+      items: cartItemsForApi,
+      couponCode: appliedCoupon?.code || null,
     };
 
     placeOrder(payload, {
@@ -535,6 +606,71 @@ const CheckoutPage = () => {
 
                   <Separator className="my-4" />
 
+                  {/* Coupon */}
+                  <div>
+                    {appliedCoupon ? (
+                      <div className="flex items-center justify-between rounded-lg border border-green-200 bg-green-50 px-3 py-2.5">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <CheckCircle2 className="w-4 h-4 text-green-600 shrink-0" />
+                          <div className="min-w-0">
+                            <p className="text-xs font-semibold text-green-800 truncate">
+                              {appliedCoupon.code} applied
+                            </p>
+                            <p className="text-[11px] text-green-600">
+                              You saved {fmt(appliedCoupon.discount)}
+                            </p>
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={handleRemoveCoupon}
+                          className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-green-700 hover:bg-green-100 transition-colors"
+                          aria-label="Remove coupon"
+                        >
+                          <X size={14} />
+                        </button>
+                      </div>
+                    ) : (
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <div className="relative flex-1">
+                            <Tag
+                              size={14}
+                              className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-gray-300"
+                            />
+                            <input
+                              value={couponInput}
+                              onChange={(e) => {
+                                setCouponInput(e.target.value);
+                                setCouponError("");
+                              }}
+                              placeholder="Promo code"
+                              className="h-10 w-full rounded-lg border border-gray-200 bg-gray-50 pl-9 pr-3 text-xs font-medium text-gray-900 placeholder:text-gray-400 outline-none transition-colors focus:border-gray-300 focus:bg-white"
+                            />
+                          </div>
+                          <button
+                            type="button"
+                            onClick={handleApplyCoupon}
+                            disabled={!couponInput.trim() || isCheckingCoupon}
+                            className="flex h-10 shrink-0 items-center gap-1.5 rounded-lg border border-gray-200 px-4 text-xs font-semibold text-gray-700 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+                          >
+                            {isCheckingCoupon && (
+                              <Loader2 size={13} className="animate-spin" />
+                            )}
+                            Apply
+                          </button>
+                        </div>
+                        {couponError && (
+                          <p className="mt-1.5 text-[11px] text-red-500">
+                            {couponError}
+                          </p>
+                        )}
+                      </div>
+                    )}
+                  </div>
+
+                  <Separator className="my-4" />
+
                   {/* Totals */}
                   <div className="flex flex-col gap-2.5">
                     <div className="flex justify-between text-sm">
@@ -551,6 +687,16 @@ const CheckoutPage = () => {
                         <span>{fmt(shippingCharge)}</span>
                       )}
                     </div>
+                    {discountAmount > 0 && (
+                      <div className="flex justify-between text-sm">
+                        <span className="text-muted-foreground">
+                          Discount ({appliedCoupon.code})
+                        </span>
+                        <span className="text-green-600">
+                          −{fmt(discountAmount)}
+                        </span>
+                      </div>
+                    )}
                     <Separator />
                     <div className="flex justify-between text-base font-semibold">
                       <span>Total</span>
