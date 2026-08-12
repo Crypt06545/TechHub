@@ -18,6 +18,7 @@ import orderRouter from "./routes/order.routes.js";
 import { globalRateLimiter } from "./middleware/rateLimiter.js";
 import { blockBannedIPs } from "./middleware/blacklist.js";
 import { sanitizeInputs } from "./middleware/sanitize.js";
+import couponRouter from "./routes/coupon.route.js";
 
 dotenv.config();
 const app = express();
@@ -62,6 +63,7 @@ app.use("/api/v1/users", userRouter);
 app.use("/api/v1/wishlist", wishlistRouter);
 app.use("/api/v1/orders", orderRouter);
 app.use("/api/v1/cart", cartRouter);
+app.use("/api/v1/coupons", couponRouter);
 app.use("/api/v1/chat", chatRouter);
 app.use("/api/v1/admin", AdminRouter);
 

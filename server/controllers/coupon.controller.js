@@ -58,3 +58,26 @@ export const toggleCouponActiveController = asyncHandler(async (req, res) => {
       ),
     );
 });
+
+// ─── Check / Preview Coupon ─────────────────────────────────────────────────
+
+/**
+ * @desc    Validate a coupon against the current cart and preview the
+ *          discount, without redeeming it. Read-only — safe to call
+ *          repeatedly. Access is Private only because previewCoupon needs
+ *          req.user._id for the per-user usage pre-check; actual
+ *          redemption still only happens inside placeOrderController.
+ * @route   POST /api/v1/coupons/check
+ * @access  Private
+ */
+export const checkCouponController = asyncHandler(async (req, res) => {
+  const { code, items } = req.body;
+
+  const result = await couponService.previewCoupon({
+    code,
+    userId: req.user._id,
+    items,
+  });
+
+  return res.status(200).json(new ApiResponse(200, result, "Coupon is valid"));
+});

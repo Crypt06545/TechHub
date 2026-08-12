@@ -1,4 +1,5 @@
 import { Coupon } from "../models/coupon.model.js";
+import CouponUsage from "../models/couponUsage.model.js";
 import { redis } from "../config/redis.js";
 
 const COUPON_CODE_TTL = 86_400; // 24h — long-lived, invalidated on write instead of expiry
@@ -145,15 +146,36 @@ export const couponRepository = {
     return coupon;
   },
 
-  // Atomic, conditional usage increment — used by order placement inside
-  // the transaction. Not cached (this is a write), and doesn't need the
-  // code-cache invalidated afterward since usedCount isn't part of what
-  // the checkout validation reads from cache in a way that risks
+  // Atomic, conditional GLOBAL usage increment — used by order placement
+  // inside the transaction. Not cached (this is a write), and doesn't
+  // need the code-cache invalidated afterward since usedCount isn't part
+  // of what the checkout validation reads from cache in a way that risks
   // over-redemption (the $lt guard here is always live-DB, never cached).
   async incrementUsage(couponId, maxUses, session) {
     const filter = { _id: couponId };
     if (maxUses != null) filter.usedCount = { $lt: maxUses };
 
     return Coupon.updateOne(filter, { $inc: { usedCount: 1 } }, { session });
+  },
+
+  // Atomic, conditional PER-USER usage increment — mirrors incrementUsage
+  // above but scoped to one user. The $lt guard and $inc happen inside a
+  // single findOneAndUpdate, so two concurrent requests from the same
+  // user (double-click, duplicate submit, multiple tabs) can never both
+  // pass: only one can match usedCount < maxUsesPerUser and win the
+  // update. upsert creates the tracking doc on first use.
+  //
+  // Returns the updated doc if the increment succeeded, or null if the
+  // user has already hit maxUsesPerUser.
+  async incrementUserUsage(userId, couponId, maxUsesPerUser, session) {
+    return CouponUsage.findOneAndUpdate(
+      {
+        userId,
+        couponId,
+        usedCount: { $lt: maxUsesPerUser },
+      },
+      { $inc: { usedCount: 1 } },
+      { upsert: true, new: true, session, setDefaultsOnInsert: true },
+    );
   },
 };

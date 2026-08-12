@@ -33,7 +33,7 @@ const safeRedisGet = async (key) => {
 
 const calcShipping = (subTotal, city) => {
   if (subTotal >= 1000) return 0;
-  return city?.toLowerCase() === "bogura" ? 60 : 120;
+  return city?.toLowerCase() === "bogura" ? 60 : 130;
 };
 
 // Resolve price/stock for a cart line, honoring variantId when the
@@ -94,16 +94,6 @@ const applyCoupon = async ({
       `Minimum order amount for this coupon is ৳${coupon.minOrderAmount}`,
     );
 
-  const userUsageCount = await orderRepository.countByUserAndCoupon(
-    { userId, couponCode: coupon.code },
-    session,
-  );
-  if (userUsageCount >= coupon.maxUsesPerUser)
-    throw new ApiError(
-      400,
-      "You've already used this coupon the maximum number of times",
-    );
-
   let eligibleAmt = subTotalAmt;
   if (coupon.applicableCategories?.length > 0) {
     const allowed = new Set(
@@ -129,16 +119,35 @@ const applyCoupon = async ({
     discount = Math.min(discount, coupon.maxDiscountAmount);
   discount = Math.min(discount, eligibleAmt);
 
-  // Atomic, conditional usage increment — always hits live DB, never
-  // cache, so the maxUses limit can never be over-redeemed even though
-  // the coupon lookup above was cached.
-  const result = await couponRepository.incrementUsage(
+  // Atomic, conditional GLOBAL usage increment — always hits live DB,
+  // never cache, so maxUses can never be over-redeemed even though the
+  // coupon lookup above was cached.
+  const globalResult = await couponRepository.incrementUsage(
     coupon._id,
     coupon.maxUses,
     session,
   );
-  if (result.modifiedCount === 0)
+  if (globalResult.modifiedCount === 0)
     throw new ApiError(400, "This coupon has reached its usage limit");
+
+  // Atomic, conditional PER-USER usage increment. Replaces the old
+  // count-then-check (Order.countDocuments), which was vulnerable to a
+  // race: two concurrent requests from the same user (double-click,
+  // duplicate submit, multiple tabs) could both read count=0 before
+  // either order committed, letting both slip past a
+  // maxUsesPerUser: 1 limit. findOneAndUpdate's $lt guard + $inc happen
+  // as one atomic op, so only one concurrent request can ever win.
+  const userUsage = await couponRepository.incrementUserUsage(
+    userId,
+    coupon._id,
+    coupon.maxUsesPerUser,
+    session,
+  );
+  if (!userUsage)
+    throw new ApiError(
+      400,
+      "You've already used this coupon the maximum number of times",
+    );
 
   return { discount: Math.round(discount), code: coupon.code };
 };

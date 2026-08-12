@@ -60,12 +60,6 @@ export const orderRepository = {
       .lean();
   },
 
-  // used to enforce coupon.maxUsesPerUser during checkout, inside the
-  // same transaction session so it sees consistent data.
-  async countByUserAndCoupon({ userId, couponCode }, session) {
-    return Order.countDocuments({ userId, couponCode }).session(session);
-  },
-
   // ─── Admin: cursor-based pagination (scales to 10M+ orders) ─────────────
 
   async findAllOrdersAdmin({
