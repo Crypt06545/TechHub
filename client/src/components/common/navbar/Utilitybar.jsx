@@ -24,7 +24,7 @@ const UtilityBar = () => (
           Track Order
         </Link>
         <Link
-          to="/help-center"
+          to="/contact"
           className="cursor-pointer hover:text-orange-600 transition-colors font-medium"
         >
           Help Center

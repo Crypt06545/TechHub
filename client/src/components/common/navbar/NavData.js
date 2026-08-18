@@ -30,20 +30,12 @@ export const NAV_LINKS = [
     path: "/products",
   },
   {
-    name: "PC Builder",
-    path: "/pc-builder",
-  },
-  {
     name: "Deals",
     path: "/deals",
   },
   {
     name: "New Arrivals",
     path: "/new-arrivals",
-  },
-  {
-    name: "Brands",
-    path: "/brands",
   },
   {
     name: "Blogs",
@@ -53,10 +45,10 @@ export const NAV_LINKS = [
     name: "About Us",
     path: "/about",
   },
-  // {
-  //   name: "Contact Us",
-  //   path: "/contact",
-  // },
+  {
+    name: "Contact Us",
+    path: "/contact",
+  },
 ];
 
 export const SIDEBAR_DATA = {

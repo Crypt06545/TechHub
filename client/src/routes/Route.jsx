@@ -40,7 +40,7 @@ const router = createBrowserRouter([
       { path: "profile", element: <UserProfile /> },
       { path: "track-order", element: <TrackOrderPage /> },
       { path: "cart", element: <CartPage /> },
-      // { path: "contact", element: <Contact /> },
+      { path: "contact", element: <Contact /> },
       { path: "checkout", element: <CheckoutPage /> },
       { path: "about", element: <AboutUs /> },
       { path: "datapolicy", element: <PrivacyPolicy /> },
