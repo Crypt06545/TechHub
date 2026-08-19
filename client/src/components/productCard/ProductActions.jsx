@@ -2,37 +2,88 @@
 // FILE: ProductActions.jsx
 
 import React from "react";
-import { Eye, GitCompare } from "lucide-react";
+import { Heart, Eye, GitCompare } from "lucide-react";
+import { useWishlistStore, getLineId } from "@/store/wishlistStore";
 
-const ProductActions = ({ slug }) => {
-  // Prevent clicking these actions from triggering the parent card navigation
+const ProductActions = ({
+  slug,
+  productId,
+  image,
+  title,
+  subtitle,
+  price,
+  oldPrice,
+  hasVariants,
+  defaultVariant,
+}) => {
+  const lineId =
+    hasVariants && defaultVariant
+      ? `${productId}__${defaultVariant._id}`
+      : productId;
+
+  const isWishlisted = useWishlistStore((s) =>
+    s.items.some((i) => getLineId(i) === lineId),
+  );
+  const toggleItem = useWishlistStore((s) => s.toggleItem);
+
+  const handleWishlistClick = (e) => {
+    e.stopPropagation();
+    e.preventDefault();
+    toggleItem({
+      _id: productId,
+      image,
+      name: title,
+      subtitle,
+      price,
+      oldPrice,
+      slug,
+      variantId: hasVariants && defaultVariant ? defaultVariant._id : null,
+      size:
+        hasVariants && defaultVariant ? (defaultVariant.size ?? null) : null,
+      color:
+        hasVariants && defaultVariant ? (defaultVariant.color ?? null) : null,
+    });
+  };
+
   const handleActionClick = (e, actionType) => {
     e.stopPropagation();
     e.preventDefault();
-
-    if (actionType === 'view') {
+    if (actionType === "view") {
       console.log("Quick view clicked for:", slug);
-      // Your future quick view modal logic here
-    } else if (actionType === 'compare') {
+    } else if (actionType === "compare") {
       console.log("Compare clicked for:", slug);
-      // Your future compare logic here
     }
   };
 
   return (
-    <div className="absolute right-1 top-1/2 flex -translate-y-1/2 translate-x-3 flex-col gap-2 opacity-0 transition-all duration-500 group-hover:translate-x-0 group-hover:opacity-100 z-10">
+    <div className="absolute right-2 top-2 z-[3] flex translate-x-2 flex-col gap-1.5 opacity-0 transition-all duration-300 group-hover:translate-x-0 group-hover:opacity-100">
       <button
         type="button"
-        onClick={(e) => handleActionClick(e, 'view')}
-        className="flex h-8 w-8 items-center justify-center rounded-full border border-gray-200 bg-white shadow-sm hover:bg-gray-50 active:scale-95 transition-all"
+        onClick={handleWishlistClick}
+        aria-label={isWishlisted ? "Remove from wishlist" : "Add to wishlist"}
+        aria-pressed={isWishlisted}
+        className="flex size-8 items-center justify-center rounded-full bg-white text-gray-500 shadow-sm transition-colors hover:text-red-500"
+      >
+        <Heart
+          size={15}
+          className={isWishlisted ? "fill-red-500 text-red-500" : ""}
+        />
+      </button>
+
+      <button
+        type="button"
+        onClick={(e) => handleActionClick(e, "view")}
+        aria-label="Quick view"
+        className="flex size-8 items-center justify-center rounded-full bg-white text-gray-500 shadow-sm transition-colors hover:text-gray-900"
       >
         <Eye size={15} />
       </button>
 
       <button
         type="button"
-        onClick={(e) => handleActionClick(e, 'compare')}
-        className="flex h-8 w-8 items-center justify-center rounded-full border border-gray-200 bg-white shadow-sm hover:bg-gray-50 active:scale-95 transition-all"
+        onClick={(e) => handleActionClick(e, "compare")}
+        aria-label="Compare"
+        className="flex size-8 items-center justify-center rounded-full bg-white text-gray-500 shadow-sm transition-colors hover:text-gray-900"
       >
         <GitCompare size={15} />
       </button>

@@ -62,7 +62,7 @@ const AddToCartButton = ({
     return (
       <button
         disabled
-        className="flex h-[34px] w-full items-center justify-center rounded-full bg-gray-100 text-[13px] font-medium text-gray-400 cursor-not-allowed select-none"
+        className="flex h-9 w-full items-center justify-center rounded-md bg-gray-100 text-xs font-semibold uppercase tracking-wide text-gray-400 cursor-not-allowed select-none"
       >
         Out of Stock
       </button>
@@ -75,7 +75,7 @@ const AddToCartButton = ({
       <button
         type="button"
         onClick={handleAdd}
-        className="flex h-[34px] w-full items-center justify-center gap-1.5 rounded-full bg-gray-900 text-[13px] font-semibold text-white transition-colors hover:bg-gray-700 active:scale-[.98]"
+        className="flex h-9 w-full items-center justify-center gap-1.5 rounded-md bg-gray-900 text-xs font-semibold uppercase tracking-wide text-white transition-colors hover:bg-gray-700 active:scale-[.98]"
       >
         <ShoppingCart size={13} strokeWidth={2} />
         Add to Cart
@@ -87,7 +87,7 @@ const AddToCartButton = ({
   const atMax = quantity >= stock;
 
   return (
-    <div className="flex h-[34px] w-full items-center rounded-full border border-gray-200 overflow-hidden bg-white">
+    <div className="flex h-9 w-full items-center rounded-md border border-gray-200 overflow-hidden bg-white">
       <button
         type="button"
         onClick={handleDecrease}
@@ -97,7 +97,7 @@ const AddToCartButton = ({
         <Minus size={13} strokeWidth={2.5} />
       </button>
 
-      <div className="flex flex-1 items-center justify-center gap-1 select-none">
+      <div className="flex flex-1 items-center justify-center select-none">
         <span className="text-xs font-semibold text-gray-800">{quantity}</span>
       </div>
 

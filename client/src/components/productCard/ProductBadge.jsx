@@ -1,103 +1,44 @@
-// PATH: src/components/products/productCard/ProductBadge.jsx
-// FILE: ProductBadge.jsx
-
 import React from "react";
-import { Heart } from "lucide-react";
-import { useWishlistStore, getLineId } from "@/store/wishlistStore";
 
-// Tinted background + matching text + a thin matching border — reads as
-// deliberate and calm rather than loud. Keyed lowercase so it can never
-// silently miss a match on casing ("Hot Deal" vs "hot deal").
 const badgeStyles = {
-  warning: "bg-amber-50 text-amber-700 ring-1 ring-inset ring-amber-200",
-  sale: "bg-rose-50 text-rose-600 ring-1 ring-inset ring-rose-200",
-  success: "bg-emerald-50 text-emerald-700 ring-1 ring-inset ring-emerald-200",
-  dark: "bg-gray-100 text-gray-500 ring-1 ring-inset ring-gray-200",
-  featured: "bg-indigo-50 text-indigo-700 ring-1 ring-inset ring-indigo-200",
-  "hot deal": "bg-rose-50 text-rose-600 ring-1 ring-inset ring-rose-200",
-  "new arrival": "bg-sky-50 text-sky-700 ring-1 ring-inset ring-sky-200",
-  "best seller": "bg-amber-50 text-amber-700 ring-1 ring-inset ring-amber-200",
-  "top rated": "bg-violet-50 text-violet-700 ring-1 ring-inset ring-violet-200",
+  warning: "bg-stone-100 text-stone-700 ring-1 ring-inset ring-stone-200",
+  sale: "bg-[#F7EAEA] text-[#8B4545] ring-1 ring-inset ring-[#E8CFCF]",
+  success: "bg-[#EAF3EE] text-[#35624A] ring-1 ring-inset ring-[#CFE2D7]",
+  dark: "bg-gray-900 text-white",
+
+  featured: "bg-stone-100 text-stone-800 ring-1 ring-inset ring-stone-200",
+  "hot deal": "bg-[#F7EAEA] text-[#8B4545] ring-1 ring-inset ring-[#E8CFCF]",
+  "new arrival": "bg-stone-100 text-stone-700 ring-1 ring-inset ring-stone-200",
+  "best seller": "bg-[#F5F0E3] text-[#765F2E] ring-1 ring-inset ring-[#E4D8B8]",
+  "top rated": "bg-stone-100 text-stone-700 ring-1 ring-inset ring-stone-200",
   "limited stock":
-    "bg-orange-50 text-orange-700 ring-1 ring-inset ring-orange-200",
-  trending: "bg-fuchsia-50 text-fuchsia-700 ring-1 ring-inset ring-fuchsia-200",
+    "bg-[#F7F0E8] text-[#805D36] ring-1 ring-inset ring-[#E8D7C0]",
+  trending: "bg-stone-100 text-stone-800 ring-1 ring-inset ring-stone-200",
 };
 
 const getBadgeClass = (badge) => {
   if (!badge) return "";
   const key = (badge.text || badge.type || "").toLowerCase();
-  return (
-    badgeStyles[key] ||
-    "bg-gray-50 text-gray-600 ring-1 ring-inset ring-gray-200"
-  );
+  return badgeStyles[key] || "bg-gray-800 text-white";
 };
 
-const ProductBadge = ({
-  badge,
-  productId,
-  image,
-  title,
-  subtitle,
-  price,
-  oldPrice,
-  slug,
-  hasVariants,
-  defaultVariant,
-}) => {
-  const lineId =
-    hasVariants && defaultVariant
-      ? `${productId}__${defaultVariant._id}`
-      : productId;
+const ProductBadge = ({ badge, outOfStock }) => {
+  if (outOfStock) {
+    return (
+      <span className="absolute left-2 top-2 z-[3] rounded bg-gray-900 px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-white">
+        Out of Stock
+      </span>
+    );
+  }
 
-  const isWishlisted = useWishlistStore((s) =>
-    s.items.some((i) => getLineId(i) === lineId),
-  );
-  const toggleItem = useWishlistStore((s) => s.toggleItem);
-
-  const handleWishlistClick = (e) => {
-    e.stopPropagation();
-    e.preventDefault();
-    toggleItem({
-      _id: productId,
-      image,
-      name: title,
-      subtitle,
-      price,
-      oldPrice,
-      slug,
-      variantId: hasVariants && defaultVariant ? defaultVariant._id : null,
-      size:
-        hasVariants && defaultVariant ? (defaultVariant.size ?? null) : null,
-      color:
-        hasVariants && defaultVariant ? (defaultVariant.color ?? null) : null,
-    });
-  };
+  if (!badge?.text) return null;
 
   return (
-    <>
-      {badge?.text && (
-        <span
-          className={`absolute left-2.5 top-2.5 z-[3] rounded-full px-2 py-0.5 text-[11px] font-medium ${getBadgeClass(badge)}`}
-        >
-          {badge.text}
-        </span>
-      )}
-
-      <div className="absolute right-2.5 top-2.5 z-[3] flex flex-col gap-2">
-        <button
-          type="button"
-          onClick={handleWishlistClick}
-          aria-label={isWishlisted ? "Remove from wishlist" : "Add to wishlist"}
-          aria-pressed={isWishlisted}
-          className="flex size-8 items-center justify-center rounded-full bg-white text-gray-400 shadow-sm transition-colors hover:text-red-500"
-        >
-          <Heart
-            size={16}
-            className={isWishlisted ? "fill-red-500 text-red-500" : ""}
-          />
-        </button>
-      </div>
-    </>
+    <span
+      className={`absolute left-2 top-2 z-[3] rounded-md px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.04em] ${getBadgeClass(badge)}`}
+    >
+      {badge.text}
+    </span>
   );
 };
 

@@ -28,6 +28,7 @@ import AboutUs from "@/components/AboutUs";
 import PrivacyPolicy from "@/components/DataPolicy";
 import GuestRoute from "./GuestRoute";
 import Contact from "@/pages/Contact";
+import AfterSalesSupport from "@/pages/Aftersalessupport";
 
 const router = createBrowserRouter([
   {
@@ -41,6 +42,7 @@ const router = createBrowserRouter([
       { path: "track-order", element: <TrackOrderPage /> },
       { path: "cart", element: <CartPage /> },
       { path: "contact", element: <Contact /> },
+      { path: "after-sales-policy", element: <AfterSalesSupport /> },
       { path: "checkout", element: <CheckoutPage /> },
       { path: "about", element: <AboutUs /> },
       { path: "datapolicy", element: <PrivacyPolicy /> },

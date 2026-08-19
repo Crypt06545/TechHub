@@ -24,6 +24,7 @@ const supportLinks = [
   { label: "Shipping & Delivery", to: "/shipping" },
   { label: "Return Policy", to: "/returns" },
   { label: "Contact Us", to: "/contact" },
+  { label: "After Sales Policy", to: "/after-sales-policy" },
 ];
 
 const Footer = () => {
