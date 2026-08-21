@@ -136,10 +136,18 @@ export const ProductInfo = ({ product }) => {
     ? !selectedVariant || activeStock === 0
     : activeStock === 0;
 
-  const discount = product.compareAtPrice
-    ? Math.round(
-        ((product.compareAtPrice - activePrice) / product.compareAtPrice) * 100,
-      )
+  // ── Fixed discount % derived once from the base product's price vs
+  //    compareAtPrice — this % never changes across variants ─────────────────
+  const discountPercent = useMemo(() => {
+    if (!product.compareAtPrice || !product.price) return null;
+    return Math.round(
+      ((product.compareAtPrice - product.price) / product.compareAtPrice) * 100,
+    );
+  }, [product.compareAtPrice, product.price]);
+
+  // ── The displayed "cut price" recalculates per-variant so the % stays fixed
+  const activeCompareAtPrice = discountPercent
+    ? Math.round(activePrice / (1 - discountPercent / 100))
     : null;
 
   // ── Cart wiring ──────────────────────────────────────────────────────────
@@ -164,7 +172,7 @@ export const ProductInfo = ({ product }) => {
     name: product.title,
     image: productImage,
     price: activePrice,
-    originalPrice: product.compareAtPrice ?? null,
+    originalPrice: activeCompareAtPrice ?? null,
     slug: product.slug,
     variantId: selectedVariant?._id ?? null,
     size: selectedVariant?.size ?? null,
@@ -178,7 +186,7 @@ export const ProductInfo = ({ product }) => {
     image: productImage,
     subtitle: product.category?.name ?? null,
     price: activePrice,
-    oldPrice: product.compareAtPrice ?? null,
+    oldPrice: activeCompareAtPrice ?? null,
     slug: product.slug,
     variantId: selectedVariant?._id ?? null,
     size: selectedVariant?.size ?? null,
@@ -262,21 +270,21 @@ export const ProductInfo = ({ product }) => {
 
       <Separator />
 
-      {/* Price only — full description now lives in the Details tab on
-          ProductDetails.jsx, not here, to keep this column compact */}
+      {/* Price — discountPercent stays fixed across variants; the cut price
+          (activeCompareAtPrice) recalculates so that % holds true */}
       <div>
         <div className="flex items-baseline gap-3">
           <span className="text-3xl font-bold text-gray-900">
             ৳ {activePrice.toLocaleString()}
           </span>
-          {product.compareAtPrice && (
+          {activeCompareAtPrice && (
             <>
               <span className="text-base text-gray-400 line-through">
-                ৳ {product.compareAtPrice.toLocaleString()}
+                ৳ {activeCompareAtPrice.toLocaleString()}
               </span>
-              {discount > 0 && (
+              {discountPercent > 0 && (
                 <Badge className="bg-red-50 text-red-600 border-0 font-medium text-xs">
-                  -{discount}%
+                  -{discountPercent}%
                 </Badge>
               )}
             </>
@@ -403,20 +411,14 @@ export const ProductInfo = ({ product }) => {
           <ShieldCheck className="w-4 h-4 shrink-0" />
           {activeStock > 0 ? (
             <span>
-              {activeStock > 0 ? (
-                <span>
-                  Availability:{" "}
-                  <span className="font-medium text-green-600">In Stock</span>
-                </span>
-              ) : (
-                <span>
-                  Availability:{" "}
-                  <span className="font-medium text-red-600">Out of Stock</span>
-                </span>
-              )}
+              Availability:{" "}
+              <span className="font-medium text-green-600">In Stock</span>
             </span>
           ) : (
-            <span className="text-red-500 font-medium">Out of stock</span>
+            <span>
+              Availability:{" "}
+              <span className="font-medium text-red-600">Out of Stock</span>
+            </span>
           )}
         </div>
       </div>

@@ -57,7 +57,19 @@ const ProductCard = ({
             defaultVariant={defaultVariant}
           />
 
-          {!outOfStock && <ProductActions slug={slug} />}
+          {!outOfStock && (
+            <ProductActions
+              slug={slug}
+              productId={productId}
+              image={image}
+              title={plainTitle}
+              subtitle={plainSubtitle}
+              price={price}
+              oldPrice={oldPrice}
+              hasVariants={hasVariants}
+              defaultVariant={defaultVariant}
+            />
+          )}
         </div>
       </Link>
 
