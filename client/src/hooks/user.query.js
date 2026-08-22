@@ -6,6 +6,7 @@ import {
   registerUser,
   resetPassword,
   updateUserProfile,
+  verifyEmail,
   verifyForgotPasswordOtp,
 } from "@/api/user.api";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -77,5 +78,11 @@ export const useLogout = () => {
       queryClient.setQueryData(["getUser"], null);
       queryClient.clear();
     },
+  });
+};
+
+export const useVerifyEmail = () => {
+  return useMutation({
+    mutationFn: verifyEmail,
   });
 };

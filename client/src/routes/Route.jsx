@@ -29,6 +29,7 @@ import PrivacyPolicy from "@/components/DataPolicy";
 import GuestRoute from "./GuestRoute";
 import Contact from "@/pages/Contact";
 import AfterSalesSupport from "@/pages/Aftersalessupport";
+import VerifyEmail from "@/pages/VerifyEmail"; // ← add this import
 
 const router = createBrowserRouter([
   {
@@ -58,6 +59,7 @@ const router = createBrowserRouter([
       { path: "forgot-password", element: <ForgotPasswordForm /> },
       { path: "verify-otp", element: <VerifyOtpForm /> },
       { path: "reset-password", element: <ResetPasswordForm /> },
+      { path: "verify-email", element: <VerifyEmail /> }, // ← added
     ],
   },
 
