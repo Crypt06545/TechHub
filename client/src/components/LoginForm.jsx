@@ -248,7 +248,7 @@ const LoginForm = () => {
               alt="Tech products"
               className="absolute inset-0 h-full w-full object-cover opacity-80"
             />
-            <div className="absolute inset-0 bg-gradient-to-t from-gray-950 via-gray-950/40 to-transparent" />
+            <div className="absolute inset-0 bg-linear-to-t from-gray-950 via-gray-950/40 to-transparent" />
             <div className="absolute bottom-8 left-8 right-8 flex items-start gap-3 text-white">
               <Shield className="w-5 h-5 mt-0.5 text-white/80 shrink-0" />
               <div>
