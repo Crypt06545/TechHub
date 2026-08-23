@@ -1,25 +1,57 @@
 import React, { useState, useEffect } from "react";
 import { Outlet, NavLink, useLocation } from "react-router-dom";
 import {
-  LayoutDashboard, ShoppingBag, Users, Package,
-  BarChart3, Settings, HelpCircle, Bell, Moon,
-  Sun, ChevronDown, LogOut, User, ChevronRight,
-  Database, FileText, Zap,
+  LayoutDashboard,
+  ShoppingBag,
+  Users,
+  Package,
+  BarChart3,
+  Settings,
+  HelpCircle,
+  Bell,
+  Moon,
+  Sun,
+  ChevronDown,
+  LogOut,
+  User,
+  ChevronRight,
+  Database,
+  FileText,
+  Zap,
   Tags,
   TicketPercent,
 } from "lucide-react";
 import {
-  Sidebar, SidebarContent, SidebarFooter, SidebarHeader,
-  SidebarMenu, SidebarMenuButton, SidebarMenuItem,
-  SidebarGroup, SidebarGroupLabel, SidebarGroupContent,
-  SidebarMenuSub, SidebarMenuSubItem, SidebarMenuSubButton,
-  SidebarProvider, SidebarTrigger, SidebarInset, SidebarSeparator,
+  Sidebar,
+  SidebarContent,
+  SidebarFooter,
+  SidebarHeader,
+  SidebarMenu,
+  SidebarMenuButton,
+  SidebarMenuItem,
+  SidebarGroup,
+  SidebarGroupLabel,
+  SidebarGroupContent,
+  SidebarMenuSub,
+  SidebarMenuSubItem,
+  SidebarMenuSubButton,
+  SidebarProvider,
+  SidebarTrigger,
+  SidebarInset,
+  SidebarSeparator,
 } from "@/components/ui/sidebar";
 import {
-  DropdownMenu, DropdownMenuContent, DropdownMenuItem,
-  DropdownMenuSeparator, DropdownMenuTrigger,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
@@ -66,17 +98,19 @@ const NAV_MAIN = [
 
 const NAV_RESOURCES = [
   {
-    title: "Inventory", icon: Database,
+    title: "Inventory",
+    icon: Database,
     children: [
       { title: "Stock Levels", to: "/admin/dashboard/inventory/stock" },
-      { title: "Suppliers",    to: "/admin/dashboard/inventory/suppliers" },
+      { title: "Suppliers", to: "/admin/dashboard/inventory/suppliers" },
     ],
   },
   {
-    title: "Reports", icon: FileText,
+    title: "Reports",
+    icon: FileText,
     children: [
       { title: "Sales Report", to: "/admin/dashboard/reports/sales" },
-      { title: "Export Data",  to: "/admin/dashboard/reports/export" },
+      { title: "Export Data", to: "/admin/dashboard/reports/export" },
     ],
   },
   { title: "Automation", to: "/admin/dashboard/automation", icon: Zap },
@@ -84,15 +118,16 @@ const NAV_RESOURCES = [
 
 const NAV_SECONDARY = [
   { title: "Settings", to: "/admin/dashboard/settings", icon: Settings },
-  { title: "Help",     to: "/admin/dashboard/help",     icon: HelpCircle },
+  { title: "Help", to: "/admin/dashboard/help", icon: HelpCircle },
 ];
 
 /* ── NavItem ── */
 const NavItem = ({ item }) => {
   const { pathname } = useLocation();
-  const isActive = item.to === "/admin/dashboard"
-    ? pathname === "/admin/dashboard"
-    : pathname.startsWith(item.to);
+  const isActive =
+    item.to === "/admin/dashboard"
+      ? pathname === "/admin/dashboard"
+      : pathname.startsWith(item.to);
 
   return (
     <SidebarMenuItem>
@@ -120,21 +155,35 @@ const NavCollapsible = ({ item }) => {
   if (!item.children) {
     return (
       <SidebarMenuItem>
-        <SidebarMenuButton asChild isActive={pathname.startsWith(item.to)} tooltip={item.title}>
-          <NavLink to={item.to}><item.icon /><span>{item.title}</span></NavLink>
+        <SidebarMenuButton
+          asChild
+          isActive={pathname.startsWith(item.to)}
+          tooltip={item.title}
+        >
+          <NavLink to={item.to}>
+            <item.icon />
+            <span>{item.title}</span>
+          </NavLink>
         </SidebarMenuButton>
       </SidebarMenuItem>
     );
   }
 
   return (
-    <Collapsible open={open} onOpenChange={setOpen} className="group/collapsible">
+    <Collapsible
+      open={open}
+      onOpenChange={setOpen}
+      className="group/collapsible"
+    >
       <SidebarMenuItem>
         <CollapsibleTrigger asChild>
           <SidebarMenuButton tooltip={item.title} isActive={isChildActive}>
             <item.icon />
             <span>{item.title}</span>
-            <ChevronRight size={14} className="ml-auto transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
+            <ChevronRight
+              size={14}
+              className="ml-auto transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90"
+            />
           </SidebarMenuButton>
         </CollapsibleTrigger>
         <CollapsibleContent>
@@ -166,7 +215,9 @@ const AppSidebar = () => (
               </div>
               <div className="grid flex-1 text-left text-sm leading-tight">
                 <span className="truncate font-semibold">TechHub</span>
-                <span className="truncate text-xs text-sidebar-foreground/60">Admin Panel</span>
+                <span className="truncate text-xs text-sidebar-foreground/60">
+                  Admin Panel
+                </span>
               </div>
             </a>
           </SidebarMenuButton>
@@ -179,7 +230,9 @@ const AppSidebar = () => (
         <SidebarGroupLabel>Main</SidebarGroupLabel>
         <SidebarGroupContent>
           <SidebarMenu>
-            {NAV_MAIN.map((item) => <NavItem key={item.title} item={item} />)}
+            {NAV_MAIN.map((item) => (
+              <NavItem key={item.title} item={item} />
+            ))}
           </SidebarMenu>
         </SidebarGroupContent>
       </SidebarGroup>
@@ -190,7 +243,9 @@ const AppSidebar = () => (
         <SidebarGroupLabel>Resources</SidebarGroupLabel>
         <SidebarGroupContent>
           <SidebarMenu>
-            {NAV_RESOURCES.map((item) => <NavCollapsible key={item.title} item={item} />)}
+            {NAV_RESOURCES.map((item) => (
+              <NavCollapsible key={item.title} item={item} />
+            ))}
           </SidebarMenu>
         </SidebarGroupContent>
       </SidebarGroup>
@@ -201,7 +256,10 @@ const AppSidebar = () => (
             {NAV_SECONDARY.map((item) => (
               <SidebarMenuItem key={item.title}>
                 <SidebarMenuButton asChild tooltip={item.title} size="sm">
-                  <NavLink to={item.to}><item.icon /><span>{item.title}</span></NavLink>
+                  <NavLink to={item.to}>
+                    <item.icon />
+                    <span>{item.title}</span>
+                  </NavLink>
                 </SidebarMenuButton>
               </SidebarMenuItem>
             ))}
@@ -215,7 +273,10 @@ const AppSidebar = () => (
         <SidebarMenuItem>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <SidebarMenuButton size="lg" className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground">
+              <SidebarMenuButton
+                size="lg"
+                className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
+              >
                 <Avatar className="size-8 rounded-lg">
                   <AvatarFallback className="rounded-lg text-xs font-bold bg-sidebar-primary text-sidebar-primary-foreground">
                     MH
@@ -223,9 +284,14 @@ const AppSidebar = () => (
                 </Avatar>
                 <div className="grid flex-1 text-left text-sm leading-tight">
                   <span className="truncate font-semibold">Mehadi Hasan</span>
-                  <span className="truncate text-xs text-sidebar-foreground/60">admin@techhub.com</span>
+                  <span className="truncate text-xs text-sidebar-foreground/60">
+                    admin@techhub.com
+                  </span>
                 </div>
-                <ChevronDown size={14} className="ml-auto shrink-0 text-sidebar-foreground/60" />
+                <ChevronDown
+                  size={14}
+                  className="ml-auto shrink-0 text-sidebar-foreground/60"
+                />
               </SidebarMenuButton>
             </DropdownMenuTrigger>
             <DropdownMenuContent side="top" align="start" className="w-52">
@@ -307,20 +373,22 @@ const SiteHeader = ({ dark, setDark }) => (
 
 /* ── DashLayout ── */
 const DashLayout = () => {
-  const [dark, setDark] = useState(
-    () => localStorage.getItem("theme") === "dark"
-  );
+  const [dark, setDark] = useState(() => {
+    return localStorage.getItem("admin_theme") === "dark";
+  });
 
-  // Apply dark class directly to <html> — the only reliable way with shadcn
   useEffect(() => {
     const root = document.documentElement;
     if (dark) {
       root.classList.add("dark");
-      localStorage.setItem("theme", "dark");
+      localStorage.setItem("admin_theme", "dark");
     } else {
       root.classList.remove("dark");
-      localStorage.setItem("theme", "light");
+      localStorage.setItem("admin_theme", "light");
     }
+    return () => {
+      root.classList.remove("dark");
+    };
   }, [dark]);
 
   return (
