@@ -1,44 +1,35 @@
 import { useEffect, useRef } from "react";
 import { Navigate, Outlet, useLocation } from "react-router-dom";
-import { useAuth } from "@/hooks/useAuth";
-import PageLoader from "@/components/common/PageLoader";
+import { useUserStore } from "@/store/userStore";
 import { AuthToast } from "@/components/common/AuthToast";
 
 const ProtectedRoute = ({ roles }) => {
-  const { user, isAuthenticated, isLoading } = useAuth();
+  const user = useUserStore((state) => state.user);
   const location = useLocation();
   const hasShownToast = useRef(false);
 
-  useEffect(() => {
-    if (isLoading) return;
+  const isAuthenticated = !!user;
 
+  useEffect(() => {
     if (!isAuthenticated && !hasShownToast.current) {
       hasShownToast.current = true;
       AuthToast.error("Please log in to continue");
     } else if (
       isAuthenticated &&
       roles &&
-      !roles.includes(user.role) &&
+      !roles.includes(user?.role) &&
       !hasShownToast.current
     ) {
       hasShownToast.current = true;
       AuthToast.error("You don't have permission to access this page");
     }
-  }, [isLoading, isAuthenticated, user, roles]);
-
-  if (isLoading) {
-    return (
-      <div className="flex h-screen items-center justify-center">
-        <PageLoader />
-      </div>
-    );
-  }
+  }, [isAuthenticated, user, roles]);
 
   if (!isAuthenticated) {
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
-  if (roles && !roles.includes(user.role)) {
+  if (roles && !roles.includes(user?.role)) {
     return <Navigate to="/" replace />;
   }
 

@@ -7,12 +7,17 @@ const api = axios.create({
 
 let isRefreshing = false;
 let refreshQueue = [];
+let sessionExpired = false;
 
 const processQueue = (error) => {
   refreshQueue.forEach(({ resolve, reject }) =>
     error ? reject(error) : resolve(),
   );
   refreshQueue = [];
+};
+
+export const resetSessionExpired = () => {
+  sessionExpired = false;
 };
 
 api.interceptors.response.use(
@@ -25,13 +30,16 @@ api.interceptors.response.use(
       originalRequest?.url?.includes("/users/login") ||
       originalRequest?.url?.includes("/users/refresh-token");
 
-    // not a session issue, already retried, or hit while trying to auth — bail
-    if (status !== 401 || isAuthEndpoint || originalRequest._retry) {
+    if (
+      status !== 401 ||
+      isAuthEndpoint ||
+      originalRequest._retry ||
+      sessionExpired
+    ) {
       return Promise.reject(error);
     }
 
     if (isRefreshing) {
-      // another request is already refreshing — queue behind it
       return new Promise((resolve, reject) => {
         refreshQueue.push({ resolve, reject });
       }).then(() => {
@@ -46,10 +54,11 @@ api.interceptors.response.use(
     try {
       await api.post("/users/refresh-token");
       processQueue(null);
+      sessionExpired = false;
       return api(originalRequest);
     } catch (refreshError) {
+      sessionExpired = true;
       processQueue(refreshError);
-      // refresh token itself is dead — force client-side logout
       window.dispatchEvent(new Event("auth:logout"));
       return Promise.reject(refreshError);
     } finally {

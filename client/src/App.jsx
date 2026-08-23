@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import { Outlet, useLocation } from "react-router-dom";
+import { useQueryClient } from "@tanstack/react-query";
 import Footer from "./components/common/Footer";
 import ChatWidget from "./components/common/ChatWidget";
 import Navbar from "./components/common/Navbar";
@@ -12,14 +13,32 @@ import Marquee from "./components/common/Marquee";
 
 function App() {
   const location = useLocation();
+  const queryClient = useQueryClient();
   const setUser = useUserStore((s) => s.setUser);
   const clearUser = useUserStore((s) => s.clearUser);
   const { data, isSuccess, isError } = useGetProfile();
 
+  // Sync React Query state with Zustand Store
   useEffect(() => {
-    if (isSuccess && data?.data?.user) setUser(data.data.user);
-    if (isError) clearUser();
+    if (isSuccess && data?.data?.user) {
+      setUser(data.data.user);
+    }
+    if (isError) {
+      clearUser();
+    }
   }, [isSuccess, isError, data, setUser, clearUser]);
+
+  // Global Auth Logout Listener
+  useEffect(() => {
+    const handleForceLogout = () => {
+      clearUser(); // Zustand store খালি করুন
+      queryClient.setQueryData(["getUser"], null); // Query Cache ক্লিয়ার
+      queryClient.cancelQueries({ queryKey: ["getUser"] }); // চলমান কোনো Fetch থাকলে তা রদ করুন
+    };
+
+    window.addEventListener("auth:logout", handleForceLogout);
+    return () => window.removeEventListener("auth:logout", handleForceLogout);
+  }, [queryClient, clearUser]);
 
   // Track route changes
   useEffect(() => {
@@ -32,7 +51,7 @@ function App() {
   return (
     <div className="min-h-screen flex flex-col">
       <ScrollToTop />
-      <Marquee/>
+      <Marquee />
 
       <div className="sticky top-0 z-50 lg:static">
         <Navbar />
