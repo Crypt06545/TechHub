@@ -1,144 +1,152 @@
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
-import { Droplet, ShieldCheck, Clock, MapPin } from "lucide-react";
-
-const ValueCard = ({ icon: Icon, title, text }) => (
-  <div className="rounded-xl border border-gray-100 bg-gray-50/60 p-6 hover:border-gray-300 transition-colors">
-    <div className="flex h-9 w-9 items-center justify-center rounded-full bg-white shadow-sm mb-3">
-      <Icon className="h-4 w-4 text-gray-700" />
-    </div>
-    <h3 className="font-semibold text-gray-900 mb-1.5">{title}</h3>
-    <p className="text-sm text-gray-500 leading-relaxed">{text}</p>
-  </div>
-);
 
 const AboutUs = () => {
   return (
-    <div className="container mx-auto px-4 lg:px-6 py-6">
-      {/* Hero */}
-      <section className="grid md:grid-cols-2 gap-10 items-center mb-14">
-        <div className="max-w-xl">
-          <p className="text-xs font-medium text-gray-400 uppercase tracking-wide mb-3">
-            About ZUHR
-          </p>
-          <h1 className="text-3xl md:text-4xl font-bold text-gray-900 leading-tight mb-4">
-            Scent, worn close, never announced.
-          </h1>
-          <p className="text-gray-500 leading-relaxed">
-            ZUHR sells alcohol-free oil attars in Bangladesh. We resell — we
-            don't manufacture or create any of the products ourselves.
-          </p>
-        </div>
-        <div className="relative aspect-[4/3] rounded-2xl overflow-hidden bg-gray-100">
-          {/* TODO: replace with actual Cloudinary asset */}
+    <div className="mx-auto max-w-5xl px-4 py-12 md:px-6 lg:py-20">
+      {/* Brand Motto Hero */}
+      <section className="mb-16 md:mb-24 text-center max-w-3xl mx-auto">
+        <span className="text-xs font-semibold uppercase tracking-[0.25em] text-muted-foreground">
+          About ZUHR
+        </span>
+        <h1 className="mt-4 text-3xl sm:text-4xl md:text-5xl font-serif font-medium tracking-tight text-foreground leading-[1.15]">
+          Rooted in Sunnah. <br />
+          Trusted for purity.
+        </h1>
+        <p className="mt-6 text-base md:text-lg text-muted-foreground font-light leading-relaxed max-w-2xl mx-auto">
+          ZUHR brings alcohol-free, long-lasting oil attars to daily wear in
+          Bangladesh. Pure ingredients, honest curation, and timeless fragrance.
+        </p>
+      </section>
+
+      {/* Hero Image */}
+      <section className="mb-20">
+        <div className="relative aspect-[16/9] md:aspect-[21/9] rounded-2xl overflow-hidden bg-muted shadow-sm">
           <img
             src="/images/about/hero-attar.jpg"
-            alt="ZUHR attar bottle on a dark surface"
+            alt="ZUHR attar bottle"
             className="h-full w-full object-cover"
           />
         </div>
       </section>
 
-      <Separator className="mb-14" />
-
-      {/* Origin */}
-      <section className="mb-14">
-        <div className="grid md:grid-cols-[200px_1fr] gap-6 md:gap-12">
-          <p className="text-xs font-medium text-gray-400 uppercase tracking-wide pt-1">
-            Where it started
-          </p>
-          <div className="space-y-4 text-sm text-gray-600 leading-relaxed max-w-2xl">
-            <p>
-              ZUHR began with a simple frustration: most perfume sold in
-              Bangladesh was either imported at a markup that priced out
-              everyday wear, or diluted with alcohol that faded within the hour.
-              Attar — oil-based, alcohol-free perfumery — has existed in this
-              region for centuries, but good ones were hard to find.
+      {/* Origin & Reseller Transparency */}
+      <section className="mb-20">
+        <div className="grid gap-6 md:grid-cols-[200px_1fr] md:gap-12">
+          <span className="text-xs font-semibold uppercase tracking-widest text-muted-foreground pt-1">
+            Our Foundation
+          </span>
+          <div className="space-y-6 text-sm md:text-base leading-relaxed text-muted-foreground font-light">
+            <p className="text-foreground font-normal text-base md:text-lg">
+              Attar is more than fragrance it is a timeless tradition and a
+              honored Sunnah. Yet finding pure, alcohol-free oil that lasts
+              throughout the day without heavy markups was surprisingly
+              difficult.
             </p>
             <p>
-              We started ZUHR as a reseller: we source attar and other products
-              from suppliers and sell them directly to customers in Bangladesh.
-              We don't manufacture or create what we sell.
+              We created ZUHR to bridge that gap. As a dedicated reseller, we
+              carefully source oil-based attars directly from trusted suppliers
+              and artisans, delivering authentic quality straight to your door
+              across Bangladesh.
             </p>
             <p>
-              Every attar we sell is oil-based, which is why it lasts on skin
-              for hours longer than a standard spray and never carries the sting
-              of alcohol on application.
+              We don't manufacture or dilute what we sell. Every bottle is
+              chosen for its longevity, richness, and 100% alcohol free
+              formulation staying true to skin and tradition.
             </p>
           </div>
         </div>
       </section>
 
-      <Separator className="mb-14" />
+      <Separator className="mb-20" />
 
-      {/* Values */}
-      <section className="mb-14">
-        <p className="text-xs font-medium text-gray-400 uppercase tracking-wide mb-2">
-          What we hold to
-        </p>
-        <h2 className="text-xl font-bold text-gray-900 mb-8 max-w-md">
-          The parts we don't compromise on.
-        </h2>
-
-        <div className="grid sm:grid-cols-2 gap-4">
-          <ValueCard
-            icon={Droplet}
-            title="Alcohol-free attars"
-            text="Every attar we sell is oil-based, not diluted with alcohol."
-          />
-          <ValueCard
-            icon={ShieldCheck}
-            title="We resell, not manufacture"
-            text="We don't make or create any of our products. Everything is sourced from suppliers and resold."
-          />
-          <ValueCard
-            icon={Clock}
-            title="Built to last the day"
-            text="Oil-based attar wears longer on skin than spray perfume."
-          />
-          <ValueCard
-            icon={MapPin}
-            title="Shipped from Bangladesh"
-            text="Every order is packed in-country, with delivery timelines built around local logistics."
-          />
+      {/* Core Values (Clean Typography - No Generic Icons) */}
+      <section className="mb-20">
+        <div className="mb-12">
+          <span className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+            What Defines Us
+          </span>
+          <h2 className="mt-2 text-2xl font-serif text-foreground font-medium">
+            Purity in every detail
+          </h2>
         </div>
-      </section>
 
-      <Separator className="mb-14" />
+        <div className="grid gap-10 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="border-l-2 border-foreground/20 pl-5 py-1">
+            <h3 className="text-sm font-semibold text-foreground">
+              100% Alcohol-Free
+            </h3>
+            <p className="mt-2 text-xs text-muted-foreground leading-relaxed">
+              Pure oil formulations that wear close to skin without harsh
+              synthetic stings.
+            </p>
+          </div>
 
-      {/* Beyond attar — resold electronics/accessories */}
-      <section className="mb-14">
-        <div className="grid md:grid-cols-[200px_1fr] gap-6 md:gap-12">
-          <p className="text-xs font-medium text-gray-400 uppercase tracking-wide pt-1">
-            Beyond attar
-          </p>
-          <div className="max-w-2xl">
-            <p className="text-sm text-gray-600 leading-relaxed">
-              Alongside attar, we sell everyday electronics and accessories —
-              mouse pads, cables, and desk gadgets. These are resold products
-              too. We don't manufacture or create anything we sell, whether it's
-              attar or electronics.
+          <div className="border-l-2 border-foreground/20 pl-5 py-1">
+            <h3 className="text-sm font-semibold text-foreground">
+              Ethical Curation
+            </h3>
+            <p className="mt-2 text-xs text-muted-foreground leading-relaxed">
+              We selectively partner with master perfumers and heritage
+              distilleries to bring you authenticated, uncompromised
+              formulations.
+            </p>
+          </div>
+
+          <div className="border-l-2 border-foreground/20 pl-5 py-1">
+            <h3 className="text-sm font-semibold text-foreground">
+              All-Day Longevity
+            </h3>
+            <p className="mt-2 text-xs text-muted-foreground leading-relaxed">
+              Concentrated oils that absorb naturally and release scent
+              gradually over hours.
+            </p>
+          </div>
+
+          <div className="border-l-2 border-foreground/20 pl-5 py-1">
+            <h3 className="text-sm font-semibold text-foreground">
+              Local Delivery
+            </h3>
+            <p className="mt-2 text-xs text-muted-foreground leading-relaxed">
+              Dispatched directly from Bangladesh with local courier options and
+              testing bottles.
             </p>
           </div>
         </div>
       </section>
 
-      {/* CTA */}
-      <section className="rounded-xl border border-gray-100 bg-gray-50/60 px-6 py-10 md:px-10 md:py-12 flex flex-col md:flex-row md:items-center md:justify-between gap-6">
-        <div>
-          <h3 className="text-lg font-semibold text-gray-900 mb-1.5">
-            See the collection
+      <Separator className="mb-20" />
+
+      {/* Beyond Attars Section */}
+      <section className="mb-20">
+        <div className="grid gap-6 md:grid-cols-[200px_1fr] md:gap-12">
+          <span className="text-xs font-semibold uppercase tracking-widest text-muted-foreground pt-1">
+            Beyond Fragrance
+          </span>
+          <div className="text-sm md:text-base leading-relaxed text-muted-foreground font-light max-w-2xl">
+            <p>
+              Alongside our core collection of attars, we offer curated everyday
+              essentials desk pads, cables, and workplace accessories. Just like
+              our fragrances, these items are sourced from trusted suppliers to
+              bring utility and minimal aesthetic to your daily setup.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      {/* Editorial CTA Banner */}
+      <section className="rounded-2xl bg-card border border-border p-8 md:p-14 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+        <div className="space-y-1">
+          <h3 className="text-2xl font-serif text-foreground font-medium">
+            Explore the Fragrance Collection
           </h3>
-          <p className="text-sm text-gray-500 max-w-sm">
-            Rose, oud, amber, and musk-forward attars.
+          <p className="text-sm text-muted-foreground font-light">
+            Rose, Oud, Amber, and Musk oil concentrates.
           </p>
         </div>
-        <Button
-          asChild
-          className="bg-gray-900 hover:bg-gray-700 text-white h-10 px-6 shrink-0"
-        >
-          <Link to="/products">Shop attars</Link>
+        <Button asChild size="lg" className="rounded-none px-8 font-medium">
+          <Link to="/products">Shop Attars</Link>
         </Button>
       </section>
     </div>
