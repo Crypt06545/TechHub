@@ -2,7 +2,7 @@ import { useEffect } from "react";
 import { Outlet, useLocation } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import Footer from "./components/common/Footer";
-import ChatWidget from "./components/common/ChatWidget";
+// import ChatWidget from "./components/common/ChatWidget";
 import Navbar from "./components/common/Navbar";
 import ScrollToTop from "./components/common/ScrollToTop";
 import NavLinks from "./components/common/navbar/NavLinks";

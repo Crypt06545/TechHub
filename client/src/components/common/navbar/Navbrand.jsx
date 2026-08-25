@@ -1,6 +1,6 @@
 import React from "react";
 import { Link } from "react-router-dom";
-import ZUHR from "@/assets/logo.png";
+import ZUHR from "/ZUHR_logo_black.png";
 
 const NavBrand = () => (
   <div className="flex items-center shrink-0 h-full">
@@ -8,7 +8,7 @@ const NavBrand = () => (
       <img
         src={ZUHR}
         alt="ZUHR Brand Logo"
-        className="h-20 lg:h-24 w-auto object-contain"
+        className="h-16 lg:h-20 w-auto object-contain"
       />
     </Link>
   </div>

@@ -2,9 +2,7 @@ import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { MapPin, ArrowUpRight } from "lucide-react";
-
-import ZUHR from "@/assets/logo.png";
-
+import ZUHR from "/ZUHR_logo_black.png";
 import Bkash from "@/assets/bkash-footer.svg";
 import Nagad from "@/assets/nagad-footer.svg";
 import CashOnDelevary from "@/assets/cashdelevary.svg";
