@@ -30,6 +30,7 @@ import GuestRoute from "./GuestRoute";
 import Contact from "@/pages/Contact";
 import AfterSalesSupport from "@/pages/Aftersalessupport";
 import VerifyEmail from "@/pages/VerifyEmail"; // ← add this import
+import AdminInvoiceView from "@/pages/AdminInvoiceView";
 
 const router = createBrowserRouter([
   {
@@ -79,6 +80,7 @@ const router = createBrowserRouter([
           { path: "coupons", element: <AllCoupons /> },
           { path: "orders", element: <AllOrders /> },
           { path: "customers", element: <Customer /> },
+          { path: "orders/invoice", element: <AdminInvoiceView /> },
         ],
       },
     ],

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   Search,
   Eye,
@@ -6,6 +7,7 @@ import {
   MoreVertical,
   PackageOpen,
   ArrowUpDown,
+  FileText,
 } from "lucide-react";
 
 import { Input } from "@/components/ui/input";
@@ -94,6 +96,7 @@ const orderStatusBadge = (status) => {
 };
 
 const AllOrders = () => {
+  const navigate = useNavigate();
   const [searchInput, setSearchInput] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [paymentFilter, setPaymentFilter] = useState("all");
@@ -170,6 +173,10 @@ const AllOrders = () => {
   const handlePrevious = () => {
     if (pageIndex === 0) return;
     setPageIndex(pageIndex - 1);
+  };
+
+  const handleGenerateInvoice = (order) => {
+    navigate("/admin/dashboard/orders/invoice", { state: { order } });
   };
 
   const showSkeleton = isLoading || isFetching;
@@ -325,6 +332,12 @@ const AllOrders = () => {
                             >
                               <Pencil className="mr-2 h-4 w-4" />
                               Update Status
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={() => handleGenerateInvoice(order)}
+                            >
+                              <FileText className="mr-2 h-4 w-4" />
+                              Generate Invoice
                             </DropdownMenuItem>
                           </DropdownMenuContent>
                         </DropdownMenu>
