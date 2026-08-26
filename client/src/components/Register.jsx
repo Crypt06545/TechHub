@@ -77,7 +77,7 @@ const SignupForm = () => {
                 Create Your Account
               </h1>
               <p className="text-sm text-muted-foreground leading-relaxed">
-                Join TechHub and discover the best tech products.
+                Join ZUHR and discover premium attars and fragrances.
               </p>
             </div>
 
@@ -331,7 +331,7 @@ const SignupForm = () => {
           <div className="relative hidden md:flex flex-col bg-gray-100">
             <img
               src={registerImage}
-              alt="Tech products"
+              alt="ZUHR premium attars and fragrances"
               className="absolute inset-0 h-full w-full object-cover"
             />
             <div className="absolute inset-0 bg-gradient-to-t from-white/90 via-white/20 to-transparent" />

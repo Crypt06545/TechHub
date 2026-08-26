@@ -68,10 +68,10 @@ const VerifyOtpForm = () => {
             >
               <div className="flex items-center gap-2">
                 <div className="w-9 h-9 bg-black rounded-sm flex items-center justify-center">
-                  <span className="text-white font-black text-sm">T</span>
+                  <span className="text-white font-black text-sm">Z</span>
                 </div>
                 <span className="font-bold text-xl tracking-tight">
-                  TechHub
+                  ZUHR
                 </span>
               </div>
 

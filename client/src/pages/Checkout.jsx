@@ -251,7 +251,7 @@ const CheckoutPage = () => {
           <div className="w-7 h-7 bg-black rounded-sm flex items-center justify-center">
             <span className="text-white font-black text-xs">T</span>
           </div>
-          <span className="font-bold text-lg tracking-tight">TechHub</span>
+          <span className="font-bold text-lg tracking-tight">ZUHR</span>
           <span className="text-gray-300 mx-2">/</span>
           <span className="text-sm text-muted-foreground">Checkout</span>
         </div>

@@ -1,7 +1,7 @@
 import { useState } from "react";
 
 const WHATSAPP_NUMBER = "8801719550746"; // country code + number, no + or spaces
-const DEFAULT_MESSAGE = "Hi TechHub, I have a question about a product.";
+const DEFAULT_MESSAGE = "Hi ZUHR, I have a question about a product.";
 
 const WhatsAppIcon = ({ size = 28 }) => (
   <svg

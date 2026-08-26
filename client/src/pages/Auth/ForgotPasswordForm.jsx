@@ -46,10 +46,10 @@ const ForgotPasswordForm = () => {
             >
               <div className="flex items-center gap-2">
                 <div className="w-7 h-7 bg-black rounded-sm flex items-center justify-center">
-                  <span className="text-white font-black text-xs">T</span>
+                  <span className="text-white font-black text-xs">z</span>
                 </div>
                 <span className="font-bold text-lg tracking-tight">
-                  TechHub
+                  ZUHR
                 </span>
               </div>
 

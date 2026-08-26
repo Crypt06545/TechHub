@@ -1,6 +1,3 @@
-// PATH: src/components/products/ProductInfo.jsx
-// FILE: ProductInfo.jsx
-
 import { useState, useEffect, useMemo } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -20,6 +17,8 @@ import {
 } from "lucide-react";
 import { useCartStore } from "@/store/cartStore";
 import { useWishlistStore, getLineId } from "@/store/wishlistStore";
+import { useAuth } from "@/hooks/useAuth";
+import { AuthToast } from "@/components/common/AuthToast";
 
 // ─── Small presentational pieces (kept in-file since they're only used here) ──
 
@@ -102,6 +101,7 @@ export const ProductInfo = ({ product }) => {
   const { setItemQuantity, items } = useCartStore();
   const toggleWishlist = useWishlistStore((s) => s.toggleItem);
   const wishlistItems = useWishlistStore((s) => s.items);
+  const { isAuthenticated } = useAuth();
 
   const variants = product.variants || [];
   const hasVariants = product.hasVariants && variants.length > 0;
@@ -220,6 +220,13 @@ export const ProductInfo = ({ product }) => {
 
   const handleBuyNow = () => {
     if (activeOutOfStock || qty > activeStock) return;
+
+    if (!isAuthenticated) {
+      AuthToast.error("Please log in first to checkout");
+      navigate("/login", { state: { from: { pathname: "/checkout" } } });
+      return;
+    }
+
     setItemQuantity(cartProduct, qty);
     navigate("/checkout");
   };

@@ -98,7 +98,7 @@ const MobileDrawer = ({ isOpen, onClose }) => {
               T
             </div>
             <span className="text-xl font-bold tracking-tight text-gray-900">
-              TechHub
+              ZUHR
             </span>
           </div>
           <button

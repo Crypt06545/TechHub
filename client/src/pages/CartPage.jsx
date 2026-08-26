@@ -170,9 +170,18 @@ const CartRow = ({ item, onRemove, onQty }) => {
 const PromoCode = () => {
   const [code, setCode] = useState("");
   const [status, setStatus] = useState("idle"); // idle | applying | applied | error
+  const { isAuthenticated } = useAuth();
+  const navigate = useNavigate();
 
   const handleApply = () => {
     if (!code.trim()) return;
+
+    if (!isAuthenticated) {
+      AuthToast.error("Please log in first to apply a promo code");
+      navigate("/login", { state: { from: { pathname: "/cart" } } });
+      return;
+    }
+
     setStatus("applying");
     // Wire this up to your actual promo/coupon endpoint
     setTimeout(() => setStatus("error"), 700);
