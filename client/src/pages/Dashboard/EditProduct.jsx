@@ -139,6 +139,8 @@ const EditProduct = ({ product, onSuccess }) => {
       brand: product.brand || "",
       category: product.category?._id || product.category || "",
       price: product.price ?? "",
+      costPrice: product.costPrice ?? "",
+      lowStockThreshold: product.lowStockThreshold ?? "",
       stock: product.hasVariants ? "" : (product.stock ?? ""),
       discount: deriveDiscount(product.price, product.compareAtPrice),
       sku: product.sku || "",
@@ -152,6 +154,7 @@ const EditProduct = ({ product, onSuccess }) => {
         size: v.size,
         color: v.color,
         price: v.price ?? "",
+        costPrice: v.costPrice ?? "",
         stock: v.stock ?? "",
       })),
     },
@@ -180,7 +183,13 @@ const EditProduct = ({ product, onSuccess }) => {
 
     combos.forEach((c) => {
       if (!existingKeys.includes(comboKey(c.size, c.color))) {
-        append({ size: c.size, color: c.color, price: "", stock: "" });
+        append({
+          size: c.size,
+          color: c.color,
+          price: "",
+          costPrice: "",
+          stock: "",
+        });
       }
     });
   };
@@ -291,6 +300,9 @@ const EditProduct = ({ product, onSuccess }) => {
       size: v.size || null,
       color: v.color || null,
       price: v.price ? Number(v.price) : Number(data.price),
+      costPrice: v.costPrice
+        ? Number(v.costPrice)
+        : Number(data.costPrice) || 0,
       stock: v.stock ? Number(v.stock) : 0,
     }));
 
@@ -302,6 +314,8 @@ const EditProduct = ({ product, onSuccess }) => {
     formData.append("category", data.category);
     formData.append("brand", data.brand || "");
     formData.append("sku", data.sku || "");
+    formData.append("costPrice", Number(data.costPrice) || 0);
+    formData.append("lowStockThreshold", Number(data.lowStockThreshold) || 0);
     formData.append("hasVariants", hasVariants);
     formData.append("isFeatured", data.isFeatured);
     formData.append("badge", data.badge);
@@ -326,9 +340,8 @@ const EditProduct = ({ product, onSuccess }) => {
 
     if (hasVariants) {
       formData.append("variants", JSON.stringify(resolvedVariants));
-    } else {
-      formData.append("stock", Number(data.stock) || 0);
     }
+    // stock is intentionally NOT sent — managed via Restock/Adjust endpoints
 
     // new uploaded files
     images.forEach((img) => formData.append("images", img.file));
@@ -482,24 +495,54 @@ const EditProduct = ({ product, onSuccess }) => {
               )}
             </div>
 
-            {/* Stock (only when no variants) */}
+            {/* Cost Price */}
+            <div className="space-y-2">
+              <Label htmlFor="edit-costPrice">Cost Price (৳)</Label>
+              <Input
+                id="edit-costPrice"
+                type="number"
+                placeholder="80000"
+                {...register("costPrice", {
+                  min: { value: 0, message: "Cost price cannot be negative" },
+                })}
+              />
+              {errors.costPrice && (
+                <p className="text-xs text-red-500">
+                  {errors.costPrice.message}
+                </p>
+              )}
+            </div>
+
+            {/* Low Stock Threshold */}
+            <div className="space-y-2">
+              <Label htmlFor="edit-lowStockThreshold">
+                Low Stock Threshold
+              </Label>
+              <Input
+                id="edit-lowStockThreshold"
+                type="number"
+                placeholder="5"
+                {...register("lowStockThreshold", {
+                  min: { value: 0, message: "Threshold cannot be negative" },
+                })}
+              />
+              {errors.lowStockThreshold && (
+                <p className="text-xs text-red-500">
+                  {errors.lowStockThreshold.message}
+                </p>
+              )}
+            </div>
+
+            {/* Stock (only when no variants) — read-only, managed via Restock/Adjust */}
             {!hasVariants && (
               <div className="space-y-2">
-                <Label htmlFor="edit-stock">
-                  Stock Quantity <span className="text-red-500">*</span>
-                </Label>
-                <Input
-                  id="edit-stock"
-                  type="number"
-                  placeholder="25"
-                  {...register("stock", {
-                    required: "Stock is required",
-                    min: { value: 0, message: "Stock cannot be negative" },
-                  })}
-                />
-                {errors.stock && (
-                  <p className="text-xs text-red-500">{errors.stock.message}</p>
-                )}
+                <Label>Stock Quantity</Label>
+                <div className="flex h-10 items-center rounded-md border bg-muted px-3 text-sm">
+                  {product.stock ?? 0} units
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Managed via Restock / Adjust Stock, not edited here.
+                </p>
               </div>
             )}
 
@@ -749,7 +792,7 @@ const EditProduct = ({ product, onSuccess }) => {
                     {fields.map((field, index) => (
                       <div
                         key={field.id}
-                        className="grid grid-cols-2 gap-3 rounded-lg border p-3 md:grid-cols-5 md:items-end"
+                        className="grid grid-cols-2 gap-3 rounded-lg border p-3 md:grid-cols-6 md:items-end"
                       >
                         <div className="col-span-2 flex flex-wrap items-center gap-2 md:col-span-1">
                           {field.size && (
@@ -766,6 +809,17 @@ const EditProduct = ({ product, onSuccess }) => {
                             type="number"
                             placeholder={basePrice || "0"}
                             {...register(`variants.${index}.price`, {
+                              min: { value: 0, message: "Min 0" },
+                            })}
+                          />
+                        </div>
+
+                        <div className="space-y-1">
+                          <Label className="text-xs">Cost (৳)</Label>
+                          <Input
+                            type="number"
+                            placeholder={basePrice || "0"}
+                            {...register(`variants.${index}.costPrice`, {
                               min: { value: 0, message: "Min 0" },
                             })}
                           />

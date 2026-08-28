@@ -128,6 +128,8 @@ const AddProduct = () => {
       discount: "",
       sku: "",
       ratingAverage: "",
+      costPrice: "",
+      lowStockThreshold: "",
       description: "",
       status: "draft",
       isPublished: false,
@@ -164,6 +166,7 @@ const AddProduct = () => {
           size: c.size,
           color: c.color,
           price: "",
+          costPrice: "",
           stock: "",
         });
       }
@@ -275,6 +278,9 @@ const AddProduct = () => {
       size: v.size || null,
       color: v.color || null,
       price: v.price ? Number(v.price) : Number(data.price),
+      costPrice: v.costPrice
+        ? Number(v.costPrice)
+        : Number(data.costPrice) || 0,
       stock: v.stock ? Number(v.stock) : 0,
     }));
 
@@ -286,6 +292,10 @@ const AddProduct = () => {
     formData.append("category", data.category);
     formData.append("brand", data.brand || "");
     formData.append("sku", data.sku || "");
+    formData.append("costPrice", Number(data.costPrice) || 0);
+    if (data.lowStockThreshold !== "") {
+      formData.append("lowStockThreshold", Number(data.lowStockThreshold));
+    }
     formData.append("hasVariants", hasVariants);
     formData.append("isFeatured", data.isFeatured);
     formData.append("badge", data.badge);
@@ -460,6 +470,53 @@ const AddProduct = () => {
               )}
             </div>
 
+            {/* Cost Price */}
+            <div className="space-y-2">
+              <Label htmlFor="costPrice">
+                Cost Price (৳){" "}
+                <span className="text-xs text-muted-foreground font-normal">
+                  (what you paid — used for profit calculation)
+                </span>
+              </Label>
+              <Input
+                id="costPrice"
+                type="number"
+                placeholder="0"
+                {...register("costPrice", {
+                  min: { value: 0, message: "Cost cannot be negative" },
+                })}
+              />
+              {basePrice &&
+                watch("costPrice") &&
+                Number(basePrice) < Number(watch("costPrice")) && (
+                  <p className="text-xs text-red-500">
+                    ⚠️ Selling price is below cost — this will sell at a loss.
+                  </p>
+                )}
+              {errors.costPrice && (
+                <p className="text-xs text-red-500">
+                  {errors.costPrice.message}
+                </p>
+              )}
+            </div>
+
+            {/* Low Stock Threshold */}
+            <div className="space-y-2">
+              <Label htmlFor="lowStockThreshold">
+                Low Stock Alert Below{" "}
+                <span className="text-xs text-muted-foreground font-normal">
+                  (default: 5)
+                </span>
+              </Label>
+              <Input
+                id="lowStockThreshold"
+                type="number"
+                placeholder="5"
+                {...register("lowStockThreshold", {
+                  min: { value: 0, message: "Min 0" },
+                })}
+              />
+            </div>
             {/* Stock (only when no variants) */}
             {!hasVariants && (
               <div className="space-y-2">
@@ -726,7 +783,7 @@ const AddProduct = () => {
                     {fields.map((field, index) => (
                       <div
                         key={field.id}
-                        className="grid grid-cols-2 gap-3 rounded-lg border p-3 md:grid-cols-5 md:items-end"
+                        className="grid grid-cols-2 gap-3 rounded-lg border p-3 md:grid-cols-6 md:items-end"
                       >
                         <div className="col-span-2 flex flex-wrap items-center gap-2 md:col-span-1">
                           {field.size && (
@@ -743,6 +800,17 @@ const AddProduct = () => {
                             type="number"
                             placeholder={basePrice || "0"}
                             {...register(`variants.${index}.price`, {
+                              min: { value: 0, message: "Min 0" },
+                            })}
+                          />
+                        </div>
+
+                        <div className="space-y-1">
+                          <Label className="text-xs">Cost (৳)</Label>
+                          <Input
+                            type="number"
+                            placeholder={watch("costPrice") || "0"}
+                            {...register(`variants.${index}.costPrice`, {
                               min: { value: 0, message: "Min 0" },
                             })}
                           />

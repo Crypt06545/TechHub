@@ -31,6 +31,7 @@ import Contact from "@/pages/Contact";
 import AfterSalesSupport from "@/pages/Aftersalessupport";
 import VerifyEmail from "@/pages/VerifyEmail"; // ← add this import
 import AdminInvoiceView from "@/pages/AdminInvoiceView";
+import Inventory from "@/pages/Dashboard/Inventory";
 
 const router = createBrowserRouter([
   {
@@ -81,6 +82,7 @@ const router = createBrowserRouter([
           { path: "orders", element: <AllOrders /> },
           { path: "customers", element: <Customer /> },
           { path: "orders/invoice", element: <AdminInvoiceView /> },
+          { path: "inventory", element: <Inventory /> },
         ],
       },
     ],

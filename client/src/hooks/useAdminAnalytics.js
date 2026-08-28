@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+
 import {
   getDashboardStats,
   getRevenueAnalytics,
@@ -19,6 +20,11 @@ import {
   updateCoupon,
   deleteCoupon,
   toggleCouponActive,
+  getInventorySummary,
+  getLowStockProducts,
+  restockProduct,
+  adjustStock,
+  getStockLogs,
 } from "@/api/admin.api";
 
 export const useAdminCategories = () =>
@@ -31,6 +37,7 @@ export const useAdminCategories = () =>
 export const useAdminProducts = (filters = {}, cursor = null, limit = 12) =>
   useQuery({
     queryKey: ["admin-products", filters, cursor, limit],
+
     queryFn: () =>
       getAdminProducts({
         limit,
@@ -41,7 +48,9 @@ export const useAdminProducts = (filters = {}, cursor = null, limit = 12) =>
         isFeatured: filters.isFeatured ?? undefined,
         sort: filters.sort || undefined,
       }),
+
     staleTime: 30 * 1000,
+
     placeholderData: (previousData) => previousData,
   });
 
@@ -55,44 +64,72 @@ export const useAdminProductDetails = (id) =>
 
 export const useCreateProduct = () => {
   const queryClient = useQueryClient();
+
   return useMutation({
     mutationFn: createProduct,
+
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["admin-products"] });
-      queryClient.invalidateQueries({ queryKey: ["products"] });
+      queryClient.invalidateQueries({
+        queryKey: ["admin-products"],
+      });
+
+      queryClient.invalidateQueries({
+        queryKey: ["products"],
+      });
     },
   });
 };
 
 export const useUpdateProduct = () => {
   const queryClient = useQueryClient();
+
   return useMutation({
     mutationFn: updateProduct,
+
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["admin-products"] });
-      queryClient.invalidateQueries({ queryKey: ["products"] });
+      queryClient.invalidateQueries({
+        queryKey: ["admin-products"],
+      });
+
+      queryClient.invalidateQueries({
+        queryKey: ["products"],
+      });
     },
   });
 };
 
 export const useDeleteProduct = () => {
   const queryClient = useQueryClient();
+
   return useMutation({
     mutationFn: deleteProduct,
+
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["admin-products"] });
-      queryClient.invalidateQueries({ queryKey: ["products"] });
+      queryClient.invalidateQueries({
+        queryKey: ["admin-products"],
+      });
+
+      queryClient.invalidateQueries({
+        queryKey: ["products"],
+      });
     },
   });
 };
 
 export const useToggleFeaturedProduct = () => {
   const queryClient = useQueryClient();
+
   return useMutation({
     mutationFn: toggleFeaturedProduct,
+
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["admin-products"] });
-      queryClient.invalidateQueries({ queryKey: ["products"] });
+      queryClient.invalidateQueries({
+        queryKey: ["admin-products"],
+      });
+
+      queryClient.invalidateQueries({
+        queryKey: ["products"],
+      });
     },
   });
 };
@@ -107,6 +144,7 @@ export const useDashboardStats = () =>
 export const useAdminOrders = (filters = {}, cursor = null, limit = 20) =>
   useQuery({
     queryKey: ["admin-orders", filters, cursor, limit],
+
     queryFn: () =>
       getAdminOrders({
         limit,
@@ -116,16 +154,22 @@ export const useAdminOrders = (filters = {}, cursor = null, limit = 20) =>
         search: filters.search || undefined,
         sort: filters.sort || undefined,
       }),
+
     staleTime: 60 * 1000,
+
     placeholderData: (previousData) => previousData,
   });
 
 export const useUpdateOrderStatus = () => {
   const queryClient = useQueryClient();
+
   return useMutation({
     mutationFn: ({ id, payload }) => updateOrderStatus(id, payload),
+
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["admin-orders"] });
+      queryClient.invalidateQueries({
+        queryKey: ["admin-orders"],
+      });
     },
   });
 };
@@ -133,28 +177,36 @@ export const useUpdateOrderStatus = () => {
 export const useRevenueAnalytics = (range) =>
   useQuery({
     queryKey: ["revenue-analytics", range],
+
     queryFn: () => getRevenueAnalytics(range),
+
     staleTime: 2 * 60 * 1000,
+
     placeholderData: (previousData) => previousData,
   });
 
 export const useTopProducts = (limit = 10) =>
   useQuery({
     queryKey: ["top-products", limit],
+
     queryFn: () => getTopProducts(limit),
+
     staleTime: 5 * 60 * 1000,
   });
 
 export const useRecentOrders = (limit = 5) =>
   useQuery({
     queryKey: ["recent-orders", limit],
+
     queryFn: () => getRecentOrders(limit),
+
     staleTime: 60 * 1000,
   });
 
 export const useAdminCoupons = (filters = {}, cursor = null, limit = 20) =>
   useQuery({
     queryKey: ["admin-coupons", filters, cursor, limit],
+
     queryFn: () =>
       getAdminCoupons({
         limit,
@@ -162,52 +214,169 @@ export const useAdminCoupons = (filters = {}, cursor = null, limit = 20) =>
         isActive: filters.isActive ?? undefined,
         search: filters.search || undefined,
       }),
+
     staleTime: 30 * 1000,
+
     placeholderData: (previousData) => previousData,
   });
+
 export const useAdminCouponDetails = (id) =>
   useQuery({
     queryKey: ["admin-coupon", id],
+
     queryFn: () => getAdminCouponById(id),
+
     enabled: !!id,
   });
 
 export const useCreateCoupon = () => {
   const queryClient = useQueryClient();
+
   return useMutation({
     mutationFn: createCoupon,
+
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["admin-coupons"] });
+      queryClient.invalidateQueries({
+        queryKey: ["admin-coupons"],
+      });
     },
   });
 };
 
 export const useUpdateCoupon = () => {
   const queryClient = useQueryClient();
+
   return useMutation({
     mutationFn: updateCoupon,
+
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["admin-coupons"] });
+      queryClient.invalidateQueries({
+        queryKey: ["admin-coupons"],
+      });
     },
   });
 };
 
 export const useDeleteCoupon = () => {
   const queryClient = useQueryClient();
+
   return useMutation({
     mutationFn: deleteCoupon,
+
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["admin-coupons"] });
+      queryClient.invalidateQueries({
+        queryKey: ["admin-coupons"],
+      });
+    },
+  });
+};
+
+export const useInventorySummary = () =>
+  useQuery({
+    queryKey: ["inventory-summary"],
+
+    queryFn: getInventorySummary,
+
+    staleTime: 60 * 1000,
+  });
+
+export const useLowStockProducts = () =>
+  useQuery({
+    queryKey: ["low-stock-products"],
+
+    queryFn: getLowStockProducts,
+
+    staleTime: 60 * 1000,
+  });
+
+// ─────────────────────────────────────────────
+// Stock Logs
+// ─────────────────────────────────────────────
+
+export const useStockLogs = (params = {}) =>
+  useQuery({
+    queryKey: ["stock-logs", params.productId],
+
+    queryFn: () => getStockLogs(params),
+
+    enabled: !!params.productId,
+
+    staleTime: 30 * 1000,
+  });
+
+export const useRestockProduct = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: restockProduct,
+
+    onSuccess: (_, { id }) => {
+      // Narrow invalidation — only the queries this action could actually
+      // change, not a blanket refetch of unrelated admin data.
+
+      queryClient.invalidateQueries({
+        queryKey: ["admin-products"],
+      });
+
+      queryClient.invalidateQueries({
+        queryKey: ["inventory-summary"],
+      });
+
+      queryClient.invalidateQueries({
+        queryKey: ["low-stock-products"],
+      });
+
+      queryClient.invalidateQueries({
+        queryKey: ["stock-logs", id],
+      });
+
+      queryClient.invalidateQueries({
+        queryKey: ["admin-product", id],
+      });
+    },
+  });
+};
+
+export const useAdjustStock = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: adjustStock,
+
+    onSuccess: (_, { id }) => {
+      queryClient.invalidateQueries({
+        queryKey: ["admin-products"],
+      });
+
+      queryClient.invalidateQueries({
+        queryKey: ["inventory-summary"],
+      });
+
+      queryClient.invalidateQueries({
+        queryKey: ["low-stock-products"],
+      });
+
+      queryClient.invalidateQueries({
+        queryKey: ["stock-logs", id],
+      });
+
+      queryClient.invalidateQueries({
+        queryKey: ["admin-product", id],
+      });
     },
   });
 };
 
 export const useToggleCouponActive = () => {
   const queryClient = useQueryClient();
+
   return useMutation({
     mutationFn: toggleCouponActive,
+
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["admin-coupons"] });
+      queryClient.invalidateQueries({
+        queryKey: ["admin-coupons"],
+      });
     },
   });
 };
