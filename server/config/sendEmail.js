@@ -7,18 +7,21 @@ const resend = new Resend(process.env.RESEND_API);
 const sendEmail = async ({ sendTo, subject, html }) => {
   try {
     const { data, error } = await resend.emails.send({
-      from: "Grocery <onboarding@resend.dev>",
+      from: process.env.RESEND_FROM_EMAIL, // e.g. "ZUHR <orders@send.zuhrbd.com>"
       to: sendTo,
       subject: subject,
       html: html,
     });
     if (error) {
-      return console.error({ error });
+      console.error("[Resend API Error]:", error);
+      return { success: false, error };
     }
 
     console.log({ data });
+    return { success: true, data };
   } catch (error) {
-    console.log(error);
+    console.error("[Resend] Unexpected error:", error);
+    return { success: false, error: error.message };
   }
 };
 

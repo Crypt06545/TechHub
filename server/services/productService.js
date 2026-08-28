@@ -3,7 +3,8 @@ import { ApiError } from "../utils/ApiError.js";
 import { productRepository } from "../repositories/product.repository.js";
 import { Product } from "../models/product.model.js";
 import Category from "../models/category.mode.js";
-
+import { StockLog } from "../models/stockLog.model.js";
+import mongoose from "mongoose";
 // ─── TTLs ─────────────────────────────────────────────────────────────────────
 
 const PRODUCT_LIST_TTL = 3_600; // 1h
@@ -53,7 +54,7 @@ const buildSlug = async (title, excludeId = null) => {
   return slug;
 };
 
-const normalizeVariants = (rawVariants) => {
+const normalizeVariants = (rawVariants, fallbackCostPrice = 0) => {
   if (!Array.isArray(rawVariants)) return [];
 
   return rawVariants.map((v, i) => {
@@ -61,6 +62,10 @@ const normalizeVariants = (rawVariants) => {
     const color = v.color?.toString().trim() || null;
     const price = Number(v.price);
     const stock = Number(v.stock);
+    const costPrice =
+      v.costPrice !== undefined && v.costPrice !== ""
+        ? Number(v.costPrice)
+        : fallbackCostPrice;
 
     if (!size && !color) {
       throw new ApiError(400, `Variant #${i + 1} needs a size or a color`);
@@ -71,8 +76,11 @@ const normalizeVariants = (rawVariants) => {
     if (Number.isNaN(stock) || stock < 0) {
       throw new ApiError(400, `Variant #${i + 1} has an invalid stock value`);
     }
+    if (Number.isNaN(costPrice) || costPrice < 0) {
+      throw new ApiError(400, `Variant #${i + 1} has an invalid cost price`);
+    }
 
-    return { size, color, price, stock };
+    return { size, color, price, stock, costPrice };
   });
 };
 
@@ -410,7 +418,7 @@ export const productService = {
 
     const products = await Product.find(query)
       .select(
-        "title slug description price compareAtPrice images stock ratingAverage ratingCount category isPublished isArchived isFeatured badge createdAt",
+        "title slug description price compareAtPrice images stock hasVariants lowStockThreshold category isPublished isArchived isFeatured badge createdAt",
       )
       .populate("category", "name slug")
       .sort(sortSpec)
@@ -541,6 +549,8 @@ export const productService = {
     description,
     price,
     compareAtPrice,
+    costPrice,
+    lowStockThreshold,
     category,
     brand,
     sku,
@@ -553,14 +563,17 @@ export const productService = {
     images,
     vendorId,
     ratingAverage,
+    adminId, // who created this product — only used for the initial StockLog
   }) {
     if (!title || !price || !category) {
       throw new ApiError(400, "title, price and category are required");
     }
 
     const normalizedHasVariants = toBool(hasVariants);
+    const normalizedCostPrice =
+      costPrice !== undefined && costPrice !== "" ? Number(costPrice) : 0;
     const normalizedVariants = normalizedHasVariants
-      ? normalizeVariants(variants)
+      ? normalizeVariants(variants, normalizedCostPrice)
       : [];
 
     if (normalizedHasVariants && normalizedVariants.length === 0) {
@@ -584,6 +597,11 @@ export const productService = {
       description: description || "",
       price: Number(price),
       compareAtPrice: compareAtPrice ? Number(compareAtPrice) : null,
+      costPrice: normalizedCostPrice,
+      lowStockThreshold:
+        lowStockThreshold !== undefined && lowStockThreshold !== ""
+          ? Number(lowStockThreshold)
+          : 5,
       category,
       brand: brand || "",
       sku: sku || "",
@@ -602,6 +620,43 @@ export const productService = {
 
     await invalidateProductCache();
 
+    // Every unit the product starts with is real inventory that came
+    // from somewhere — logging it as "initial" means the stock history
+    // is complete from day one instead of starting with a silent,
+    // untracked opening balance.
+    if (normalizedHasVariants) {
+      const stockedVariants = product.variants.filter((v) => v.stock > 0);
+      if (stockedVariants.length) {
+        await StockLog.insertMany(
+          stockedVariants.map((v) => ({
+            productId: product._id,
+            variantId: v._id,
+            type: "initial",
+            change: v.stock,
+            previousStock: 0,
+            newStock: v.stock,
+            unitCost: v.costPrice,
+            totalCost: v.costPrice * v.stock,
+            reason: "Opening stock on product creation",
+            adminId,
+          })),
+        );
+      }
+    } else if (product.stock > 0) {
+      await StockLog.create({
+        productId: product._id,
+        variantId: null,
+        type: "initial",
+        change: product.stock,
+        previousStock: 0,
+        newStock: product.stock,
+        unitCost: product.costPrice,
+        totalCost: product.costPrice * product.stock,
+        reason: "Opening stock on product creation",
+        adminId,
+      });
+    }
+
     return product;
   },
 
@@ -612,6 +667,8 @@ export const productService = {
       description,
       price,
       compareAtPrice,
+      costPrice,
+      lowStockThreshold,
       category,
       brand,
       sku,
@@ -624,12 +681,14 @@ export const productService = {
       imagesToRemove,
       newImages,
       ratingAverage,
+      adminId,
     },
   ) {
     const product = await productRepository.findById(productId);
     if (!product) throw new ApiError(404, "Product not found");
 
     const oldSlug = product.slug;
+    const previousCostPrice = product.costPrice;
 
     if (title && title !== product.title) {
       product.slug = await buildSlug(title, productId);
@@ -640,6 +699,10 @@ export const productService = {
     if (price !== undefined) product.price = Number(price);
     if (compareAtPrice !== undefined)
       product.compareAtPrice = compareAtPrice ? Number(compareAtPrice) : null;
+    if (costPrice !== undefined && costPrice !== "")
+      product.costPrice = Number(costPrice);
+    if (lowStockThreshold !== undefined && lowStockThreshold !== "")
+      product.lowStockThreshold = Number(lowStockThreshold);
     if (category) product.category = category;
     if (brand !== undefined) product.brand = brand;
     if (sku !== undefined) product.sku = sku;
@@ -655,7 +718,10 @@ export const productService = {
       product.hasVariants = normalizedHasVariants;
 
       if (normalizedHasVariants) {
-        const normalizedVariants = normalizeVariants(variants);
+        const normalizedVariants = normalizeVariants(
+          variants,
+          product.costPrice, // reflects any costPrice change made just above
+        );
         if (normalizedVariants.length === 0) {
           throw new ApiError(
             400,
@@ -687,6 +753,27 @@ export const productService = {
 
     const updated = await productRepository.save(product);
 
+    // costPrice here is an admin *correcting* a number, not a stock
+    // movement — change stays 0 so it never affects stock totals, but
+    // it's still logged so "who changed the cost and when" stays traceable.
+    if (
+      costPrice !== undefined &&
+      costPrice !== "" &&
+      Number(costPrice) !== previousCostPrice
+    ) {
+      await StockLog.create({
+        productId: updated._id,
+        variantId: null,
+        type: "correction",
+        change: 0,
+        previousStock: updated.stock,
+        newStock: updated.stock,
+        unitCost: Number(costPrice),
+        reason: `Cost price corrected from ৳${previousCostPrice} to ৳${costPrice}`,
+        adminId,
+      });
+    }
+
     await invalidateProductCache(oldSlug);
     if (product.slug !== oldSlug) await invalidateProductCache(product.slug);
 
@@ -713,5 +800,362 @@ export const productService = {
     await invalidateProductCache(product.slug);
 
     return product.images;
+  },
+
+  // ─── Inventory management ───────────────────────────────────────────────
+
+  /**
+   * Restocks a product (or one of its variants) and recalculates the
+   * running average cost — same "average cost" method retailers use
+   * when the purchase price changes between batches:
+   *
+   *   newAvgCost = (oldStock*oldCost + qty*unitCost) / (oldStock+qty)
+   *
+   * Runs inside a transaction because the average-cost math needs a
+   * read-then-write, and two admins restocking the same product at the
+   * same moment must not stomp on each other's calculation.
+   */
+  async restockProduct({
+    productId,
+    variantId,
+    quantity,
+    unitCost,
+    reason,
+    adminId,
+  }) {
+    if (!quantity || quantity <= 0)
+      throw new ApiError(400, "Quantity must be greater than 0");
+    if (unitCost === undefined || unitCost === null || unitCost < 0)
+      throw new ApiError(400, "A valid unit cost is required to restock");
+
+    const session = await mongoose.startSession();
+    let logEntry;
+    let updatedProduct;
+
+    try {
+      await session.withTransaction(async () => {
+        const product = await Product.findById(productId).session(session);
+        if (!product) throw new ApiError(404, "Product not found");
+
+        if (product.hasVariants && !variantId)
+          throw new ApiError(
+            400,
+            "Select a variant to restock for this product",
+          );
+        if (!product.hasVariants && variantId)
+          throw new ApiError(400, "This product does not use variants");
+
+        let previousStock, oldCost, newAvgCost;
+
+        if (variantId) {
+          const variant = product.variants.id(variantId);
+          if (!variant) throw new ApiError(404, "Variant not found");
+          previousStock = variant.stock;
+          oldCost = variant.costPrice || 0;
+        } else {
+          previousStock = product.stock;
+          oldCost = product.costPrice || 0;
+        }
+
+        newAvgCost =
+          Math.round(
+            ((previousStock * oldCost + quantity * unitCost) /
+              (previousStock + quantity)) *
+              100,
+          ) / 100;
+
+        updatedProduct = variantId
+          ? await productRepository.restockVariantStock(
+              productId,
+              variantId,
+              quantity,
+              newAvgCost,
+              session,
+            )
+          : await productRepository.restockStock(
+              productId,
+              quantity,
+              newAvgCost,
+              session,
+            );
+
+        if (!updatedProduct) throw new ApiError(404, "Product not found");
+
+        const [log] = await StockLog.create(
+          [
+            {
+              productId,
+              variantId: variantId || null,
+              type: "restock",
+              change: quantity,
+              previousStock,
+              newStock: previousStock + quantity,
+              unitCost,
+              totalCost: unitCost * quantity,
+              reason: reason || "",
+              adminId,
+            },
+          ],
+          { session },
+        );
+        logEntry = log;
+      });
+    } finally {
+      await session.endSession();
+    }
+
+    await invalidateProductCache(updatedProduct.slug);
+    return { product: updatedProduct, log: logEntry };
+  },
+
+  /**
+   * Manual stock correction — damage/loss or fixing a miscount. Unlike
+   * restockProduct(), this never touches costPrice (nothing was bought).
+   * `change` is signed: negative removes stock, positive adds it back
+   * (e.g. correcting an earlier over-deduction).
+   */
+  async adjustStock({ productId, variantId, change, type, reason, adminId }) {
+    const ADJUSTMENT_TYPES = ["damage", "correction"];
+
+    if (!ADJUSTMENT_TYPES.includes(type))
+      throw new ApiError(
+        400,
+        `type must be one of: ${ADJUSTMENT_TYPES.join(", ")}`,
+      );
+    if (!change || !Number.isInteger(change))
+      throw new ApiError(400, "change must be a non-zero whole number");
+    if (type === "damage" && change > 0)
+      throw new ApiError(400, "Damage adjustments must reduce stock");
+    if (!reason || !reason.trim())
+      throw new ApiError(
+        400,
+        "A reason is required for manual stock adjustments",
+      );
+
+    const session = await mongoose.startSession();
+    let logEntry;
+    let updatedProduct;
+
+    try {
+      await session.withTransaction(async () => {
+        const product = await Product.findById(productId).session(session);
+        if (!product) throw new ApiError(404, "Product not found");
+
+        if (product.hasVariants && !variantId)
+          throw new ApiError(
+            400,
+            "Select a variant to adjust for this product",
+          );
+        if (!product.hasVariants && variantId)
+          throw new ApiError(400, "This product does not use variants");
+
+        const previousStock = variantId
+          ? product.variants.id(variantId)?.stock
+          : product.stock;
+
+        if (previousStock === undefined)
+          throw new ApiError(404, "Variant not found");
+        if (change < 0 && previousStock + change < 0)
+          throw new ApiError(
+            400,
+            `Cannot remove ${-change} units — only ${previousStock} in stock`,
+          );
+
+        const absChange = Math.abs(change);
+        const isAdd = change > 0;
+
+        updatedProduct = variantId
+          ? isAdd
+            ? await productRepository.incrementVariantStock(
+                productId,
+                variantId,
+                absChange,
+                session,
+              )
+            : await productRepository.decrementVariantStock(
+                productId,
+                variantId,
+                absChange,
+                session,
+              )
+          : isAdd
+            ? await productRepository.incrementStock(
+                productId,
+                absChange,
+                session,
+              )
+            : await productRepository.decrementStock(
+                productId,
+                absChange,
+                session,
+              );
+
+        if (!updatedProduct)
+          throw new ApiError(409, "Stock changed concurrently — please retry");
+
+        const [log] = await StockLog.create(
+          [
+            {
+              productId,
+              variantId: variantId || null,
+              type,
+              change,
+              previousStock,
+              newStock: previousStock + change,
+              reason,
+              adminId,
+            },
+          ],
+          { session },
+        );
+        logEntry = log;
+      });
+    } finally {
+      await session.endSession();
+    }
+
+    await invalidateProductCache(updatedProduct.slug);
+    return { product: updatedProduct, log: logEntry };
+  },
+
+  async getStockLogs({ productId, variantId, type, cursor, limit = 30 }) {
+    const query = {};
+    if (productId) query.productId = productId;
+    if (variantId) query.variantId = variantId;
+    if (type) query.type = type;
+    if (cursor) query._id = { $lt: cursor };
+
+    const logs = await StockLog.find(query)
+      .populate("productId", "title slug images")
+      .populate("adminId", "name")
+      .sort({ _id: -1 })
+      .limit(limit + 1)
+      .lean();
+
+    let nextCursor = null;
+    if (logs.length > limit) {
+      nextCursor = logs.pop()._id;
+    }
+
+    return { logs, nextCursor, hasMore: Boolean(nextCursor) };
+  },
+
+  /**
+   * Products (or variants) at/below their lowStockThreshold. Archived
+   * products are skipped — they're discontinued, not something to reorder.
+   * Draft products ARE included, since a draft can still hold real
+   * physical inventory sitting in the warehouse.
+   */
+  async getLowStockProducts() {
+    return Product.aggregate([
+      { $match: { isArchived: false } },
+      {
+        $addFields: {
+          lowVariants: {
+            $filter: {
+              input: "$variants",
+              as: "v",
+              cond: { $lte: ["$$v.stock", "$lowStockThreshold"] },
+            },
+          },
+        },
+      },
+      {
+        $addFields: {
+          isLowStock: {
+            $cond: [
+              "$hasVariants",
+              { $gt: [{ $size: "$lowVariants" }, 0] },
+              { $lte: ["$stock", "$lowStockThreshold"] },
+            ],
+          },
+        },
+      },
+      { $match: { isLowStock: true } },
+      {
+        $project: {
+          title: 1,
+          slug: 1,
+          brand: 1,
+          stock: 1,
+          lowStockThreshold: 1,
+          hasVariants: 1,
+          lowVariants: 1,
+          images: { $slice: ["$images", 1] },
+        },
+      },
+      { $sort: { stock: 1 } },
+    ]);
+  },
+
+  /**
+   * Headline inventory numbers for the dashboard: how many units are
+   * sitting in stock, what they're worth at retail vs. at cost (so the
+   * gap = potential gross profit if everything sells), and how many
+   * products need attention. Retail/cost value is computed per-variant
+   * for variant products so it's exact, not an approximation off the
+   * (derived) top-level stock/price/costPrice fields.
+   */
+  async getInventorySummary() {
+    const [result] = await Product.aggregate([
+      { $match: { isArchived: false } },
+      {
+        $addFields: {
+          retailValue: {
+            $cond: [
+              "$hasVariants",
+              {
+                $sum: {
+                  $map: {
+                    input: "$variants",
+                    as: "v",
+                    in: { $multiply: ["$$v.stock", "$$v.price"] },
+                  },
+                },
+              },
+              { $multiply: ["$stock", "$price"] },
+            ],
+          },
+          costValue: {
+            $cond: [
+              "$hasVariants",
+              {
+                $sum: {
+                  $map: {
+                    input: "$variants",
+                    as: "v",
+                    in: { $multiply: ["$$v.stock", "$$v.costPrice"] },
+                  },
+                },
+              },
+              { $multiply: ["$stock", "$costPrice"] },
+            ],
+          },
+        },
+      },
+      {
+        $group: {
+          _id: null,
+          totalProducts: { $sum: 1 },
+          totalStockUnits: { $sum: "$stock" },
+          totalRetailValue: { $sum: "$retailValue" },
+          totalCostValue: { $sum: "$costValue" },
+          outOfStockCount: { $sum: { $cond: [{ $eq: ["$stock", 0] }, 1, 0] } },
+        },
+      },
+    ]);
+
+    const lowStockProducts = await this.getLowStockProducts();
+
+    return {
+      totalProducts: result?.totalProducts ?? 0,
+      totalStockUnits: result?.totalStockUnits ?? 0,
+      totalRetailValue: result?.totalRetailValue ?? 0,
+      totalCostValue: result?.totalCostValue ?? 0,
+      potentialProfit:
+        (result?.totalRetailValue ?? 0) - (result?.totalCostValue ?? 0),
+      outOfStockCount: result?.outOfStockCount ?? 0,
+      lowStockCount: lowStockProducts.length,
+    };
   },
 };

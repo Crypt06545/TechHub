@@ -28,6 +28,11 @@ import {
   updateProductController,
   getAdminProductsController,
   getAdminProductByIdController,
+  restockProductController,
+  adjustStockController,
+  getStockLogsController,
+  getLowStockProductsController,
+  getInventorySummaryController,
 } from "../controllers/product.contoller.js";
 
 const adminRouter = Router();
@@ -84,4 +89,11 @@ adminRouter.put("/coupons/:id", updateCouponController);
 adminRouter.patch("/coupons/:id/toggle", toggleCouponActiveController);
 adminRouter.delete("/coupons/:id", deleteCouponController);
 
+// ─── Inventory ────────────────────────────────────────────────────────────────
+
+adminRouter.post("/products/:id/restock", restockProductController);
+adminRouter.post("/products/:id/adjust-stock", adjustStockController);
+adminRouter.get("/inventory/logs", getStockLogsController);
+adminRouter.get("/inventory/low-stock", getLowStockProductsController);
+adminRouter.get("/inventory/summary", getInventorySummaryController);
 export default adminRouter;

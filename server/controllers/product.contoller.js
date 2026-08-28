@@ -138,6 +138,8 @@ export const createProductController = asyncHandler(async (req, res) => {
     description,
     price,
     compareAtPrice,
+    costPrice,
+    lowStockThreshold,
     category,
     brand,
     sku,
@@ -167,6 +169,8 @@ export const createProductController = asyncHandler(async (req, res) => {
     description,
     price,
     compareAtPrice,
+    costPrice,
+    lowStockThreshold,
     category,
     brand,
     sku,
@@ -179,6 +183,7 @@ export const createProductController = asyncHandler(async (req, res) => {
     images,
     vendorId: req.user?._id,
     ratingAverage,
+    adminId: req.user?._id,
   });
 
   return res
@@ -196,6 +201,8 @@ export const updateProductController = asyncHandler(async (req, res) => {
     description,
     price,
     compareAtPrice,
+    costPrice,
+    lowStockThreshold,
     category,
     brand,
     sku,
@@ -220,6 +227,8 @@ export const updateProductController = asyncHandler(async (req, res) => {
     description,
     price,
     compareAtPrice,
+    costPrice,
+    lowStockThreshold,
     category,
     brand,
     sku,
@@ -232,6 +241,7 @@ export const updateProductController = asyncHandler(async (req, res) => {
     imagesToRemove: parsedImagesToRemove,
     newImages,
     ratingAverage,
+    adminId: req.user?._id,
   });
 
   if (removedImages.length) {
@@ -277,4 +287,89 @@ export const toggleFeaturedController = asyncHandler(async (req, res) => {
   return res
     .status(200)
     .json(new ApiResponse(200, { product }, "Featured status updated"));
+});
+
+
+// ─── Admin: Inventory ───────────────────────────────────────────────────
+
+export const restockProductController = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  assertValidId(id);
+
+  const { variantId, quantity, unitCost, reason } = req.body;
+
+  const result = await productService.restockProduct({
+    productId: id,
+    variantId: variantId || null,
+    quantity: Number(quantity),
+    unitCost: Number(unitCost),
+    reason,
+    adminId: req.user?._id,
+  });
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, result, "Product restocked successfully"));
+});
+
+export const adjustStockController = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  assertValidId(id);
+
+  const { variantId, change, type, reason } = req.body;
+
+  const result = await productService.adjustStock({
+    productId: id,
+    variantId: variantId || null,
+    change: Number(change),
+    type,
+    reason,
+    adminId: req.user?._id,
+  });
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, result, "Stock adjusted successfully"));
+});
+
+export const getStockLogsController = asyncHandler(async (req, res) => {
+  const { productId, variantId, type, cursor, limit } = req.query;
+  if (productId) assertValidId(productId);
+
+  const parsedLimit = parseInt(limit, 10);
+  const data = await productService.getStockLogs({
+    productId,
+    variantId,
+    type,
+    cursor,
+    limit: Math.min(Number.isNaN(parsedLimit) ? 30 : parsedLimit, 100),
+  });
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, data, "Stock logs fetched successfully"));
+});
+
+export const getLowStockProductsController = asyncHandler(async (req, res) => {
+  const products = await productService.getLowStockProducts();
+
+  return res
+    .status(200)
+    .json(
+      new ApiResponse(
+        200,
+        { products, total: products.length },
+        "Low stock products fetched successfully",
+      ),
+    );
+});
+
+export const getInventorySummaryController = asyncHandler(async (req, res) => {
+  const summary = await productService.getInventorySummary();
+
+  return res
+    .status(200)
+    .json(
+      new ApiResponse(200, summary, "Inventory summary fetched successfully"),
+    );
 });

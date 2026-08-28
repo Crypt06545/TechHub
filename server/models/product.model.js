@@ -17,6 +17,11 @@ const variantSchema = new mongoose.Schema(
     color: { type: String, default: null, trim: true },
     price: { type: Number, required: true, min: 0 },
     stock: { type: Number, required: true, min: 0, default: 0 },
+    // What this specific variant costs to buy/produce — tracked per
+    // variant (not just per product) since e.g. a "128GB" and a "1TB"
+    // variant of the same product can have very different costs.
+    // Kept in sync as a running average by productService.restockProduct().
+    costPrice: { type: Number, min: 0, default: 0 },
   },
   { _id: true },
 );
@@ -35,6 +40,17 @@ const ProductSchema = new mongoose.Schema(
 
     price: { type: Number, required: true, min: 0 },
     compareAtPrice: { type: Number, min: 0, default: null },
+
+    // What this product costs to buy/produce, for products WITHOUT
+    // variants (variant-level cost lives on variantSchema instead).
+    // Recalculated as a running average every time the product is
+    // restocked at a different unit cost — see productService.restockProduct().
+    costPrice: { type: Number, min: 0, default: 0 },
+
+    // Below this stock level, the product shows up in the admin's
+    // low-stock list/alerts. For variant products, each variant's own
+    // stock is checked against this same threshold.
+    lowStockThreshold: { type: Number, min: 0, default: 5 },
 
     images: { type: [imageSchema], default: [] },
 
@@ -93,27 +109,23 @@ ProductSchema.pre("save", async function () {
     this.stock = this.variants.reduce((sum, v) => sum + (v.stock || 0), 0);
   }
 });
+
 // latest products
 ProductSchema.index({ isPublished: 1, isArchived: 1, _id: -1 });
-
 // category products
 ProductSchema.index({ category: 1, isPublished: 1, isArchived: 1, _id: -1 });
-
 // brand filter
 ProductSchema.index({ isPublished: 1, isArchived: 1, brand: 1 });
-
 // featured products
 ProductSchema.index({ isFeatured: 1, isPublished: 1, isArchived: 1 });
-
 // badge filtering (e.g. a "Hot Deals" or "New Arrivals" storefront page)
 ProductSchema.index({ badge: 1, isPublished: 1, isArchived: 1 });
-
 // vendor dashboard
 ProductSchema.index({ vendorId: 1, isArchived: 1, _id: -1 });
-
 // price filtering
 ProductSchema.index({ isPublished: 1, isArchived: 1, price: 1 });
-
+// low-stock lookups (inventory dashboard)
+ProductSchema.index({ isArchived: 1, stock: 1 });
 // text search (electronics kaje lagbe pore)
 ProductSchema.index({ title: "text", description: "text" });
 

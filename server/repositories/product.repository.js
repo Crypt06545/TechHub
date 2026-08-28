@@ -158,7 +158,55 @@ export const productRepository = {
       { returnDocument: "after", session },
     );
   },
+  // ─── Inventory: increases (mirror of the decrements above) ────────────────
 
+  // Plain increment, cost untouched — used for positive manual
+  // adjustments (e.g. correcting an earlier over-deduction). Damage and
+  // negative corrections reuse decrementStock/decrementVariantStock
+  // above instead of a new method.
+  async incrementStock(productId, quantity, session) {
+    return Product.findOneAndUpdate(
+      { _id: productId },
+      { $inc: { stock: quantity } },
+      { returnDocument: "after", session },
+    );
+  },
+
+  async incrementVariantStock(productId, variantId, quantity, session) {
+    return Product.findOneAndUpdate(
+      { _id: productId, "variants._id": variantId },
+      { $inc: { "variants.$.stock": quantity, stock: quantity } },
+      { returnDocument: "after", session },
+    );
+  },
+  // Restock-specific: increments stock AND sets the newly-computed
+  // average cost in the same atomic update, so the two numbers can
+  // never drift apart even under concurrent restocks.
+  async restockStock(productId, quantity, newCostPrice, session) {
+    return Product.findOneAndUpdate(
+      { _id: productId },
+      { $inc: { stock: quantity }, $set: { costPrice: newCostPrice } },
+      { returnDocument: "after", session },
+    );
+  },
+
+  async restockVariantStock(
+    productId,
+    variantId,
+    quantity,
+    newCostPrice,
+    session,
+  ) {
+    return Product.findOneAndUpdate(
+      { _id: productId, "variants._id": variantId },
+      {
+        $inc: { "variants.$.stock": quantity, stock: quantity },
+        $set: { "variants.$.costPrice": newCostPrice },
+      },
+      { returnDocument: "after", session },
+    );
+  },
+  
   // ---------------------------------------------------------------------------
   // Exists
   // ---------------------------------------------------------------------------
