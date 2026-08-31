@@ -1,5 +1,9 @@
+// PATH: src/components/products/ProductInfo.jsx
+// FILE: ProductInfo.jsx
+
 import { useState, useEffect, useMemo } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import DOMPurify from "dompurify";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
@@ -94,6 +98,17 @@ const ColorSelector = ({ colors, selected, onSelect, isAvailable }) => (
   </div>
 );
 
+// Strips HTML tags from the rich Quill description so a short plain-text
+// preview can sit under the title — the full formatted version still
+// renders as-is in the "Details" tab further down the page.
+const getPlainText = (html = "") => {
+  const clean = DOMPurify.sanitize(html);
+  const div = document.createElement("div");
+  div.innerHTML = clean;
+  const text = div.textContent || div.innerText || "";
+  return text.replace(/\s+/g, " ").trim();
+};
+
 // ─── Main component ────────────────────────────────────────────────────────────
 
 export const ProductInfo = ({ product }) => {
@@ -105,6 +120,11 @@ export const ProductInfo = ({ product }) => {
 
   const variants = product.variants || [];
   const hasVariants = product.hasVariants && variants.length > 0;
+
+  const plainDescription = useMemo(
+    () => getPlainText(product.description),
+    [product.description],
+  );
 
   // ── Derived option lists (recomputed only when variants change) ────────────
   const sizes = useMemo(
@@ -257,11 +277,18 @@ export const ProductInfo = ({ product }) => {
 
   return (
     <div className="flex flex-col gap-5">
-      {/* Title + rating + SKU */}
+      {/* Title + short description preview + rating + SKU */}
       <div>
         <h1 className="text-2xl font-semibold text-gray-900 mb-2 leading-snug">
           {product.title}
         </h1>
+
+        {plainDescription && (
+          <p className="mb-3 line-clamp-2 text-sm leading-relaxed text-gray-500">
+            {plainDescription}
+          </p>
+        )}
+
         <div className="flex flex-wrap items-center gap-3 text-sm text-gray-500">
           <div className="flex items-center gap-1">
             <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />

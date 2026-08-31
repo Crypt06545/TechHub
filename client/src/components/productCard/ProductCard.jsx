@@ -36,42 +36,58 @@ const ProductCard = ({
 
   return (
     <div className="group relative flex h-full flex-col gap-2">
-      <Link to={`/products/${slug}`} className="block">
-        <div className="relative aspect-square overflow-hidden rounded-xl bg-gray-50">
+      {/* Image box — the navigable <Link> now wraps ONLY the image
+          (absolute inset-0), not the whole box. ProductBadge and
+          ProductActions sit as SIBLINGS of the Link, not descendants.
+
+          Why this matters: ProductActions renders QuickViewModal, which
+          (via Radix's Dialog portal) paints into document.body — but
+          React's synthetic events bubble through the REACT tree, not
+          the DOM tree. With ProductActions nested inside the Link,
+          every click inside the modal (Buy Now, Add to Cart, even the
+          close button) used to bubble up into the Link's navigate and
+          hijack the page. Making them siblings removes that bubble
+          path entirely — no stopPropagation hacks needed. */}
+      <div className="relative aspect-square overflow-hidden rounded-xl bg-gray-50">
+        <Link
+          to={`/products/${slug}`}
+          className="absolute inset-0 block"
+          aria-label={plainTitle}
+        >
           <img
             src={image}
             alt={plainTitle}
             className="absolute inset-0 h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
           />
+        </Link>
 
-          <ProductBadge
-            badge={badge}
+        <ProductBadge
+          badge={badge}
+          productId={productId}
+          image={image}
+          title={plainTitle}
+          subtitle={plainSubtitle}
+          price={price}
+          oldPrice={oldPrice}
+          slug={slug}
+          hasVariants={hasVariants}
+          defaultVariant={defaultVariant}
+        />
+
+        {!outOfStock && (
+          <ProductActions
+            slug={slug}
             productId={productId}
             image={image}
             title={plainTitle}
             subtitle={plainSubtitle}
             price={price}
             oldPrice={oldPrice}
-            slug={slug}
             hasVariants={hasVariants}
             defaultVariant={defaultVariant}
           />
-
-          {!outOfStock && (
-            <ProductActions
-              slug={slug}
-              productId={productId}
-              image={image}
-              title={plainTitle}
-              subtitle={plainSubtitle}
-              price={price}
-              oldPrice={oldPrice}
-              hasVariants={hasVariants}
-              defaultVariant={defaultVariant}
-            />
-          )}
-        </div>
-      </Link>
+        )}
+      </div>
 
       <div className="flex flex-1 flex-col gap-3">
         <div className="flex flex-col gap-2">

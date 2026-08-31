@@ -22,17 +22,6 @@ import {
   useUpdateProduct,
 } from "@/hooks/useAdminAnalytics";
 
-const brands = [
-  "Apple",
-  "Samsung",
-  "Dell",
-  "HP",
-  "Lenovo",
-  "ASUS",
-  "Acer",
-  "Microsoft",
-];
-
 const badgeOptions = [
   "Hot Deal",
   "New Arrival",
@@ -398,37 +387,24 @@ const EditProduct = ({ product, onSuccess }) => {
                   {errors.productName.message}
                 </p>
               )}
-            </div>
 
-            {/* Brand */}
+
+            </div>
+            {/* Brand — optional free text, since products span many categories
+    (perfume, electronics, etc.) and brand names can't be a fixed list. */}
             <div className="space-y-2">
               <Label htmlFor="edit-brand">
-                Brand <span className="text-red-500">*</span>
+                Brand{" "}
+                <span className="text-xs text-muted-foreground font-normal">
+                  (optional)
+                </span>
               </Label>
-              <Controller
-                name="brand"
-                control={control}
-                rules={{ required: "Brand is required" }}
-                render={({ field }) => (
-                  <Select onValueChange={field.onChange} value={field.value}>
-                    <SelectTrigger id="edit-brand">
-                      <SelectValue placeholder="Select brand" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {brands.map((brand) => (
-                        <SelectItem key={brand} value={brand}>
-                          {brand}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                )}
+              <Input
+                id="edit-brand"
+                placeholder="e.g. Apple, or your own brand name"
+                {...register("brand")}
               />
-              {errors.brand && (
-                <p className="text-xs text-red-500">{errors.brand.message}</p>
-              )}
             </div>
-
             {/* Category */}
             <div className="space-y-2">
               <Label htmlFor="edit-category">
@@ -785,7 +761,9 @@ const EditProduct = ({ product, onSuccess }) => {
                     Variant Pricing & Stock
                   </Label>
                   <p className="text-xs text-muted-foreground">
-                    Leave price blank to use base price (৳{basePrice || "0"})
+                    Leave price blank to use base price (৳{basePrice || "0"}) ·
+                    Stock is managed via Restock / Adjust Stock, not edited
+                    here.
                   </p>
 
                   <div className="space-y-2">
@@ -826,16 +804,13 @@ const EditProduct = ({ product, onSuccess }) => {
                         </div>
 
                         <div className="space-y-1 md:col-span-3">
-                          <Label className="text-xs">
-                            Stock <span className="text-red-500">*</span>
-                          </Label>
-                          <Input
-                            type="number"
-                            placeholder="0"
-                            {...register(`variants.${index}.stock`, {
-                              required: "Stock is required",
-                              min: { value: 0, message: "Min 0" },
-                            })}
+                          <Label className="text-xs">Stock</Label>
+                          <div className="flex h-10 items-center rounded-md border bg-muted px-3 text-sm">
+                            {field.stock || 0} units
+                          </div>
+                          <input
+                            type="hidden"
+                            {...register(`variants.${index}.stock`)}
                           />
                         </div>
                       </div>

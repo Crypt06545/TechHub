@@ -22,17 +22,6 @@ import {
   useCreateProduct,
 } from "@/hooks/useAdminAnalytics";
 
-const brands = [
-  "Apple",
-  "Samsung",
-  "Dell",
-  "HP",
-  "Lenovo",
-  "ASUS",
-  "Acer",
-  "Microsoft",
-];
-
 const badgeOptions = [
   "Hot Deal",
   "New Arrival",
@@ -375,33 +364,20 @@ const AddProduct = () => {
               )}
             </div>
 
-            {/* Brand */}
+            {/* Brand — optional free text, since products span many categories
+    (perfume, electronics, etc.) and brand names can't be a fixed list. */}
             <div className="space-y-2">
               <Label htmlFor="brand">
-                Brand <span className="text-red-500">*</span>
+                Brand{" "}
+                <span className="text-xs text-muted-foreground font-normal">
+                  (optional)
+                </span>
               </Label>
-              <Controller
-                name="brand"
-                control={control}
-                rules={{ required: "Brand is required" }}
-                render={({ field }) => (
-                  <Select onValueChange={field.onChange} value={field.value}>
-                    <SelectTrigger id="brand">
-                      <SelectValue placeholder="Select brand" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {brands.map((brand) => (
-                        <SelectItem key={brand} value={brand}>
-                          {brand}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                )}
+              <Input
+                id="brand"
+                placeholder="e.g. Apple, or your own brand name"
+                {...register("brand")}
               />
-              {errors.brand && (
-                <p className="text-xs text-red-500">{errors.brand.message}</p>
-              )}
             </div>
 
             {/* Category — real admin categories, real _id values */}

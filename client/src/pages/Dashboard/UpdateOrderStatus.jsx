@@ -2,6 +2,7 @@ import React from "react";
 import { useForm, Controller } from "react-hook-form";
 
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -25,16 +26,22 @@ const paymentStatusOptions = ["Pending", "Paid", "Failed", "Refunded"];
 const UpdateOrderStatus = ({ order, onSuccess }) => {
   const updateMutation = useUpdateOrderStatus();
 
-  const { control, handleSubmit } = useForm({
+  const { control, register, handleSubmit } = useForm({
     defaultValues: {
       order_status: order?.order_status || "Processing",
       payment_status: order?.payment_status || "Pending",
+      courierCost: order?.costs?.courierCost || 0,
     },
   });
 
   const onSubmit = async (data) => {
     try {
-      await updateMutation.mutateAsync({ id: order._id, payload: data });
+      const payload = {
+        ...data,
+        courierCost: Number(data.courierCost) || 0,
+      };
+
+      await updateMutation.mutateAsync({ id: order._id, payload });
       onSuccess?.();
     } catch (err) {
       console.error("Update order status failed:", err);
@@ -84,6 +91,16 @@ const UpdateOrderStatus = ({ order, onSuccess }) => {
               </SelectContent>
             </Select>
           )}
+        />
+      </div>
+
+      <div className="space-y-2">
+        <Label>Courier Cost (৳)</Label>
+        <Input
+          type="number"
+          min="0"
+          placeholder="e.g. 60"
+          {...register("courierCost")}
         />
       </div>
 

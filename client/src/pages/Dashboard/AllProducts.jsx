@@ -78,7 +78,7 @@ const AllProducts = () => {
   const [searchInput, setSearchInput] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [createOpen, setCreateOpen] = useState(false);
-  const [costProduct, setCostProduct] = useState(null);
+  const [costProductId, setCostProductId] = useState(null);
   const [editProductId, setEditProductId] = useState(null);
   const [cursorStack, setCursorStack] = useState([null]);
   const [pageIndex, setPageIndex] = useState(0);
@@ -103,6 +103,10 @@ const AllProducts = () => {
   const { data: editProductData, isLoading: editProductLoading } =
     useAdminProductDetails(editProductId);
   const editProductFull = editProductData?.data?.product;
+
+  const { data: costProductData, isLoading: costProductLoading } =
+    useAdminProductDetails(costProductId);
+  const costProductFull = costProductData?.data?.product;
 
   const products = data?.data?.products || [];
   const hasMore = data?.data?.hasMore || false;
@@ -287,7 +291,7 @@ const AllProducts = () => {
                               Edit
                             </DropdownMenuItem>
                             <DropdownMenuItem
-                              onClick={() => setCostProduct(product)}
+                              onClick={() => setCostProductId(product._id)}
                             >
                               <Calculator className="mr-2 h-4 w-4" />
                               Manage Cost
@@ -339,25 +343,31 @@ const AllProducts = () => {
         )}
       </div>
 
+
       {/* Manage Cost Dialog */}
       <Dialog
-        open={Boolean(costProduct)}
-        onOpenChange={(open) => !open && setCostProduct(null)}
+        open={Boolean(costProductId)}
+        onOpenChange={(open) => !open && setCostProductId(null)}
       >
         <DialogContent className="max-h-[92vh] w-[98vw] overflow-y-auto rounded-2xl border sm:max-w-4xl">
           <DialogHeader>
-            <DialogTitle>Manage Cost — {costProduct?.title}</DialogTitle>
+            <DialogTitle>Manage Cost — {costProductFull?.title}</DialogTitle>
             <DialogDescription>
               Set the cost breakdown and profit margin for this product.
             </DialogDescription>
           </DialogHeader>
 
-          {costProduct && (
+          {costProductLoading ? (
+            <div className="space-y-3 py-6">
+              <Skeleton className="h-10 w-full" />
+              <Skeleton className="h-40 w-full" />
+            </div>
+          ) : costProductFull ? (
             <ManageProductCost
-              product={costProduct}
-              onSuccess={() => setCostProduct(null)}
+              product={costProductFull}
+              onSuccess={() => setCostProductId(null)}
             />
-          )}
+          ) : null}
         </DialogContent>
       </Dialog>
 
