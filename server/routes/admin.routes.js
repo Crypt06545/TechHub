@@ -10,6 +10,12 @@ import {
   getRevenueAnalyticsController,
   getTopProductsController,
   getNewUsersAnalyticsController,
+  createExpenseController,
+  getExpensesController,
+  updateExpenseController,
+  deleteExpenseController,
+  getExpenseBreakdownController,
+  getProfitLossController,
 } from "../controllers/admin.controller.js";
 import adminAuthMiddleware from "../middleware/adminMiddleware.js";
 import { upload } from "../middleware/multerMiddleware.js";
@@ -96,4 +102,17 @@ adminRouter.post("/products/:id/adjust-stock", adjustStockController);
 adminRouter.get("/inventory/logs", getStockLogsController);
 adminRouter.get("/inventory/low-stock", getLowStockProductsController);
 adminRouter.get("/inventory/summary", getInventorySummaryController);
+
+// ─── Expenses ─────────────────────────────────────────────────────────────────
+
+adminRouter.post("/expenses", createExpenseController);
+adminRouter.get("/expenses", getExpensesController);
+adminRouter.put("/expenses/:id", updateExpenseController);
+adminRouter.delete("/expenses/:id", deleteExpenseController);
+adminRouter.get("/expenses/breakdown", getExpenseBreakdownController);
+
+// ─── Profit & Loss ──────────────────────────────────────────────────────────
+
+adminRouter.get("/analytics/profit-loss", getProfitLossController
+);
 export default adminRouter;

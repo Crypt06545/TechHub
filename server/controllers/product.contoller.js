@@ -130,6 +130,7 @@ export const getAdminProductByIdController = asyncHandler(async (req, res) => {
     .status(200)
     .json(new ApiResponse(200, { product }, "Product fetched successfully"));
 });
+
 // ─── Admin: Create ────────────────────────────────────────────────────────
 
 export const createProductController = asyncHandler(async (req, res) => {
@@ -190,6 +191,7 @@ export const createProductController = asyncHandler(async (req, res) => {
     .status(201)
     .json(new ApiResponse(201, { product }, "Product created successfully"));
 });
+
 // ─── Admin: Update ────────────────────────────────────────────────────────
 
 export const updateProductController = asyncHandler(async (req, res) => {
@@ -202,6 +204,7 @@ export const updateProductController = asyncHandler(async (req, res) => {
     price,
     compareAtPrice,
     costPrice,
+    costBreakdown,
     lowStockThreshold,
     category,
     brand,
@@ -217,6 +220,7 @@ export const updateProductController = asyncHandler(async (req, res) => {
   } = req.body;
 
   const parsedVariants = parseJSON(variants, "variants");
+  const parsedCostBreakdown = parseJSON(costBreakdown, "costBreakdown");
   const parsedImagesToRemove =
     parseJSON(imagesToRemove, "imagesToRemove") || [];
 
@@ -228,6 +232,7 @@ export const updateProductController = asyncHandler(async (req, res) => {
     price,
     compareAtPrice,
     costPrice,
+    costBreakdown: parsedCostBreakdown,
     lowStockThreshold,
     category,
     brand,
@@ -288,7 +293,6 @@ export const toggleFeaturedController = asyncHandler(async (req, res) => {
     .status(200)
     .json(new ApiResponse(200, { product }, "Featured status updated"));
 });
-
 
 // ─── Admin: Inventory ───────────────────────────────────────────────────
 

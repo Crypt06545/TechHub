@@ -8,6 +8,42 @@ const imageSchema = new mongoose.Schema(
   { _id: false },
 );
 
+// Fully admin-defined cost line item — no fixed "packaging"/"shipping"
+// labels baked in, since which cost categories matter varies per
+// product. The admin names each line themselves.
+const costLineItemSchema = new mongoose.Schema(
+  {
+    label: { type: String, trim: true, default: "" },
+    amount: { type: Number, min: 0, default: 0 },
+  },
+  { _id: false },
+);
+
+const oilLineSchema = new mongoose.Schema(
+  {
+    name: { type: String, trim: true, default: "" },
+    costPerMl: { type: Number, min: 0, default: 0 },
+    bottleSizeMl: { type: Number, min: 0, default: 0 },
+  },
+  { _id: false },
+);
+
+// The full "Manage Cost" calculator state, saved so it can be reloaded
+// exactly as entered — no hardcoded field names or default numbers,
+// every line (oils, other costs) is admin-defined. Shared by both
+// non-variant products (Product.costBreakdown) and each variant
+// (variantSchema.costBreakdown below).
+const costBreakdownSchema = new mongoose.Schema(
+  {
+    oils: { type: [oilLineSchema], default: [] },
+    otherCosts: { type: [costLineItemSchema], default: [] },
+    platformFeePercent: { type: Number, min: 0, max: 100, default: 0 },
+    wastagePercent: { type: Number, min: 0, max: 100, default: 0 },
+    desiredMarginPercent: { type: Number, min: 0, max: 100, default: 0 },
+  },
+  { _id: false },
+);
+
 // A variant is a size/color combo with its own price + stock.
 // Kept as a real subdocument (with _id) so cart/order line items can
 // reference a specific variantId later, not just the productId.
@@ -17,11 +53,18 @@ const variantSchema = new mongoose.Schema(
     color: { type: String, default: null, trim: true },
     price: { type: Number, required: true, min: 0 },
     stock: { type: Number, required: true, min: 0, default: 0 },
-    // What this specific variant costs to buy/produce — tracked per
-    // variant (not just per product) since e.g. a "128GB" and a "1TB"
-    // variant of the same product can have very different costs.
-    // Kept in sync as a running average by productService.restockProduct().
+    // Running-average cost, kept in sync by productService.restockProduct().
     costPrice: { type: Number, min: 0, default: 0 },
+
+    // The full "Manage Cost" calculator inputs that produced costPrice
+    // above, saved per-variant so switching sizes in the calculator
+    // restores exactly what was entered for THAT size — e.g. 3ML uses
+    // less oil than 12ML, so their raw-material lines differ even
+    // though they share the same admin-set cost-per-ml. Optional/null
+    // until the admin actually uses the calculator for this variant;
+    // a variant created without ever opening "Manage Cost" just keeps
+    // its plain costPrice with no breakdown attached.
+    costBreakdown: { type: costBreakdownSchema, default: null },
   },
   { _id: true },
 );
@@ -46,6 +89,10 @@ const ProductSchema = new mongoose.Schema(
     // Recalculated as a running average every time the product is
     // restocked at a different unit cost — see productService.restockProduct().
     costPrice: { type: Number, min: 0, default: 0 },
+
+    // Same breakdown structure as variants.costBreakdown, for
+    // non-variant products — set by ManageProductCost.jsx.
+    costBreakdown: { type: costBreakdownSchema, default: null },
 
     // Below this stock level, the product shows up in the admin's
     // low-stock list/alerts. For variant products, each variant's own

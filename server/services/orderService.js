@@ -1,11 +1,19 @@
+// FILE: services/orderService.js
 import mongoose from "mongoose";
 import { orderRepository } from "../repositories/order.repository.js";
 import { productRepository } from "../repositories/product.repository.js";
 import { Product } from "../models/product.model.js";
+import Order from "../models/order.model.js";
+import { StockLog } from "../models/stockLog.model.js";
 import { generateOrderId } from "../utils/generateOrderId.js";
 import { ApiError } from "../utils/ApiError.js";
 import { redis } from "../config/redis.js";
 import { couponRepository } from "../repositories/coupon.repository.js";
+import {
+  GATEWAY_FEE_RATES,
+  DEFAULT_PACKAGING_COST,
+} from "../utils/inventoryConstants.js";
+import { expenseService } from "./expense.service.js";
 
 // ─── TTLs / cache keys ────────────────────────────────────────────────────
 const USER_ORDERS_TTL = 120;
@@ -36,13 +44,16 @@ const calcShipping = (subTotal, city) => {
   return city?.toLowerCase() === "bogura" ? 60 : 130;
 };
 
-// Resolve price/stock for a cart line, honoring variantId when the
-// product has variants. Falls back to the base product otherwise, even
-// if a stale variantId is sent by an old cart.
+const calcOrderCosts = (payment_method, totalAmt) => ({
+  packagingCost: DEFAULT_PACKAGING_COST,
+  gatewayFee: Math.round(totalAmt * (GATEWAY_FEE_RATES[payment_method] || 0)),
+});
+
 const resolveLine = (product, variantId) => {
   if (!product.hasVariants || !variantId) {
     return {
       price: product.price,
+      costPrice: product.costPrice || 0,
       stock: product.stock,
       variantId: null,
       label: null,
@@ -64,6 +75,7 @@ const resolveLine = (product, variantId) => {
 
   return {
     price: variant.price,
+    costPrice: variant.costPrice || 0,
     stock: variant.stock,
     variantId: variant._id,
     label,
@@ -71,8 +83,6 @@ const resolveLine = (product, variantId) => {
   };
 };
 
-// Validates + applies a coupon inside the transaction. Discount is scoped
-// to applicableCategories if set, otherwise applies to the whole subtotal.
 const applyCoupon = async ({
   code,
   userId,
@@ -80,7 +90,6 @@ const applyCoupon = async ({
   subTotalAmt,
   session,
 }) => {
-  // cached lookup — long-lived, invalidated on create/update/delete
   const coupon = await couponRepository.findByCode(code);
   if (!coupon || !coupon.isActive)
     throw new ApiError(404, "Invalid or inactive coupon");
@@ -119,9 +128,6 @@ const applyCoupon = async ({
     discount = Math.min(discount, coupon.maxDiscountAmount);
   discount = Math.min(discount, eligibleAmt);
 
-  // Atomic, conditional GLOBAL usage increment — always hits live DB,
-  // never cache, so maxUses can never be over-redeemed even though the
-  // coupon lookup above was cached.
   const globalResult = await couponRepository.incrementUsage(
     coupon._id,
     coupon.maxUses,
@@ -130,13 +136,6 @@ const applyCoupon = async ({
   if (globalResult.modifiedCount === 0)
     throw new ApiError(400, "This coupon has reached its usage limit");
 
-  // Atomic, conditional PER-USER usage increment. Replaces the old
-  // count-then-check (Order.countDocuments), which was vulnerable to a
-  // race: two concurrent requests from the same user (double-click,
-  // duplicate submit, multiple tabs) could both read count=0 before
-  // either order committed, letting both slip past a
-  // maxUsesPerUser: 1 limit. findOneAndUpdate's $lt guard + $inc happen
-  // as one atomic op, so only one concurrent request can ever win.
   const userUsage = await couponRepository.incrementUserUsage(
     userId,
     coupon._id,
@@ -153,18 +152,12 @@ const applyCoupon = async ({
 };
 
 const orderService = {
-  /**
-   * Places an order inside a single Mongo transaction: stock decrement,
-   * coupon usage, and order creation either all succeed or all roll back
-   * together. The delivery address is stored only as a snapshot on the
-   * order itself — no separate Address document is created here.
-   */
   async placeOrder({
     userId,
     addressData,
     payment_method,
     transactionId,
-    items, // [{ productId, variantId, quantity }]
+    items,
     couponCode,
   }) {
     if (!Array.isArray(items) || items.length === 0)
@@ -189,7 +182,9 @@ const orderService = {
       await session.withTransaction(async () => {
         const productIds = items.map((i) => i.productId);
         const products = await Product.find({ _id: { $in: productIds } })
-          .select("title price stock slug images hasVariants variants category")
+          .select(
+            "title price costPrice stock slug images hasVariants variants category",
+          )
           .session(session);
 
         const productMap = new Map(products.map((p) => [p._id.toString(), p]));
@@ -197,6 +192,7 @@ const orderService = {
 
         let subTotalAmt = 0;
         const orderItems = [];
+        const lines = [];
 
         for (const { productId, variantId, quantity } of items) {
           const product = productMap.get(productId.toString());
@@ -219,37 +215,50 @@ const orderService = {
             name: product.title,
             images: resolved.images,
             price: resolved.price,
+            costPriceAtSale: resolved.costPrice,
+            quantity,
+          });
+
+          lines.push({
+            productId: product._id,
+            variantId: resolved.variantId,
+            title: product.title,
             quantity,
           });
         }
 
-        // Atomic, conditional stock decrement — single shared method so
-        // variant stock and top-level stock never drift out of sync.
-        for (const { productId, variantId, quantity } of items) {
-          const product = productMap.get(productId.toString());
-          const usesVariant = product.hasVariants && variantId;
-
-          const updated = usesVariant
+        const stockLogDrafts = [];
+        for (const line of lines) {
+          const updated = line.variantId
             ? await productRepository.decrementVariantStock(
-                productId,
-                variantId,
-                quantity,
+                line.productId,
+                line.variantId,
+                line.quantity,
                 session,
               )
             : await productRepository.decrementStock(
-                productId,
-                quantity,
+                line.productId,
+                line.quantity,
                 session,
               );
 
           if (!updated)
-            throw new ApiError(
-              400,
-              `Insufficient stock for: ${product?.title ?? "item"}`,
-            );
+            throw new ApiError(400, `Insufficient stock for: ${line.title}`);
+
+          const newStock = line.variantId
+            ? updated.variants.id(line.variantId).stock
+            : updated.stock;
+
+          stockLogDrafts.push({
+            productId: line.productId,
+            variantId: line.variantId,
+            type: "sale",
+            change: -line.quantity,
+            previousStock: newStock + line.quantity,
+            newStock,
+          });
         }
 
-        // ── Coupon (optional) ──────────────────────────────────────────
         let discountAmount = 0;
         let appliedCouponCode = null;
         if (couponCode) {
@@ -266,6 +275,10 @@ const orderService = {
 
         const shippingCharge = calcShipping(subTotalAmt, addressData.city);
         const totalAmt = subTotalAmt + shippingCharge - discountAmount;
+        const { packagingCost, gatewayFee } = calcOrderCosts(
+          payment_method,
+          totalAmt,
+        );
 
         order = await orderRepository.create(
           {
@@ -288,36 +301,49 @@ const orderService = {
             discountAmount,
             subTotalAmt,
             shippingCharge,
+            costs: { packagingCost, gatewayFee },
             totalAmt,
           },
           session,
+        );
+
+        await StockLog.insertMany(
+          stockLogDrafts.map((draft) => ({
+            ...draft,
+            orderId: order._id,
+            reason: `Sold via order ${order.orderId}`,
+          })),
+          { session },
         );
       });
     } finally {
       await session.endSession();
     }
 
-    // Cache invalidation — best-effort, after commit.
-    Promise.all([
-      redis.del(userOrdersKey(userId)),
-      touchedSlugs.length
-        ? redis.del(
-            ...touchedSlugs.map((slug) => `product:${slug}`),
-            "featured_products",
-            "product:filters:facets",
-          )
-        : Promise.resolve(),
-    ]).catch((err) =>
+    // Cache invalidation — awaited (not fire-and-forget) so the very
+    // next request for this product can never see a stale stock
+    // number. Runs after the transaction has committed, so it clears
+    // exactly the values that are now correct in the DB.
+    try {
+      await Promise.all([
+        redis.del(userOrdersKey(userId)),
+        touchedSlugs.length
+          ? redis.del(
+              ...touchedSlugs.map((slug) => `product:${slug}`),
+              "featured_products",
+              "product:filters:facets",
+            )
+          : Promise.resolve(),
+      ]);
+    } catch (err) {
       console.error(
         "[Cleanup] post-order cache invalidation failed:",
         err.message,
-      ),
-    );
+      );
+    }
 
     return order;
   },
-
-  // ─── User queries ─────────────────────────────────────────────────────
 
   async getUserOrders(userId) {
     const key = userOrdersKey(userId);
@@ -356,8 +382,6 @@ const orderService = {
     return order;
   },
 
-  // ─── Admin ────────────────────────────────────────────────────────────
-
   async adminGetAllOrders({
     payment_status,
     order_status,
@@ -370,25 +394,158 @@ const orderService = {
       payment_status,
       order_status,
       search,
-      sortDirection, // "asc" | "desc" string — matches findAllOrdersAdmin's own check
+      sortDirection,
       cursor,
       limit,
     });
   },
 
-  async adminUpdateOrderStatus({ orderId, order_status, payment_status }) {
-    if (!order_status && !payment_status)
+  async adminUpdateOrderStatus({
+    orderId,
+    order_status,
+    payment_status,
+    courierCost,
+    adminId,
+  }) {
+    if (!order_status && !payment_status && courierCost === undefined)
       throw new ApiError(
         400,
-        "At least one of order_status or payment_status is required",
+        "At least one of order_status, payment_status or courierCost is required",
       );
 
-    const order = await orderRepository.updateStatusById(orderId, {
-      order_status,
-      payment_status,
-    });
-    if (!order) throw new ApiError(404, "Order not found");
-    return order;
+    const triggersRestore =
+      order_status === "Cancelled" || payment_status === "Refunded";
+
+    // ১. সাধারণ আপডেট (যেমন Processing -> Shipped)
+    if (!triggersRestore) {
+      const order = await orderRepository.updateStatusById(orderId, {
+        order_status,
+        payment_status,
+        courierCost,
+      });
+      if (!order) throw new ApiError(404, "Order not found");
+
+      redis.del(singleOrderKey(order.orderId)).catch(() => {});
+      return order;
+    }
+
+    // ২. স্টক রিস্টোর আপডেট (Cancelled / Refunded)
+    const session = await mongoose.startSession();
+    let updatedOrder;
+
+    try {
+      await session.withTransaction(async () => {
+        const order = await Order.findOneAndUpdate(
+          { _id: orderId, stockRestored: false },
+          {
+            ...(order_status && { order_status }),
+            ...(payment_status && { payment_status }),
+            ...(courierCost !== undefined && {
+              "costs.courierCost": courierCost,
+            }),
+            stockRestored: true,
+          },
+          { returnDocument: "after", session },
+        );
+
+        // যদি স্টক আগেই রিস্টোর হয়ে থাকে (stockRestored === true)
+        if (!order) {
+          const fallback = await Order.findByIdAndUpdate(
+            orderId,
+            {
+              ...(order_status && { order_status }),
+              ...(payment_status && { payment_status }),
+              ...(courierCost !== undefined && {
+                "costs.courierCost": courierCost,
+              }),
+            },
+            { new: true, session },
+          );
+          if (!fallback) throw new ApiError(404, "Order not found");
+          updatedOrder = fallback;
+          return; // ⚠️ এখান থেকে বের হয়ে যাবে, আর যেন স্টক না বাড়ায়!
+        }
+
+        // প্রথমবার ক্যান্সেল হলে স্টক ফেরত আনবে
+        for (const item of order.items) {
+          const updated = item.variantId
+            ? await productRepository.incrementVariantStock(
+                item.productId,
+                item.variantId,
+                item.quantity,
+                session,
+              )
+            : await productRepository.incrementStock(
+                item.productId,
+                item.quantity,
+                session,
+              );
+
+          if (!updated) continue;
+
+          const newStock = item.variantId
+            ? updated.variants.id(item.variantId).stock
+            : updated.stock;
+
+          await StockLog.create(
+            [
+              {
+                productId: item.productId,
+                variantId: item.variantId,
+                type: "return",
+                change: item.quantity,
+                previousStock: newStock - item.quantity,
+                newStock,
+                orderId: order._id,
+                adminId,
+                reason: `Stock restored — order ${order.orderId} ${
+                  order_status === "Cancelled" ? "cancelled" : "refunded"
+                }`,
+              },
+            ],
+            { session },
+          );
+        }
+
+        updatedOrder = order;
+      });
+    } finally {
+      await session.endSession();
+    }
+
+    // ক্যাশ ক্লিয়ারিং
+    if (updatedOrder) {
+      redis.del(singleOrderKey(updatedOrder.orderId)).catch(() => {});
+      redis.del(userOrdersKey(updatedOrder.userId)).catch(() => {});
+    }
+
+    return updatedOrder;
+  },
+
+  async getProfitLoss(range, fromDate, toDate) {
+    const [orderStats, totalExpenses] = await Promise.all([
+      orderRepository.profitLossByRange(range, fromDate, toDate),
+      expenseService.getTotalExpenses(range, fromDate, toDate),
+    ]);
+
+    // aggregation থেকে পাওয়া _id ফিল্ডটি মুছে ফেলে রেসপন্স ক্লিন করা
+    delete orderStats._id;
+
+    const grossProfit = orderStats.revenue - orderStats.cogs;
+    const orderCosts =
+      orderStats.courierCost +
+      orderStats.packagingCost +
+      orderStats.gatewayFee +
+      orderStats.returnCost;
+    const netProfit = grossProfit - orderCosts - totalExpenses;
+
+    return {
+      ...orderStats,
+      totalExpenses,
+      grossProfit,
+      orderCosts,
+      netProfit,
+    };
   },
 };
 

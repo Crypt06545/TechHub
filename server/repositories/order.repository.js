@@ -18,10 +18,14 @@ export const orderRepository = {
     return order.save();
   },
 
-  async updateStatusById(orderId, { order_status, payment_status }) {
+  async updateStatusById(
+    orderId,
+    { order_status, payment_status, courierCost },
+  ) {
     const update = {};
     if (order_status) update.order_status = order_status;
     if (payment_status) update.payment_status = payment_status;
+    if (courierCost !== undefined) update["costs.courierCost"] = courierCost;
 
     return Order.findByIdAndUpdate(orderId, update, {
       returnDocument: "after",
@@ -222,5 +226,84 @@ export const orderRepository = {
       { $group: { _id: null, total: { $sum: "$totalAmt" } } },
     ]);
     return result[0]?.total ?? 0;
+  },
+
+  async profitLossByRange(range, fromDate, toDate) {
+    const matchStage = { order_status: { $ne: "Cancelled" } };
+
+    if (fromDate || toDate) {
+      matchStage.createdAt = {};
+      if (fromDate) matchStage.createdAt.$gte = new Date(fromDate);
+      if (toDate)
+        matchStage.createdAt.$lte = new Date(
+          new Date(toDate).setHours(23, 59, 59, 999),
+        );
+    } else {
+      // ২. না থাকলে প্রি-সেট রেঞ্জ অনুযায়ী ডেট সেট হবে
+      const now = new Date();
+      let startDate = null;
+
+      if (range === "day") {
+        startDate = new Date(now.setHours(0, 0, 0, 0)); // আজকের শুরু থেকে
+      } else if (range === "week") {
+        startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+      } else if (range === "month") {
+        startDate = new Date(now.setMonth(now.getMonth() - 1));
+      } else if (range === "year") {
+        startDate = new Date(now.setFullYear(now.getFullYear() - 1));
+      } else if (range === "all") {
+        startDate = null; // প্রথম দিন থেকে আজ পর্যন্ত
+      }
+
+      if (startDate) {
+        matchStage.createdAt = { $gte: startDate };
+      }
+    }
+
+    const result = await Order.aggregate([
+      { $match: matchStage },
+      {
+        $group: {
+          _id: null,
+          orders: { $sum: 1 },
+          revenue: { $sum: "$totalAmt" },
+          cogs: {
+            $sum: {
+              $reduce: {
+                input: "$items",
+                initialValue: 0,
+                in: {
+                  $add: [
+                    "$$value",
+                    {
+                      $multiply: [
+                        { $ifNull: ["$$this.costPriceAtSale", 0] },
+                        "$$this.quantity",
+                      ],
+                    },
+                  ],
+                },
+              },
+            },
+          },
+          courierCost: { $sum: { $ifNull: ["$costs.courierCost", 0] } },
+          packagingCost: { $sum: { $ifNull: ["$costs.packagingCost", 0] } },
+          gatewayFee: { $sum: { $ifNull: ["$costs.gatewayFee", 0] } },
+          returnCost: { $sum: { $ifNull: ["$costs.returnCost", 0] } },
+        },
+      },
+    ]);
+
+    const defaultStats = {
+      orders: 0,
+      revenue: 0,
+      cogs: 0,
+      courierCost: 0,
+      packagingCost: 0,
+      gatewayFee: 0,
+      returnCost: 0,
+    };
+
+    return result[0] ? { ...defaultStats, ...result[0] } : defaultStats;
   },
 };

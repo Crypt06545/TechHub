@@ -21,7 +21,7 @@ const expenseSchema = new mongoose.Schema(
       },
       required: true,
     },
-    amount: { type: Number, required: true, min: 0 },
+    amount: { type: Number, required: true, min: 0.01 },
     // The date the expense actually applies to (may be back-dated —
     // e.g. logging last week's courier bill today). Defaults to now
     // for the common case of logging it same-day.
@@ -32,14 +32,25 @@ const expenseSchema = new mongoose.Schema(
       ref: "User",
       required: true,
     },
+    // Soft delete — an expense is a financial record; hard-deleting it
+    // would let past P&L reports silently change after the fact. A
+    // "deleted" expense is excluded from all reads/aggregates, but the
+    // row (and who deleted it, when) stays in the database.
+    isDeleted: { type: Boolean, default: false },
+    deletedAt: { type: Date, default: null },
+    deletedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      default: null,
+    },
   },
   { timestamps: true, versionKey: false },
 );
 
-// Date-range reports ("this month's expenses")
-expenseSchema.index({ date: -1 });
-// Category breakdown within a range ("how much on shipping this month")
-expenseSchema.index({ category: 1, date: -1 });
+// Date-range reports ("this month's expenses"), deleted rows excluded
+expenseSchema.index({ isDeleted: 1, date: -1 });
+// Category breakdown within a range
+expenseSchema.index({ isDeleted: 1, category: 1, date: -1 });
 
 export const Expense =
   mongoose.models.Expense || mongoose.model("Expense", expenseSchema);

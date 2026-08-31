@@ -16,9 +16,6 @@ const SECTION_TTL = 3_600; // 1h — shared by "featured" and every badge sectio
 
 const singleKey = (slug) => `product:${slug}`;
 const productListKey = (params) => `all_products:${JSON.stringify(params)}`;
-// One cache namespace for every homepage section — "featured" and every
-// badge value ("Hot Deal", "New Arrival", ...) all live under the same
-// prefix, since they're conceptually the same thing: a filtered product list.
 const sectionKey = (type) => `products_section:${type}`;
 
 // ─── Internal Helpers ─────────────────────────────────────────────────────────
@@ -80,7 +77,14 @@ const normalizeVariants = (rawVariants, fallbackCostPrice = 0) => {
       throw new ApiError(400, `Variant #${i + 1} has an invalid cost price`);
     }
 
-    return { size, color, price, stock, costPrice };
+    // Passed straight through untouched when present — this service
+    // never computes the breakdown itself, only stores whatever the
+    // "Manage Cost" calculator already computed client-side. Omitted
+    // entirely (e.g. a variant added via AddProduct, never priced
+    // through the calculator) just stays null.
+    const costBreakdown = v.costBreakdown ?? null;
+
+    return { size, color, price, stock, costPrice, costBreakdown };
   });
 };
 
@@ -128,11 +132,6 @@ const invalidateProductCache = async (slug = null) => {
     const listKeys = await redis.keys("all_products:*");
     if (listKeys.length) keysToDelete.push(...listKeys);
 
-    // A product's featured flag or badge can change on update (e.g. Hot
-    // Deal -> New Arrival, or featured toggled off), so we can't know just
-    // from `slug` which section list(s) it used to belong to. Clearing all
-    // section caches is simplest and cheap given the 1h TTL already caps
-    // staleness.
     const sectionKeys = await redis.keys("products_section:*");
     if (sectionKeys.length) keysToDelete.push(...sectionKeys);
 
@@ -147,10 +146,6 @@ const invalidateProductCache = async (slug = null) => {
 export const productService = {
   // ─── Public (storefront) ─────────────────────────────────────────────────
 
-  /**
-   * Storefront product list — only published, non-archived products.
-   * Cached in Redis per unique filter/sort/cursor combination.
-   */
   async getProducts({
     limit = 12,
     cursor,
@@ -288,18 +283,6 @@ export const productService = {
     return facets;
   },
 
-  /**
-   * ONE method for every homepage section — Featured, Hot Deal, New
-   * Arrival, Best Seller, Top Rated, Limited Stock, Trending.
-   *
-   * type === "featured" → filters on isFeatured
-   * type === any BADGE_OPTIONS value → filters on badge
-   *
-   * Same query shape, same field selection, same cache pattern, same TTL
-   * for both — they're the same kind of thing (a filtered product list),
-   * so they get the same code path instead of two parallel ones that can
-   * drift out of sync.
-   */
   async getProductSection(type) {
     const isFeatured = type === "featured";
 
@@ -356,16 +339,6 @@ export const productService = {
 
   // ─── Admin ────────────────────────────────────────────────────────────────
 
-  /**
-   * Admin product list — ALL products regardless of status. Never cached,
-   * always fresh. Filters by status/featured/category/title instead of
-   * the storefront's price-range filters.
-   *
-   * status: "draft" | "published" | "archived" | undefined (= all)
-   * isFeatured: true | false | undefined
-   * sort: "latest" | "oldest" (default latest)
-   */
-
   async getAdminProductById(productId) {
     const product = await productRepository.findById(productId);
     if (!product) throw new ApiError(404, "Product not found");
@@ -418,7 +391,7 @@ export const productService = {
 
     const products = await Product.find(query)
       .select(
-        "title slug description price compareAtPrice images stock hasVariants lowStockThreshold category isPublished isArchived isFeatured badge createdAt",
+        "title slug description price compareAtPrice costPrice images stock hasVariants lowStockThreshold category isPublished isArchived isFeatured badge createdAt",
       )
       .populate("category", "name slug")
       .sort(sortSpec)
@@ -563,7 +536,7 @@ export const productService = {
     images,
     vendorId,
     ratingAverage,
-    adminId, // who created this product — only used for the initial StockLog
+    adminId,
   }) {
     if (!title || !price || !category) {
       throw new ApiError(400, "title, price and category are required");
@@ -620,10 +593,6 @@ export const productService = {
 
     await invalidateProductCache();
 
-    // Every unit the product starts with is real inventory that came
-    // from somewhere — logging it as "initial" means the stock history
-    // is complete from day one instead of starting with a silent,
-    // untracked opening balance.
     if (normalizedHasVariants) {
       const stockedVariants = product.variants.filter((v) => v.stock > 0);
       if (stockedVariants.length) {
@@ -668,6 +637,7 @@ export const productService = {
       price,
       compareAtPrice,
       costPrice,
+      costBreakdown,
       lowStockThreshold,
       category,
       brand,
@@ -701,6 +671,7 @@ export const productService = {
       product.compareAtPrice = compareAtPrice ? Number(compareAtPrice) : null;
     if (costPrice !== undefined && costPrice !== "")
       product.costPrice = Number(costPrice);
+    if (costBreakdown !== undefined) product.costBreakdown = costBreakdown;
     if (lowStockThreshold !== undefined && lowStockThreshold !== "")
       product.lowStockThreshold = Number(lowStockThreshold);
     if (category) product.category = category;
@@ -720,7 +691,7 @@ export const productService = {
       if (normalizedHasVariants) {
         const normalizedVariants = normalizeVariants(
           variants,
-          product.costPrice, // reflects any costPrice change made just above
+          product.costPrice,
         );
         if (normalizedVariants.length === 0) {
           throw new ApiError(
@@ -753,9 +724,6 @@ export const productService = {
 
     const updated = await productRepository.save(product);
 
-    // costPrice here is an admin *correcting* a number, not a stock
-    // movement — change stays 0 so it never affects stock totals, but
-    // it's still logged so "who changed the cost and when" stays traceable.
     if (
       costPrice !== undefined &&
       costPrice !== "" &&
@@ -804,17 +772,6 @@ export const productService = {
 
   // ─── Inventory management ───────────────────────────────────────────────
 
-  /**
-   * Restocks a product (or one of its variants) and recalculates the
-   * running average cost — same "average cost" method retailers use
-   * when the purchase price changes between batches:
-   *
-   *   newAvgCost = (oldStock*oldCost + qty*unitCost) / (oldStock+qty)
-   *
-   * Runs inside a transaction because the average-cost math needs a
-   * read-then-write, and two admins restocking the same product at the
-   * same moment must not stomp on each other's calculation.
-   */
   async restockProduct({
     productId,
     variantId,
@@ -908,12 +865,6 @@ export const productService = {
     return { product: updatedProduct, log: logEntry };
   },
 
-  /**
-   * Manual stock correction — damage/loss or fixing a miscount. Unlike
-   * restockProduct(), this never touches costPrice (nothing was bought).
-   * `change` is signed: negative removes stock, positive adds it back
-   * (e.g. correcting an earlier over-deduction).
-   */
   async adjustStock({ productId, variantId, change, type, reason, adminId }) {
     const ADJUSTMENT_TYPES = ["damage", "correction"];
 
@@ -1040,12 +991,6 @@ export const productService = {
     return { logs, nextCursor, hasMore: Boolean(nextCursor) };
   },
 
-  /**
-   * Products (or variants) at/below their lowStockThreshold. Archived
-   * products are skipped — they're discontinued, not something to reorder.
-   * Draft products ARE included, since a draft can still hold real
-   * physical inventory sitting in the warehouse.
-   */
   async getLowStockProducts() {
     return Product.aggregate([
       { $match: { isArchived: false } },
@@ -1088,14 +1033,6 @@ export const productService = {
     ]);
   },
 
-  /**
-   * Headline inventory numbers for the dashboard: how many units are
-   * sitting in stock, what they're worth at retail vs. at cost (so the
-   * gap = potential gross profit if everything sells), and how many
-   * products need attention. Retail/cost value is computed per-variant
-   * for variant products so it's exact, not an approximation off the
-   * (derived) top-level stock/price/costPrice fields.
-   */
   async getInventorySummary() {
     const [result] = await Product.aggregate([
       { $match: { isArchived: false } },

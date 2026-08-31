@@ -11,6 +11,7 @@ import {
 import { orderRepository } from "../repositories/order.repository.js";
 import orderService from "../services/orderService.js";
 import { productService } from "../services/productService.js";
+import { expenseService } from "../services/expense.service.js";
 
 // ─── Internal Helpers ─────────────────────────────────────────────────────────
 
@@ -71,7 +72,6 @@ export const getAllUserController = asyncHandler(async (req, res) => {
 });
 
 // ─── Products ─────────────────────────────────────────────────────────────────
-
 
 // ─── Categories ───────────────────────────────────────────────────────────────
 
@@ -200,12 +200,14 @@ export const adminGetAllOrdersController = asyncHandler(async (req, res) => {
 
 export const adminUpdateOrderStatusController = asyncHandler(
   async (req, res) => {
-    const { order_status, payment_status } = req.body;
+    const { order_status, payment_status, courierCost } = req.body;
 
     const order = await orderService.adminUpdateOrderStatus({
       orderId: req.params.id,
       order_status,
       payment_status,
+      courierCost,
+      adminId: req.user?._id,
     });
 
     return res
@@ -213,7 +215,6 @@ export const adminUpdateOrderStatusController = asyncHandler(
       .json(new ApiResponse(200, order, "Order status updated successfully"));
   },
 );
-
 // ─── Analytics ────────────────────────────────────────────────────────────────
 
 export const getDashboardController = asyncHandler(async (req, res) => {
@@ -278,4 +279,71 @@ export const getNewUsersAnalyticsController = asyncHandler(async (req, res) => {
     .json(
       new ApiResponse(200, data, "New users analytics fetched successfully"),
     );
+});
+
+// ─── Expenses ─────────────────────────────────────────────────────────────────
+
+export const createExpenseController = asyncHandler(async (req, res) => {
+  const expense = await expenseService.createExpense({
+    ...req.body,
+    adminId: req.user?._id,
+  });
+
+  return res
+    .status(201)
+    .json(new ApiResponse(201, expense, "Expense recorded successfully"));
+});
+
+export const getExpensesController = asyncHandler(async (req, res) => {
+  const data = await expenseService.getExpenses(req.query);
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, data, "Expenses fetched successfully"));
+});
+
+export const updateExpenseController = asyncHandler(async (req, res) => {
+  const expense = await expenseService.updateExpense(req.params.id, req.body);
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, expense, "Expense updated successfully"));
+});
+
+export const deleteExpenseController = asyncHandler(async (req, res) => {
+  await expenseService.deleteExpense(req.params.id, req.user?._id);
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, null, "Expense deleted successfully"));
+});
+
+export const getExpenseBreakdownController = asyncHandler(async (req, res) => {
+  const range = ["day", "week", "month", "3month"].includes(req.query.range)
+    ? req.query.range
+    : "week";
+
+  const data = await expenseService.getExpenseBreakdown(range);
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, data, "Expense breakdown fetched successfully"));
+});
+
+// ─── Profit & Loss ──────────────────────────────────────────────────────────
+
+export const getProfitLossController = asyncHandler(async (req, res) => {
+  const { range, from, to } = req.query;
+
+  const validRange = ["day", "week", "month", "3month", "year", "all"].includes(
+    range,
+  )
+    ? range
+    : "month";
+
+  const data = await orderService.getProfitLoss(validRange, from, to);
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, data, "Profit & loss fetched successfully"));
 });

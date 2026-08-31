@@ -25,6 +25,8 @@ slug
 description
 price
 compareAtPrice
+costPrice
+lowStockThreshold
 images
 category
 brand
@@ -206,7 +208,7 @@ export const productRepository = {
       { returnDocument: "after", session },
     );
   },
-  
+
   // ---------------------------------------------------------------------------
   // Exists
   // ---------------------------------------------------------------------------
