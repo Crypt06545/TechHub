@@ -128,7 +128,7 @@ const AdminInvoiceView = () => {
   const couponCode = order.couponCode || order.coupon?.code || null;
   const total = order.totalAmt ?? subTotal - discount + shippingCharge;
   const address = order.delivery_address || {};
-  const trackUrl = `${TRACK_ORDER_BASE_URL}/${order.orderId}`;
+  const trackUrl = `${TRACK_ORDER_BASE_URL}/:${order.orderId}`;
 
   const handlePrint = () => window.print();
 
@@ -223,7 +223,7 @@ const AdminInvoiceView = () => {
           src="/ZUHR_logo_transparent.svg"
           alt=""
           aria-hidden="true"
-          style={{ opacity: 0.20 }}
+          style={{ opacity: 0.2 }}
           className="pointer-events-none absolute left-1/2 top-1/2 z-0 w-95 max-w-[75%] -translate-x-1/2 -translate-y-1/2 select-none"
         />
 
