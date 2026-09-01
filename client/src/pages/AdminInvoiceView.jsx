@@ -128,7 +128,7 @@ const AdminInvoiceView = () => {
   const couponCode = order.couponCode || order.coupon?.code || null;
   const total = order.totalAmt ?? subTotal - discount + shippingCharge;
   const address = order.delivery_address || {};
-  const trackUrl = `${TRACK_ORDER_BASE_URL}/:${order.orderId}`;
+  const trackUrl = `${TRACK_ORDER_BASE_URL}/${encodeURIComponent(order.orderId)}`;
 
   const handlePrint = () => window.print();
 
