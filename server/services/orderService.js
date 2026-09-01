@@ -18,8 +18,13 @@ import { expenseService } from "./expense.service.js";
 // ─── TTLs / cache keys ────────────────────────────────────────────────────
 const USER_ORDERS_TTL = 120;
 const SINGLE_ORDER_TTL = 300;
+// Safety-net only — real freshness comes from the explicit del() calls in
+// adminUpdateOrderStatus() below, which fire the instant status changes.
+const PUBLIC_ORDER_TRACK_TTL = 600;
+
 const userOrdersKey = (userId) => `orders:user:${userId}`;
 const singleOrderKey = (orderId) => `orders:single:${orderId}`;
+const publicOrderTrackKey = (orderId) => `orders:track:${orderId}`;
 
 const safeRedisGet = async (key) => {
   try {
@@ -382,6 +387,48 @@ const orderService = {
     return order;
   },
 
+  // ─── Public order tracking (no auth — orderId is the only key) ──────────
+  async trackOrder(orderId) {
+    if (!orderId) throw new ApiError(400, "Order ID is required");
+
+    const key = publicOrderTrackKey(orderId);
+    const cached = await safeRedisGet(key);
+    if (cached) return cached;
+
+    const order = await orderRepository.findByOrderIdPublic(orderId);
+    if (!order) throw new ApiError(404, "Order not found");
+
+    const trackingData = {
+      orderId: order.orderId,
+      order_status: order.order_status,
+      payment_status: order.payment_status,
+      payment_method: order.payment_method,
+      createdAt: order.createdAt,
+      items: (order.items || []).map((item) => ({
+        name: item.name,
+        variantLabel: item.variantLabel || null,
+        quantity: item.quantity,
+        price: item.price,
+      })),
+      shippingAddress: {
+        city: order.delivery_address?.city || null,
+        area: order.delivery_address?.state || null,
+      },
+      subTotalAmt: order.subTotalAmt,
+      shippingCharge: order.shippingCharge,
+      discountAmount: order.discountAmount || 0,
+      totalAmt: order.totalAmt,
+    };
+
+    redis
+      .set(key, JSON.stringify(trackingData), { ex: PUBLIC_ORDER_TRACK_TTL })
+      .catch((err) =>
+        console.error("[Redis] public order track cache failed:", err.message),
+      );
+
+    return trackingData;
+  },
+
   async adminGetAllOrders({
     payment_status,
     order_status,
@@ -426,6 +473,7 @@ const orderService = {
       if (!order) throw new ApiError(404, "Order not found");
 
       redis.del(singleOrderKey(order.orderId)).catch(() => {});
+      redis.del(publicOrderTrackKey(order.orderId)).catch(() => {}); // ← public tracking cache
       return order;
     }
 
@@ -516,6 +564,7 @@ const orderService = {
     // ক্যাশ ক্লিয়ারিং
     if (updatedOrder) {
       redis.del(singleOrderKey(updatedOrder.orderId)).catch(() => {});
+      redis.del(publicOrderTrackKey(updatedOrder.orderId)).catch(() => {}); // ← public tracking cache
       redis.del(userOrdersKey(updatedOrder.userId)).catch(() => {});
     }
 
@@ -528,7 +577,7 @@ const orderService = {
       expenseService.getTotalExpenses(range, fromDate, toDate),
     ]);
 
-    // aggregation থেকে পাওয়া _id ফিল্ডটি মুছে ফেলে রেসপন্স ক্লিন করা
+    // aggregation থেকে পাওয়া _id ফিল্ডটি মুছে ফেলে রেসপন্স ক্লিন করা
     delete orderStats._id;
 
     const grossProfit = orderStats.revenue - orderStats.cogs;

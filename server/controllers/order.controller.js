@@ -77,3 +77,18 @@ export const getSingleOrderController = asyncHandler(async (req, res) => {
     .status(200)
     .json(new ApiResponse(200, { order }, "Order fetched successfully"));
 });
+
+// ─── Track Order (Public) ───────────────────────────────────────────────────
+
+/**
+ * @desc    Track an order by orderId only — no auth required
+ * @route   GET /api/v1/orders/track/:orderId
+ * @access  Public (rate-limited via trackOrderLimiter)
+ */
+export const trackOrderController = asyncHandler(async (req, res) => {
+  const order = await orderService.trackOrder(req.params.orderId);
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, { order }, "Order status fetched successfully"));
+});

@@ -121,3 +121,15 @@ export const otpVerifyLimiter = rateLimit({
     "Too many failed verification attempts. Please request a new OTP.",
   ),
 });
+
+export const trackOrderLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  store: new UpstashRateLimitStore("track-order"),
+  keyGenerator: (req) => ipKeyGenerator(req.ip),
+  handler: makeHandler(
+    "Too many tracking requests. Please try again after 15 minutes.",
+  ),
+});

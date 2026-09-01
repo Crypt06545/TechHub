@@ -52,6 +52,18 @@ export const orderRepository = {
     return Order.findOne({ orderId, userId }).lean();
   },
 
+  // Public tracking — orderId only, NO userId check (this route has no
+  // auth). Select only what's safe/needed to show a stranger who has
+  // the orderId: no userId, no full delivery address beyond city/area,
+  // no costPriceAtSale (internal margin data).
+  async findByOrderIdPublic(orderId) {
+    return Order.findOne({ orderId })
+      .select(
+        "orderId order_status payment_status payment_method createdAt items delivery_address subTotalAmt shippingCharge discountAmount totalAmt",
+      )
+      .lean();
+  },
+
   async findByUserId(userId) {
     return Order.find({ userId }).sort({ createdAt: -1 }).lean();
   },
@@ -239,7 +251,7 @@ export const orderRepository = {
           new Date(toDate).setHours(23, 59, 59, 999),
         );
     } else {
-      // ২. না থাকলে প্রি-সেট রেঞ্জ অনুযায়ী ডেট সেট হবে
+      // ২. না থাকলে প্রি-সেট রেঞ্জ অনুযায়ী ডেট সেট হবে
       const now = new Date();
       let startDate = null;
 
