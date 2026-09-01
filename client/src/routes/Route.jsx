@@ -83,6 +83,8 @@ const router = createBrowserRouter([
           { path: "customers", element: <Customer /> },
           { path: "orders/invoice", element: <AdminInvoiceView /> },
           { path: "inventory", element: <Inventory /> },
+          { path: "track-order", element: <TrackOrderPage /> },
+          { path: "track-order/:orderId", element: <TrackOrderPage /> },
         ],
       },
     ],

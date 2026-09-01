@@ -1,4 +1,4 @@
-import { getSingleOrder, getUserOrders, placeOrder } from "@/api/order.api";
+import { getSingleOrder, getUserOrders, placeOrder, trackOrder } from "@/api/order.api";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 export const usePlaceOrder = () => {
@@ -28,5 +28,16 @@ export const useSingleOrder = (id, enabled = true) => {
     enabled: enabled && !!id,
     staleTime: 60 * 1000,
     refetchOnWindowFocus: false,
+  });
+};
+
+export const useTrackOrder = (orderId, enabled = true) => {
+  return useQuery({
+    queryKey: ["trackOrder", orderId],
+    queryFn: () => trackOrder(orderId),
+    enabled: enabled && !!orderId,
+    staleTime: 30 * 1000,
+    refetchOnWindowFocus: false,
+    retry: false,
   });
 };

@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useParams } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -9,7 +10,6 @@ import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import {
   Hash,
-  Phone,
   PackageSearch,
   Truck,
   Clock,
@@ -20,68 +20,32 @@ import {
   RotateCcw,
   CircleAlert,
   ShieldCheck,
+  Loader2,
 } from "lucide-react";
+import { useTrackOrder } from "@/hooks/order.query";
 
 // ─────────────────────────────────────────────────────────────
-// Config
+// Config — mirrors the real order_status enum used in
+// AllOrders.jsx / OrderDetailsModal.jsx (Processing, Confirmed,
+// Shipped, Delivered, Cancelled)
 // ─────────────────────────────────────────────────────────────
 const STAGES = [
-  { key: "Pending", label: "Order Placed", icon: Clock },
-  { key: "Processing", label: "Processing", icon: PackageCheck },
+  { key: "Processing", label: "Processing", icon: Clock },
+  { key: "Confirmed", label: "Confirmed", icon: PackageCheck },
   { key: "Shipped", label: "Shipped", icon: Truck },
   { key: "Delivered", label: "Delivered", icon: Home },
 ];
 
 const STATUS_BADGE_STYLES = {
-  Pending: "bg-amber-50 text-amber-700 border-amber-200",
   Processing: "bg-blue-50 text-blue-700 border-blue-200",
+  Confirmed: "bg-indigo-50 text-indigo-700 border-indigo-200",
   Shipped: "bg-gray-900 text-white border-gray-900",
   Delivered: "bg-emerald-50 text-emerald-700 border-emerald-200",
   Cancelled: "bg-red-50 text-red-600 border-red-200",
 };
 
-// TODO: replace with the real backend call, e.g.
-//   const res = await api.get("/orders/track", { params: { query } });
-//   return res.data.data.order;
-const mockFetchOrder = (query) =>
-  new Promise((resolve, reject) => {
-    setTimeout(() => {
-      if (!query) {
-        reject(new Error("Order ID or phone number is required."));
-        return;
-      }
-      resolve({
-        orderId: "ORD-2A9F31",
-        order_status: "Shipped",
-        placedAt: "2026-07-08T10:32:00Z",
-        estimatedDelivery: "2026-07-14",
-        phone: "01712345678",
-        shippingAddress: {
-          line1: "House 12, Road 4, Sherpur Road",
-          city: "Bogura",
-          area: "Bogura Sadar",
-        },
-        items: [
-          {
-            id: "1",
-            title: "Lenovo ThinkPad E14 AMD Ryzen 5",
-            qty: 1,
-            price: 68000,
-          },
-          {
-            id: "2",
-            title: "Wireless Mechanical Keyboard",
-            qty: 1,
-            price: 3200,
-          },
-        ],
-        shippingFee: 60,
-      });
-    }, 900);
-  });
-
 // ─────────────────────────────────────────────────────────────
-// Status ribbon (signature element — real sequential data)
+// Status ribbon
 // ─────────────────────────────────────────────────────────────
 const StatusRibbon = ({ currentStatus }) => {
   if (currentStatus === "Cancelled") {
@@ -188,14 +152,14 @@ const StatusRibbon = ({ currentStatus }) => {
 };
 
 // ─────────────────────────────────────────────────────────────
-// Search form — split card, same DNA as LoginForm, single field
+// Search form — Order ID only
 // ─────────────────────────────────────────────────────────────
 const TrackOrderForm = ({ onSubmit, isSubmitting, submitError }) => {
   const {
     register,
     handleSubmit,
     formState: { errors },
-  } = useForm({ defaultValues: { query: "" } });
+  } = useForm({ defaultValues: { orderId: "" } });
 
   return (
     <div className={cn("flex flex-col gap-6")}>
@@ -207,7 +171,6 @@ const TrackOrderForm = ({ onSubmit, isSubmitting, submitError }) => {
             className="p-8 md:p-10 flex flex-col gap-6"
           >
             {/* Logo */}
-
             <div className="flex items-center gap-2">
               <div className="w-7 h-7 bg-black rounded-sm flex items-center justify-center">
                 <span className="text-white font-black text-xs">Z</span>
@@ -221,37 +184,36 @@ const TrackOrderForm = ({ onSubmit, isSubmitting, submitError }) => {
                 Track Your Order
               </h1>
               <p className="text-sm text-muted-foreground leading-relaxed">
-                Enter your order ID or phone number to see the latest status.
+                Enter your Order ID to see the latest status.
               </p>
             </div>
 
-            {/* Single field */}
+            {/* Order ID field */}
             <div className="flex flex-col gap-2">
-              <Label htmlFor="query" className="text-sm font-semibold">
-                Order ID or Phone Number
+              <Label htmlFor="orderId" className="text-sm font-semibold">
+                Order ID
               </Label>
               <div className="relative">
                 <PackageSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                 <Input
-                  id="query"
-                  placeholder="e.g. ORD-2A9F31 or 01712345678"
+                  id="orderId"
+                  placeholder="e.g. SEED-ZW61362H-8W3U"
                   autoComplete="off"
                   className="pl-10 h-11 border-gray-300 focus:border-black focus:ring-black"
-                  {...register("query", {
-                    required: "Enter your order ID or phone number",
+                  {...register("orderId", {
+                    required: "Enter your Order ID",
                     minLength: {
                       value: 4,
-                      message: "Enter a valid order ID or phone number",
+                      message: "Enter a valid Order ID",
                     },
                   })}
                 />
               </div>
-              {errors.query && (
-                <p className="text-xs text-red-500">{errors.query.message}</p>
+              {errors.orderId && (
+                <p className="text-xs text-red-500">{errors.orderId.message}</p>
               )}
               <p className="text-xs text-muted-foreground">
-                You can use either the order ID from your confirmation, or the
-                phone number used at checkout.
+                You'll find your Order ID in your confirmation email or invoice.
               </p>
             </div>
 
@@ -315,21 +277,15 @@ const TrackOrderForm = ({ onSubmit, isSubmitting, submitError }) => {
 // Order result
 // ─────────────────────────────────────────────────────────────
 const OrderResult = ({ order, onReset }) => {
-  const subtotal = order.items.reduce(
-    (sum, item) => sum + item.price * item.qty,
-    0,
-  );
-  const total = subtotal + order.shippingFee;
-
   return (
     <Card className="shadow-xl border border-gray-200 rounded-lg">
       <CardContent className="p-6 sm:p-10">
         {/* Logo */}
         <div className="flex items-center gap-2 mb-8">
           <div className="w-7 h-7 bg-black rounded-sm flex items-center justify-center">
-            <span className="text-white font-black text-xs">T</span>
+            <span className="text-white font-black text-xs">Z</span>
           </div>
-          <span className="font-bold text-lg tracking-tight">TechHub</span>
+          <span className="font-bold text-lg tracking-tight">ZUHR</span>
         </div>
 
         <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-8">
@@ -341,7 +297,7 @@ const OrderResult = ({ order, onReset }) => {
             </div>
             <p className="text-xs text-muted-foreground">
               Placed on{" "}
-              {new Date(order.placedAt).toLocaleDateString("en-BD", {
+              {new Date(order.createdAt).toLocaleDateString("en-BD", {
                 day: "numeric",
                 month: "long",
                 year: "numeric",
@@ -352,7 +308,7 @@ const OrderResult = ({ order, onReset }) => {
           <div className="flex items-center gap-3">
             <Badge
               variant="outline"
-              className={`px-3 py-1 text-xs font-semibold ${STATUS_BADGE_STYLES[order.order_status]}`}
+              className={`px-3 py-1 text-xs font-semibold ${STATUS_BADGE_STYLES[order.order_status] || ""}`}
             >
               {order.order_status}
             </Badge>
@@ -370,35 +326,30 @@ const OrderResult = ({ order, onReset }) => {
 
         <StatusRibbon currentStatus={order.order_status} />
 
-        {order.order_status !== "Cancelled" &&
-          order.order_status !== "Delivered" && (
-            <p className="text-xs text-muted-foreground mt-6 text-center sm:text-left">
-              Estimated delivery:{" "}
-              <span className="font-semibold text-gray-900">
-                {new Date(order.estimatedDelivery).toLocaleDateString("en-BD", {
-                  day: "numeric",
-                  month: "long",
-                })}
-              </span>
-            </p>
-          )}
-
         <Separator className="my-8" />
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
           <div>
             <h3 className="text-sm font-bold mb-4">Items</h3>
             <div className="flex flex-col gap-3">
-              {order.items.map((item) => (
-                <div key={item.id} className="flex justify-between text-sm">
+              {order.items.map((item, idx) => (
+                <div key={idx} className="flex justify-between text-sm">
                   <div>
-                    <p className="text-gray-700">{item.title}</p>
+                    <p className="text-gray-700">
+                      {item.name}
+                      {item.variantLabel && (
+                        <span className="text-muted-foreground">
+                          {" "}
+                          ({item.variantLabel})
+                        </span>
+                      )}
+                    </p>
                     <p className="text-xs text-muted-foreground">
-                      Qty {item.qty}
+                      Qty {item.quantity}
                     </p>
                   </div>
                   <p className="font-semibold whitespace-nowrap">
-                    ৳{(item.price * item.qty).toLocaleString("en-IN")}
+                    ৳{(item.price * item.quantity).toLocaleString("en-BD")}
                   </p>
                 </div>
               ))}
@@ -409,33 +360,38 @@ const OrderResult = ({ order, onReset }) => {
             <div className="flex flex-col gap-1.5 text-sm">
               <div className="flex justify-between text-muted-foreground">
                 <span>Subtotal</span>
-                <span>৳{subtotal.toLocaleString("en-IN")}</span>
+                <span>৳{order.subTotalAmt.toLocaleString("en-BD")}</span>
               </div>
+              {order.discountAmount > 0 && (
+                <div className="flex justify-between text-muted-foreground">
+                  <span>Discount</span>
+                  <span>− ৳{order.discountAmount.toLocaleString("en-BD")}</span>
+                </div>
+              )}
               <div className="flex justify-between text-muted-foreground">
                 <span>Shipping</span>
-                <span>৳{order.shippingFee.toLocaleString("en-IN")}</span>
+                <span>
+                  {order.shippingCharge === 0
+                    ? "Free"
+                    : `৳${order.shippingCharge.toLocaleString("en-BD")}`}
+                </span>
               </div>
               <div className="flex justify-between font-bold pt-1.5">
                 <span>Total</span>
-                <span>৳{total.toLocaleString("en-IN")}</span>
+                <span>৳{order.totalAmt.toLocaleString("en-BD")}</span>
               </div>
             </div>
           </div>
 
           <div>
             <h3 className="text-sm font-bold mb-4">Delivery Details</h3>
-            <div className="flex flex-col gap-3 text-sm">
-              <div className="flex items-start gap-2.5">
-                <MapPin className="h-4 w-4 text-gray-400 mt-0.5 shrink-0" />
-                <p className="text-gray-700">
-                  {order.shippingAddress.line1}, {order.shippingAddress.area},{" "}
-                  {order.shippingAddress.city}
-                </p>
-              </div>
-              <div className="flex items-start gap-2.5">
-                <Phone className="h-4 w-4 text-gray-400 mt-0.5 shrink-0" />
-                <p className="text-gray-700">{order.phone}</p>
-              </div>
+            <div className="flex items-start gap-2.5 text-sm">
+              <MapPin className="h-4 w-4 text-gray-400 mt-0.5 shrink-0" />
+              <p className="text-gray-700">
+                {[order.shippingAddress.area, order.shippingAddress.city]
+                  .filter(Boolean)
+                  .join(", ") || "—"}
+              </p>
             </div>
           </div>
         </div>
@@ -448,41 +404,57 @@ const OrderResult = ({ order, onReset }) => {
 // Page
 // ─────────────────────────────────────────────────────────────
 const TrackOrderPage = () => {
-  const [order, setOrder] = useState(null);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [submitError, setSubmitError] = useState(null);
+  const { orderId: orderIdFromUrl } = useParams();
 
-  const handleTrack = async ({ query }) => {
-    setIsSubmitting(true);
-    setSubmitError(null);
-    try {
-      const result = await mockFetchOrder(query);
-      setOrder(result);
-    } catch (err) {
-      setSubmitError(
-        err.message || "Order not found. Check your details and try again.",
-      );
-    } finally {
-      setIsSubmitting(false);
-    }
+  // The id we're actively tracking — set either by the form submit or,
+  // for a QR scan, by the URL param on mount (see the effect below).
+  const [trackingId, setTrackingId] = useState(orderIdFromUrl || null);
+
+  const { data, isLoading, isError, error } = useTrackOrder(
+    trackingId,
+    Boolean(trackingId),
+  );
+
+  const order = data?.data?.order;
+
+  // QR scans land on /track-order/:orderId — start tracking immediately
+  // instead of making the person retype it into the form.
+  useEffect(() => {
+    const trimmed = orderIdFromUrl?.trim();
+    if (trimmed) setTrackingId(trimmed);
+  }, [orderIdFromUrl]);
+
+  const handleFormSubmit = ({ orderId }) => {
+    const trimmed = orderId?.trim();
+    if (trimmed) setTrackingId(trimmed);
   };
 
-  const handleReset = () => {
-    setOrder(null);
-    setSubmitError(null);
-  };
+  const handleReset = () => setTrackingId(null);
+
+  const showResult = Boolean(order) && !isError;
+  const submitError = isError
+    ? error?.response?.data?.message ||
+      "Order not found. Check your Order ID and try again."
+    : null;
 
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4 py-12">
       <div className="w-full max-w-4xl">
-        {!order ? (
+        {isLoading ? (
+          <div className="flex flex-col items-center justify-center gap-3 py-24">
+            <Loader2 className="h-6 w-6 animate-spin text-gray-400" />
+            <p className="text-sm text-muted-foreground">
+              Looking up your order...
+            </p>
+          </div>
+        ) : showResult ? (
+          <OrderResult order={order} onReset={handleReset} />
+        ) : (
           <TrackOrderForm
-            onSubmit={handleTrack}
-            isSubmitting={isSubmitting}
+            onSubmit={handleFormSubmit}
+            isSubmitting={isLoading}
             submitError={submitError}
           />
-        ) : (
-          <OrderResult order={order} onReset={handleReset} />
         )}
       </div>
     </div>

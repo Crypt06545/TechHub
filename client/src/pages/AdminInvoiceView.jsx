@@ -223,7 +223,8 @@ const AdminInvoiceView = () => {
           src="/ZUHR_logo_transparent.svg"
           alt=""
           aria-hidden="true"
-          className="pointer-events-none absolute left-1/2 top-1/2 z-0 w-[380px] max-w-[75%] -translate-x-1/2 -translate-y-1/2 select-none opacity-[0.06]"
+          style={{ opacity: 0.20 }}
+          className="pointer-events-none absolute left-1/2 top-1/2 z-0 w-95 max-w-[75%] -translate-x-1/2 -translate-y-1/2 select-none"
         />
 
         {/* Actual invoice content — sits above the watermark.
