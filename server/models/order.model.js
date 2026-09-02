@@ -66,6 +66,14 @@ const addressSnapshotSchema = new mongoose.Schema(
       default: "Bangladesh",
     },
     mobile: { type: String, required: true, trim: true },
+    // Explicit shipping zone — dropdown-selected, not derived from
+    // parsing the free-text `city` field, which is unreliable
+    // ("Bogura" vs "bogura sadar" vs "বগুড়া").
+    deliveryZone: {
+      type: String,
+      enum: ["Bogura", "Outside"],
+      required: true,
+    },
   },
   { _id: false },
 );

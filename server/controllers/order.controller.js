@@ -22,18 +22,27 @@ export const placeOrderController = asyncHandler(async (req, res) => {
     pincode,
     country,
     mobile,
+    deliveryZone,
     payment_method,
     transactionId,
-    items, // [{ productId, variantId, quantity }] — sent from client cart
+    items,
     couponCode,
   } = req.body;
 
-  if (!address_line || !city || !state || !pincode || !mobile)
+  if (!address_line || !city || !state || !pincode || !mobile || !deliveryZone)
     throw new ApiError(400, "All address fields are required");
 
   const order = await orderService.placeOrder({
     userId: req.user._id,
-    addressData: { address_line, city, state, pincode, country, mobile },
+    addressData: {
+      address_line,
+      city,
+      state,
+      pincode,
+      country,
+      mobile,
+      deliveryZone,
+    },
     payment_method,
     transactionId,
     items,

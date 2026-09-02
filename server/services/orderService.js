@@ -14,12 +14,15 @@ import {
   DEFAULT_PACKAGING_COST,
 } from "../utils/inventoryConstants.js";
 import { expenseService } from "./expense.service.js";
+import {
+  sendTelegramMessage,
+  formatOrderMessage,
+  buildOrderKeyboard,
+} from "./telegram.service.js";
 
 // ─── TTLs / cache keys ────────────────────────────────────────────────────
 const USER_ORDERS_TTL = 120;
 const SINGLE_ORDER_TTL = 300;
-// Safety-net only — real freshness comes from the explicit del() calls in
-// adminUpdateOrderStatus() below, which fire the instant status changes.
 const PUBLIC_ORDER_TRACK_TTL = 600;
 
 const userOrdersKey = (userId) => `orders:user:${userId}`;
@@ -44,9 +47,10 @@ const safeRedisGet = async (key) => {
   return null;
 };
 
-const calcShipping = (subTotal, city) => {
-  if (subTotal >= 1000) return 0;
-  return city?.toLowerCase() === "bogura" ? 60 : 130;
+// ── zone এখন dropdown থেকে explicit ভাবে আসে — city string parse করা লাগে না ──
+const calcShipping = (subTotal, deliveryZone) => {
+  if (subTotal >= 2000) return 0;
+  return deliveryZone === "Bogura" ? 60 : 130;
 };
 
 const calcOrderCosts = (payment_method, totalAmt) => ({
@@ -179,6 +183,9 @@ const orderService = {
     if (payment_method !== "COD" && !transactionId)
       throw new ApiError(400, "Transaction ID is required for online payment");
 
+    if (!["Bogura", "Outside"].includes(addressData.deliveryZone))
+      throw new ApiError(400, "Invalid delivery zone");
+
     const session = await mongoose.startSession();
     let order;
     let touchedSlugs = [];
@@ -278,7 +285,10 @@ const orderService = {
           appliedCouponCode = result.code;
         }
 
-        const shippingCharge = calcShipping(subTotalAmt, addressData.city);
+        const shippingCharge = calcShipping(
+          subTotalAmt,
+          addressData.deliveryZone,
+        );
         const totalAmt = subTotalAmt + shippingCharge - discountAmount;
         const { packagingCost, gatewayFee } = calcOrderCosts(
           payment_method,
@@ -297,6 +307,7 @@ const orderService = {
               pincode: addressData.pincode,
               country: addressData.country || "Bangladesh",
               mobile: addressData.mobile,
+              deliveryZone: addressData.deliveryZone,
             },
             payment_method,
             payment_status: payment_method === "COD" ? "Pending" : "Paid",
@@ -325,10 +336,10 @@ const orderService = {
       await session.endSession();
     }
 
-    // Cache invalidation — awaited (not fire-and-forget) so the very
-    // next request for this product can never see a stale stock
-    // number. Runs after the transaction has committed, so it clears
-    // exactly the values that are now correct in the DB.
+    sendTelegramMessage(formatOrderMessage(order), {
+      reply_markup: buildOrderKeyboard(order._id),
+    });
+
     try {
       await Promise.all([
         redis.del(userOrdersKey(userId)),
@@ -387,7 +398,6 @@ const orderService = {
     return order;
   },
 
-  // ─── Public order tracking (no auth — orderId is the only key) ──────────
   async trackOrder(orderId) {
     if (!orderId) throw new ApiError(400, "Order ID is required");
 
@@ -463,7 +473,6 @@ const orderService = {
     const triggersRestore =
       order_status === "Cancelled" || payment_status === "Refunded";
 
-    // ১. সাধারণ আপডেট (যেমন Processing -> Shipped)
     if (!triggersRestore) {
       const order = await orderRepository.updateStatusById(orderId, {
         order_status,
@@ -473,11 +482,10 @@ const orderService = {
       if (!order) throw new ApiError(404, "Order not found");
 
       redis.del(singleOrderKey(order.orderId)).catch(() => {});
-      redis.del(publicOrderTrackKey(order.orderId)).catch(() => {}); // ← public tracking cache
+      redis.del(publicOrderTrackKey(order.orderId)).catch(() => {});
       return order;
     }
 
-    // ২. স্টক রিস্টোর আপডেট (Cancelled / Refunded)
     const session = await mongoose.startSession();
     let updatedOrder;
 
@@ -496,7 +504,6 @@ const orderService = {
           { returnDocument: "after", session },
         );
 
-        // যদি স্টক আগেই রিস্টোর হয়ে থাকে (stockRestored === true)
         if (!order) {
           const fallback = await Order.findByIdAndUpdate(
             orderId,
@@ -511,10 +518,9 @@ const orderService = {
           );
           if (!fallback) throw new ApiError(404, "Order not found");
           updatedOrder = fallback;
-          return; // ⚠️ এখান থেকে বের হয়ে যাবে, আর যেন স্টক না বাড়ায়!
+          return;
         }
 
-        // প্রথমবার ক্যান্সেল হলে স্টক ফেরত আনবে
         for (const item of order.items) {
           const updated = item.variantId
             ? await productRepository.incrementVariantStock(
@@ -561,10 +567,9 @@ const orderService = {
       await session.endSession();
     }
 
-    // ক্যাশ ক্লিয়ারিং
     if (updatedOrder) {
       redis.del(singleOrderKey(updatedOrder.orderId)).catch(() => {});
-      redis.del(publicOrderTrackKey(updatedOrder.orderId)).catch(() => {}); // ← public tracking cache
+      redis.del(publicOrderTrackKey(updatedOrder.orderId)).catch(() => {});
       redis.del(userOrdersKey(updatedOrder.userId)).catch(() => {});
     }
 
@@ -577,7 +582,6 @@ const orderService = {
       expenseService.getTotalExpenses(range, fromDate, toDate),
     ]);
 
-    // aggregation থেকে পাওয়া _id ফিল্ডটি মুছে ফেলে রেসপন্স ক্লিন করা
     delete orderStats._id;
 
     const grossProfit = orderStats.revenue - orderStats.cogs;
