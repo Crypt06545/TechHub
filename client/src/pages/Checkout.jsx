@@ -52,9 +52,17 @@ const PAYMENT_METHODS = [
   },
 ];
 
-// ── Must mirror calcShipping() in order.controller.js exactly ──
+// Explicit delivery zone options — dropdown-selected, not derived from
+// parsing the free-text `city` field (unreliable: "Bogura" vs "bogura
+// sadar" vs "বগুড়া" would all need to match).
+const DELIVERY_ZONES = [
+  { value: "Bogura", label: "Inside Bogura" },
+  { value: "Outside", label: "Outside Bogura" },
+];
+
+// ── Must mirror calcShipping() in orderService.js exactly ──
 // If the backend threshold/fees ever change, update both places.
-const FREE_SHIPPING_AT = 3000;
+const FREE_SHIPPING_AT = 2000;
 const LOCAL_SHIPPING_FEE = 60; // Bogura
 const OUTSIDE_SHIPPING_FEE = 130; // elsewhere
 
@@ -91,10 +99,11 @@ const CheckoutPage = () => {
       mobile: user?.phone || "",
       country: "Bangladesh",
       city: "",
+      deliveryZone: "",
     },
   });
 
-  const watchedCity = watch("city");
+  const watchedDeliveryZone = watch("deliveryZone");
 
   const { mutate: placeOrder, isPending: isPlacingOrder } = usePlaceOrder();
   const { mutate: checkCoupon, isPending: isCheckingCoupon } = useCheckCoupon();
@@ -129,11 +138,10 @@ const CheckoutPage = () => {
      subtotal/shipping/discount/total from live DB data; this is purely
      for UX display before submit, not what actually gets charged. ── */
   const subTotal = items.reduce((acc, i) => acc + i.price * i.quantity, 0);
-  const isBogura = watchedCity?.trim().toLowerCase() === "bogura";
   const shippingCharge =
     subTotal >= FREE_SHIPPING_AT
       ? 0
-      : isBogura
+      : watchedDeliveryZone === "Bogura"
         ? LOCAL_SHIPPING_FEE
         : OUTSIDE_SHIPPING_FEE;
   const discountAmount = appliedCoupon?.discount || 0;
@@ -191,6 +199,11 @@ const CheckoutPage = () => {
      shown here is only a preview; the number that actually gets charged
      is computed server-side, same as subtotal/shipping/total.
 
+     deliveryZone is passed through so the backend can compute shipping
+     deterministically from an explicit zone rather than parsing the
+     free-text city field — same reasoning as variantId below: the
+     server needs the exact selection, not something it has to guess.
+
      variantId matters just as much: without it the backend has no way
      to know a "Musk Al Haramain 12ml" was ordered vs the 3ml — it needs
      this to resolve the right variant price and decrement the right
@@ -205,6 +218,7 @@ const CheckoutPage = () => {
       pincode: data.pincode,
       country: data.country,
       mobile: data.mobile,
+      deliveryZone: data.deliveryZone,
       payment_method: paymentMethod,
       ...(paymentMethod !== "COD" && { transactionId: data.transactionId }),
       payment_proof_images: [], // wire up a screenshot upload here later for bKash/Nagad
@@ -384,6 +398,34 @@ const CheckoutPage = () => {
                       {errors.city && (
                         <p className="text-xs text-red-500">
                           {errors.city.message}
+                        </p>
+                      )}
+                    </div>
+
+                    {/* Delivery Zone */}
+                    <div className="flex flex-col gap-1.5">
+                      <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                        Delivery zone <span className="text-red-500">*</span>
+                      </Label>
+                      <select
+                        className={cn(
+                          "h-11 rounded-md border border-gray-300 bg-white px-3 text-sm focus:border-black focus:ring-black focus:outline-none",
+                          errors.deliveryZone && "border-red-400",
+                        )}
+                        {...register("deliveryZone", {
+                          required: "Select delivery zone",
+                        })}
+                      >
+                        <option value="">Select zone</option>
+                        {DELIVERY_ZONES.map((zone) => (
+                          <option key={zone.value} value={zone.value}>
+                            {zone.label}
+                          </option>
+                        ))}
+                      </select>
+                      {errors.deliveryZone && (
+                        <p className="text-xs text-red-500">
+                          {errors.deliveryZone.message}
                         </p>
                       )}
                     </div>
