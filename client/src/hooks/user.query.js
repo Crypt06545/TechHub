@@ -111,7 +111,11 @@ export const useVerifyOtp = () => {
 };
 
 export const useVerifyEmail = () => {
+  const queryClient = useQueryClient();
   return useMutation({
     mutationFn: verifyEmail,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["getUser"] });
+    },
   });
 };

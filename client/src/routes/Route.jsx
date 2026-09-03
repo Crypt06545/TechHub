@@ -29,7 +29,7 @@ import PrivacyPolicy from "@/components/DataPolicy";
 import GuestRoute from "./GuestRoute";
 import Contact from "@/pages/Contact";
 import AfterSalesSupport from "@/pages/Aftersalessupport";
-import VerifyEmail from "@/pages/VerifyEmail"; // ← add this import
+import VerifyEmail from "@/pages/VerifyEmail";
 import AdminInvoiceView from "@/pages/AdminInvoiceView";
 import Inventory from "@/pages/Dashboard/Inventory";
 
@@ -43,14 +43,14 @@ const router = createBrowserRouter([
       { path: "products/:slug?", element: <ProductDetails /> },
       { path: "profile", element: <UserProfile /> },
       { path: "track-order", element: <TrackOrderPage /> },
+      { path: "track-order/:orderId", element: <TrackOrderPage /> },
       { path: "cart", element: <CartPage /> },
       { path: "contact", element: <Contact /> },
       { path: "after-sales-policy", element: <AfterSalesSupport /> },
       { path: "checkout", element: <CheckoutPage /> },
       { path: "about", element: <AboutUs /> },
       { path: "datapolicy", element: <PrivacyPolicy /> },
-      { path: "track-order", element: <TrackOrderPage /> },
-      { path: "track-order/:orderId", element: <TrackOrderPage /> },
+      { path: "verify-email", element: <VerifyEmail /> },
     ],
   },
 
@@ -63,7 +63,6 @@ const router = createBrowserRouter([
       { path: "forgot-password", element: <ForgotPasswordForm /> },
       { path: "verify-otp", element: <VerifyOtpForm /> },
       { path: "reset-password", element: <ResetPasswordForm /> },
-      { path: "verify-email", element: <VerifyEmail /> }, // ← added
     ],
   },
 

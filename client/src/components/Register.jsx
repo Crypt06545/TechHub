@@ -30,27 +30,26 @@ const SignupForm = () => {
   const password = watch("password");
 
   const onSubmit = (data) => {
-    // const { confirmPassword, terms, ...rest } = data;
-    // console.log(data);
+    const { confirmPassword, terms, ...payload } = data;
 
-    mutate(data, {
+    mutate(payload, {
       onSuccess: (response) => {
-        // console.log(response);
-        AuthToast.success(response?.message || "User Registered Successfully");
+        AuthToast.success(
+          response?.message ||
+            "Registration successful! Please login to continue.",
+        );
 
-        if (response?.statusCode === 200) {
-          navigate("/");
-        }
+        navigate("/login", { replace: true });
       },
 
       onError: (err) => {
         AuthToast.error(
-          err?.response?.data?.message || "Invalid email or password",
+          err?.response?.data?.message ||
+            "Registration failed. Please try again.",
         );
-        console.log(err);
+        console.error("Signup error:", err);
       },
     });
-    // console.log("Signup data:", rest);
   };
 
   return (

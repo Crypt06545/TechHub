@@ -1,31 +1,67 @@
 // PATH: src/pages/VerifyEmail.jsx
 // FILE: VerifyEmail.jsx
 
-import { useEffect, useRef } from "react";
-import { useSearchParams, Link } from "react-router-dom";
+import { useEffect, useRef, useState } from "react";
+import { useSearchParams, Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Loader2, CheckCircle2, XCircle } from "lucide-react";
 import { useVerifyEmail } from "@/hooks/user.query";
 
+const REDIRECT_DELAY_MS = 2500;
+
 const VerifyEmail = () => {
   const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
   const token = searchParams.get("token");
 
-  const { mutate, isPending, isSuccess, isError, error } = useVerifyEmail();
+  const { mutateAsync } = useVerifyEmail();
 
-  // Guard against React 18 StrictMode firing the effect twice in dev,
-  // which would otherwise send two verify requests for the same token.
+  const [status, setStatus] = useState("loading"); // 'loading' | 'success' | 'error'
+  const [errorMessage, setErrorMessage] = useState("");
+  const [secondsLeft, setSecondsLeft] = useState(
+    Math.ceil(REDIRECT_DELAY_MS / 1000),
+  );
+
   const hasTriedRef = useRef(false);
 
   useEffect(() => {
-    if (!token || hasTriedRef.current) return;
-    hasTriedRef.current = true;
-    mutate(token);
-  }, [token, mutate]);
+    if (!token) {
+      setStatus("error");
+      return;
+    }
 
-  const errorMessage =
-    error?.response?.data?.message ||
-    "This verification link is invalid or has expired.";
+    if (hasTriedRef.current) return;
+    hasTriedRef.current = true;
+
+    mutateAsync(token)
+      .then(() => {
+        setStatus("success");
+      })
+      .catch((err) => {
+        setStatus("error");
+        setErrorMessage(
+          err?.response?.data?.message ||
+            "This verification link is invalid or has expired.",
+        );
+      });
+  }, [token, mutateAsync]);
+
+  useEffect(() => {
+    if (status !== "success") return;
+
+    const redirectTimer = setTimeout(() => {
+      navigate("/login", { replace: true });
+    }, REDIRECT_DELAY_MS);
+
+    const tickInterval = setInterval(() => {
+      setSecondsLeft((s) => Math.max(0, s - 1));
+    }, 1000);
+
+    return () => {
+      clearTimeout(redirectTimer);
+      clearInterval(tickInterval);
+    };
+  }, [status, navigate]);
 
   return (
     <div className="flex min-h-[70vh] items-center justify-center px-4">
@@ -43,7 +79,7 @@ const VerifyEmail = () => {
           </>
         )}
 
-        {token && isPending && (
+        {token && status === "loading" && (
           <>
             <Loader2 className="mx-auto mb-4 h-8 w-8 animate-spin text-gray-400" />
             <h1 className="text-lg font-semibold text-gray-900">
@@ -55,25 +91,25 @@ const VerifyEmail = () => {
           </>
         )}
 
-        {isSuccess && (
+        {status === "success" && (
           <>
             <CheckCircle2 className="mx-auto mb-4 h-9 w-9 text-emerald-600" />
             <h1 className="text-lg font-semibold text-gray-900">
               Email verified
             </h1>
             <p className="mt-1 text-sm text-gray-500">
-              Your account is ready. You can log in now.
+              Your account is ready. Taking you home in {secondsLeft}s…
             </p>
             <Button
               asChild
               className="mt-6 w-full bg-gray-900 text-white hover:bg-gray-700"
             >
-              <Link to="/login">Continue to login</Link>
+              <Link to="/login">Go now</Link>
             </Button>
           </>
         )}
 
-        {isError && (
+        {status === "error" && token && (
           <>
             <XCircle className="mx-auto mb-4 h-9 w-9 text-red-500" />
             <h1 className="text-lg font-semibold text-gray-900">
