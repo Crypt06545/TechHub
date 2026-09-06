@@ -16,6 +16,7 @@ import {
   deleteExpenseController,
   getExpenseBreakdownController,
   getProfitLossController,
+  getMonthlyRevenueController,
 } from "../controllers/admin.controller.js";
 import adminAuthMiddleware from "../middleware/adminMiddleware.js";
 import { upload } from "../middleware/multerMiddleware.js";
@@ -113,6 +114,6 @@ adminRouter.get("/expenses/breakdown", getExpenseBreakdownController);
 
 // ─── Profit & Loss ──────────────────────────────────────────────────────────
 
-adminRouter.get("/analytics/profit-loss", getProfitLossController
-);
+adminRouter.get("/analytics/profit-loss", getProfitLossController);
+adminRouter.get("/analytics/monthly-revenue", getMonthlyRevenueController);
 export default adminRouter;

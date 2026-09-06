@@ -1,4 +1,3 @@
-// FILE: repositories/expense.repository.js
 import { Expense } from "../models/expense.model.js";
 
 export const expenseRepository = {
@@ -12,13 +11,30 @@ export const expenseRepository = {
 
   async findAll({ category, startDate, endDate, cursor, limit }) {
     const query = { isDeleted: false };
+
     if (category) query.category = category;
+
     if (startDate || endDate) {
       query.date = {};
       if (startDate) query.date.$gte = new Date(startDate);
       if (endDate) query.date.$lte = new Date(endDate);
     }
-    if (cursor) query._id = { $lt: cursor };
+
+    // Compound Cursor logic for date + _id sorting
+    if (cursor) {
+      const [cursorDate, cursorId] = cursor.split("_");
+      if (cursorDate && cursorId) {
+        query.$or = [
+          { date: { $lt: new Date(cursorDate) } },
+          {
+            date: new Date(cursorDate),
+            _id: { $lt: cursorId },
+          },
+        ];
+      } else {
+        query._id = { $lt: cursor };
+      }
+    }
 
     return Expense.find(query)
       .populate("adminId", "name")
@@ -42,16 +58,36 @@ export const expenseRepository = {
   },
 
   async totalByDateRange(since, until = new Date()) {
+    const startDate = since instanceof Date ? since : new Date(since);
+    const endDate = until instanceof Date ? until : new Date(until);
+
     const [result] = await Expense.aggregate([
-      { $match: { isDeleted: false, date: { $gte: since, $lte: until } } },
-      { $group: { _id: null, total: { $sum: "$amount" } } },
+      {
+        $match: {
+          isDeleted: false,
+          date: { $gte: startDate, $lte: endDate },
+        },
+      },
+      {
+        $group: {
+          _id: null,
+          total: { $sum: "$amount" },
+        },
+      },
     ]);
     return result?.total ?? 0;
   },
 
   async breakdownByCategory(since) {
+    const startDate = since instanceof Date ? since : new Date(since);
+
     return Expense.aggregate([
-      { $match: { isDeleted: false, date: { $gte: since } } },
+      {
+        $match: {
+          isDeleted: false,
+          date: { $gte: startDate },
+        },
+      },
       {
         $group: {
           _id: "$category",

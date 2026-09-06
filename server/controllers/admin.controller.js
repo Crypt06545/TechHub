@@ -1,6 +1,8 @@
 import { redis } from "../config/redis.js";
 import Category from "../models/category.mode.js";
 import User from "../models/user.model.js";
+import Order from "../models/order.model.js";
+import { Product } from "../models/product.model.js";
 import { ApiError } from "../utils/ApiError.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import asyncHandler from "../utils/asyncHandler.js";
@@ -47,6 +49,49 @@ const parseVariantsField = (variants) => {
   } catch {
     throw new ApiError(400, "Invalid variants payload");
   }
+};
+
+// ─── Dashboard range helpers ──────────────────────────────────────────────────
+// same "day/week/month/3month" vocabulary as ChartsGrid's revenue analytics,
+// so the stat cards and the chart always describe the same window.
+
+const RANGE_MS = {
+  day: 24 * 60 * 60 * 1000,
+  week: 7 * 24 * 60 * 60 * 1000,
+  month: 30 * 24 * 60 * 60 * 1000,
+  "3month": 90 * 24 * 60 * 60 * 1000,
+};
+
+const getRangeWindows = (range) => {
+  const ms = RANGE_MS[range] || RANGE_MS.week;
+  const now = new Date();
+  const currentStart = new Date(now.getTime() - ms);
+  const previousStart = new Date(currentStart.getTime() - ms);
+  return { now, currentStart, previousStart };
+};
+
+const pctChange = (curr, prev) => {
+  if (!prev) return curr > 0 ? 100 : 0;
+  return Number((((curr - prev) / prev) * 100).toFixed(1));
+};
+
+const orderTotalsInWindow = async (start, end) => {
+  const [result] = await Order.aggregate([
+    {
+      $match: {
+        createdAt: { $gte: start, $lt: end },
+        order_status: { $ne: "Cancelled" },
+      },
+    },
+    {
+      $group: {
+        _id: null,
+        revenue: { $sum: "$totalAmt" },
+        orders: { $sum: 1 },
+      },
+    },
+  ]);
+  return { revenue: result?.revenue || 0, orders: result?.orders || 0 };
 };
 
 // ─── Users ────────────────────────────────────────────────────────────────────
@@ -218,23 +263,59 @@ export const adminUpdateOrderStatusController = asyncHandler(
 // ─── Analytics ────────────────────────────────────────────────────────────────
 
 export const getDashboardController = asyncHandler(async (req, res) => {
-  const [totalRevenue, totalOrders, totalUsers, orderStatusBreakdown] =
-    await Promise.all([
-      orderRepository.totalRevenue(),
-      orderRepository.countAll(),
-      User.countDocuments(),
-      orderRepository.orderStatusBreakdown(),
-    ]);
+  const range = ["day", "week", "month", "3month"].includes(req.query.range)
+    ? req.query.range
+    : "week";
 
-  return res
-    .status(200)
-    .json(
-      new ApiResponse(
-        200,
-        { totalRevenue, totalOrders, totalUsers, orderStatusBreakdown },
-        "Dashboard stats fetched successfully",
-      ),
-    );
+  const { now, currentStart, previousStart } = getRangeWindows(range);
+
+  const [
+    currentPeriod,
+    previousPeriod,
+    totalUsers,
+    usersBeforeCurrentPeriod,
+    usersBeforePreviousPeriod,
+    totalProducts,
+    productsBeforeCurrentPeriod,
+    productsBeforePreviousPeriod,
+    orderStatusBreakdown,
+  ] = await Promise.all([
+    orderTotalsInWindow(currentStart, now),
+    orderTotalsInWindow(previousStart, currentStart),
+    User.countDocuments(),
+    User.countDocuments({ createdAt: { $lt: currentStart } }),
+    User.countDocuments({ createdAt: { $lt: previousStart } }),
+    Product.countDocuments(),
+    Product.countDocuments({ createdAt: { $lt: currentStart } }),
+    Product.countDocuments({ createdAt: { $lt: previousStart } }),
+    orderRepository.orderStatusBreakdown(),
+  ]);
+
+  const newUsersCurrent = totalUsers - usersBeforeCurrentPeriod;
+  const newUsersPrevious = usersBeforeCurrentPeriod - usersBeforePreviousPeriod;
+
+  const newProductsCurrent = totalProducts - productsBeforeCurrentPeriod;
+  const newProductsPrevious =
+    productsBeforeCurrentPeriod - productsBeforePreviousPeriod;
+
+  return res.status(200).json(
+    new ApiResponse(
+      200,
+      {
+        range,
+        totalRevenue: currentPeriod.revenue,
+        revenueChange: pctChange(currentPeriod.revenue, previousPeriod.revenue),
+        totalOrders: currentPeriod.orders,
+        ordersChange: pctChange(currentPeriod.orders, previousPeriod.orders),
+        totalCustomers: totalUsers,
+        customersChange: pctChange(newUsersCurrent, newUsersPrevious),
+        totalProducts,
+        productsChange: pctChange(newProductsCurrent, newProductsPrevious),
+        orderStatusBreakdown,
+      },
+      "Dashboard stats fetched successfully",
+    ),
+  );
 });
 
 export const getRevenueAnalyticsController = asyncHandler(async (req, res) => {
@@ -279,6 +360,32 @@ export const getNewUsersAnalyticsController = asyncHandler(async (req, res) => {
     .json(
       new ApiResponse(200, data, "New users analytics fetched successfully"),
     );
+});
+
+export const getMonthlyRevenueController = asyncHandler(async (req, res) => {
+  const months = Math.min(parseInt(req.query.months || "6", 10), 12);
+  const now = new Date();
+  const since = new Date(now.getFullYear(), now.getMonth() - (months - 1), 1);
+
+  const data = await Order.aggregate([
+    {
+      $match: {
+        createdAt: { $gte: since },
+        order_status: { $ne: "Cancelled" },
+      },
+    },
+    {
+      $group: {
+        _id: { $dateToString: { format: "%Y-%m", date: "$createdAt" } },
+        revenue: { $sum: "$totalAmt" },
+      },
+    },
+    { $sort: { _id: 1 } },
+  ]);
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, data, "Monthly revenue fetched successfully"));
 });
 
 // ─── Expenses ─────────────────────────────────────────────────────────────────

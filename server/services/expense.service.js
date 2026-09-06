@@ -1,4 +1,3 @@
-// FILE: services/expenseService.js
 import { expenseRepository } from "../repositories/expense.repository.js";
 import { ApiError } from "../utils/ApiError.js";
 
@@ -15,6 +14,7 @@ const EXPENSE_CATEGORIES = [
 const rangeToSince = (range) => {
   const now = new Date();
   const since = new Date(now);
+
   switch (range) {
     case "day":
       since.setHours(now.getHours() - 24);
@@ -33,6 +33,7 @@ const rangeToSince = (range) => {
     case "month":
     default:
       since.setDate(now.getDate() - 30);
+      break;
   }
   return since;
 };
@@ -86,7 +87,8 @@ export const expenseService = {
 
     let nextCursor = null;
     if (expenses.length > safeLimit) {
-      nextCursor = expenses.pop()._id;
+      const nextItem = expenses.pop();
+      nextCursor = `${new Date(nextItem.date).toISOString()}_${nextItem._id}`;
     }
 
     return { expenses, nextCursor, hasMore: Boolean(nextCursor) };
@@ -155,6 +157,8 @@ export const expenseService = {
   },
 
   async getExpenseBreakdown(range) {
-    return expenseRepository.breakdownByCategory(rangeToSince(range));
+    const sinceDate = rangeToSince(range);
+    const breakdown = await expenseRepository.breakdownByCategory(sinceDate);
+    return breakdown || [];
   },
 };
