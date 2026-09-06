@@ -25,6 +25,12 @@ import {
   restockProduct,
   adjustStock,
   getStockLogs,
+  deleteExpense,
+  updateExpense,
+  createExpense,
+  getExpenseBreakdown,
+  getExpenses,
+  getMonthlyRevenue,
 } from "@/api/admin.api";
 
 export const useAdminCategories = () =>
@@ -134,11 +140,19 @@ export const useToggleFeaturedProduct = () => {
   });
 };
 
-export const useDashboardStats = () =>
+export const useMonthlyRevenue = (months = 6) =>
   useQuery({
-    queryKey: ["dashboard-stats"],
-    queryFn: getDashboardStats,
+    queryKey: ["monthly-revenue", months],
+    queryFn: () => getMonthlyRevenue(months),
+    staleTime: 5 * 60 * 1000,
+  });
+
+export const useDashboardStats = (range = "week") =>
+  useQuery({
+    queryKey: ["dashboard-stats", range],
+    queryFn: () => getDashboardStats(range),
     staleTime: 60 * 1000,
+    placeholderData: (previousData) => previousData,
   });
 
 export const useAdminOrders = (filters = {}, cursor = null, limit = 20) =>
@@ -377,6 +391,61 @@ export const useToggleCouponActive = () => {
       queryClient.invalidateQueries({
         queryKey: ["admin-coupons"],
       });
+    },
+  });
+};
+
+export const useExpenses = (filters = {}, cursor = null, limit = 20) =>
+  useQuery({
+    queryKey: ["expenses", filters, cursor, limit],
+    queryFn: () =>
+      getExpenses({
+        limit,
+        cursor: cursor || undefined,
+        category: filters.category || undefined,
+        startDate: filters.startDate || undefined,
+        endDate: filters.endDate || undefined,
+      }),
+    staleTime: 30 * 1000,
+    placeholderData: (previousData) => previousData,
+  });
+
+export const useExpenseBreakdown = (range) =>
+  useQuery({
+    queryKey: ["expense-breakdown", range],
+    queryFn: () => getExpenseBreakdown(range),
+    staleTime: 60 * 1000,
+  });
+
+export const useCreateExpense = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: createExpense,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["expenses"] });
+      queryClient.invalidateQueries({ queryKey: ["expense-breakdown"] });
+    },
+  });
+};
+
+export const useUpdateExpense = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: updateExpense,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["expenses"] });
+      queryClient.invalidateQueries({ queryKey: ["expense-breakdown"] });
+    },
+  });
+};
+
+export const useDeleteExpense = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: deleteExpense,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["expenses"] });
+      queryClient.invalidateQueries({ queryKey: ["expense-breakdown"] });
     },
   });
 };

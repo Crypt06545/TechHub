@@ -4,8 +4,10 @@ import api from "./Axios";
 // Dashboard
 // ─────────────────────────────────────────────
 
-export const getDashboardStats = async () => {
-  const res = await api.get("/admin/dashboard");
+export const getDashboardStats = async (range) => {
+  const res = await api.get("/admin/dashboard", {
+    params: { range },
+  });
   return res.data;
 };
 
@@ -115,12 +117,10 @@ export const getAdminOrders = async (params) => {
   return res.data;
 };
 
-export const updateOrderStatus = async (id, payload) => {
+export const updateOrderStatus = async ({ id, payload }) => {
   const res = await api.patch(`/admin/orders/${id}/status`, payload);
-
   return res.data;
 };
-
 export const getRecentOrders = async (limit) => {
   const res = await api.get("/admin/orders", {
     params: {
@@ -174,5 +174,43 @@ export const deleteCoupon = async (id) => {
 
 export const toggleCouponActive = async (id) => {
   const res = await api.patch(`/admin/coupons/${id}/toggle`);
+  return res.data;
+};
+
+// ─────────────────────────────────────────────
+// Expenses
+// ─────────────────────────────────────────────
+
+export const createExpense = async (payload) => {
+  const res = await api.post("/admin/expenses", payload);
+  return res.data;
+};
+
+export const getExpenses = async (params) => {
+  const res = await api.get("/admin/expenses", { params });
+  return res.data;
+};
+
+export const updateExpense = async ({ id, payload }) => {
+  const res = await api.put(`/admin/expenses/${id}`, payload);
+  return res.data;
+};
+
+export const deleteExpense = async (id) => {
+  const res = await api.delete(`/admin/expenses/${id}`);
+  return res.data;
+};
+
+export const getExpenseBreakdown = async (range) => {
+  const res = await api.get("/admin/expenses/breakdown", {
+    params: { range },
+  });
+  return res.data;
+};
+
+export const getMonthlyRevenue = async (months) => {
+  const res = await api.get("/admin/analytics/monthly-revenue", {
+    params: { months },
+  });
   return res.data;
 };

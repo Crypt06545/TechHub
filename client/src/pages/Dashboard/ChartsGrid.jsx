@@ -1,6 +1,9 @@
 // src/components/dashboard/ChartsGrid.jsx
-import React, { useState } from "react";
-import { useRevenueAnalytics } from "@/hooks/useAdminAnalytics";
+import React from "react";
+import {
+  useRevenueAnalytics,
+  useMonthlyRevenue,
+} from "@/hooks/useAdminAnalytics";
 import {
   Select,
   SelectContent,
@@ -54,11 +57,77 @@ const formatTick = (dateStr, range) => {
   return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
 };
 
-const PIE_DATA = [
-  { name: "April Sales", value: 163000, color: "#f43f5e" },
-  { name: "May Sales", value: 231000, color: "#0ea5e9" },
-  { name: "June Sales", value: 890000, color: "#6366f1" },
+// প্রতি মাসের পাই স্লাইসের জন্য রং — মাস অনুযায়ী cycle করে ব্যবহার হয়
+const PIE_COLORS = [
+  "#f43f5e",
+  "#0ea5e9",
+  "#6366f1",
+  "#10b981",
+  "#f59e0b",
+  "#a855f7",
 ];
+
+// backend থেকে "_id": "2026-06" ফরম্যাটে আসে, সেটাকে "June Sales" এ বদলানো হয়
+const formatMonthLabel = (yearMonth) => {
+  const [year, month] = yearMonth.split("-").map(Number);
+  const d = new Date(year, month - 1, 1);
+  return `${d.toLocaleDateString("en-US", { month: "long" })} Sales`;
+};
+
+// খুব ছোট slice (২%-এর কম) পাশাপাশি থাকলে label overlap করে — তাই এদের
+// ধাপে ধাপে (each +18px) আরেকটু বাইরে ঠেলে দেওয়া হয়, লুকানো হয় না
+const RADIAN = Math.PI / 180;
+const MIN_LABEL_PERCENT = 0.02;
+
+const buildLabelOffsets = (data) => {
+  const total = data.reduce((sum, i) => sum + i.value, 0) || 1;
+  let smallIdx = 0;
+  const offsets = {};
+  data.forEach((item) => {
+    const percent = item.value / total;
+    offsets[item.name] = percent < MIN_LABEL_PERCENT ? smallIdx++ * 18 : 0;
+  });
+  return offsets;
+};
+
+const makePieLabelRenderer =
+  (labelOffsets) =>
+  ({ cx, cy, midAngle, outerRadius, percent, name }) => {
+    const extra = labelOffsets[name] ?? 0;
+    const radius = outerRadius + 16 + extra;
+    const x = cx + radius * Math.cos(-midAngle * RADIAN);
+    const y = cy + radius * Math.sin(-midAngle * RADIAN);
+    return (
+      <text
+        x={x}
+        y={y}
+        textAnchor={x > cx ? "start" : "end"}
+        dominantBaseline="central"
+        className="fill-muted-foreground"
+        fontSize={10}
+      >
+        {`${name.replace(" Sales", "")} ${(percent * 100).toFixed(1)}%`}
+      </text>
+    );
+  };
+
+const makePieLabelLineRenderer =
+  (labelOffsets) =>
+  ({ cx, cy, midAngle, outerRadius, name, stroke }) => {
+    const extra = labelOffsets[name] ?? 0;
+    const endRadius = outerRadius + 10 + extra;
+    const startX = cx + outerRadius * Math.cos(-midAngle * RADIAN);
+    const startY = cy + outerRadius * Math.sin(-midAngle * RADIAN);
+    const endX = cx + endRadius * Math.cos(-midAngle * RADIAN);
+    const endY = cy + endRadius * Math.sin(-midAngle * RADIAN);
+    return (
+      <polyline
+        points={`${startX},${startY} ${endX},${endY}`}
+        stroke={stroke}
+        fill="none"
+      />
+    );
+  };
 
 const RADAR_DATA = [
   { subject: "Vol. Velocity", A: 120, B: 90 },
@@ -85,12 +154,21 @@ const RangeSelector = ({ value, onChange }) => (
   </Select>
 );
 
-const ChartsGrid = () => {
-  const [range, setRange] = useState("week");
+const ChartsGrid = ({ range, onRangeChange }) => {
   const { data: response, isLoading, isError } = useRevenueAnalytics(range);
   const chartData = response?.data ?? [];
   // console.log(response);
 
+  const { data: monthlyResponse, isLoading: isMonthlyLoading } =
+    useMonthlyRevenue(6);
+  const pieData = (monthlyResponse?.data ?? []).map((item, idx) => ({
+    name: formatMonthLabel(item._id),
+    value: item.revenue,
+    color: PIE_COLORS[idx % PIE_COLORS.length],
+  }));
+  const pieLabelOffsets = buildLabelOffsets(pieData);
+  const renderPieLabel = makePieLabelRenderer(pieLabelOffsets);
+  const renderPieLabelLine = makePieLabelLineRenderer(pieLabelOffsets);
 
   if (isLoading) {
     return (
@@ -114,7 +192,7 @@ const ChartsGrid = () => {
             Revenue & orders trend
           </p>
         </div>
-        <RangeSelector value={range} onChange={setRange} />
+        <RangeSelector value={range} onChange={onRangeChange} />
       </div>
 
       {isError && (
@@ -245,50 +323,64 @@ const ChartsGrid = () => {
             </CardTitle>
           </CardHeader>
           <CardContent className="flex flex-col sm:flex-row items-center justify-around gap-4 pb-6">
-            <div className="w-[180px] h-[180px]">
-              <ChartContainer config={{}} className="w-full h-full">
-                <PieChart>
-                  <ChartTooltip
-                    content={<ChartTooltipContent nameKey="name" />}
-                  />
-                  <Pie
-                    data={PIE_DATA}
-                    dataKey="value"
-                    nameKey="name"
-                    cx="50%"
-                    cy="50%"
-                    innerRadius={50}
-                    outerRadius={80}
-                    paddingAngle={4}
-                  >
-                    {PIE_DATA.map((entry, idx) => (
-                      <Cell key={idx} fill={entry.color} />
-                    ))}
-                  </Pie>
-                </PieChart>
-              </ChartContainer>
-            </div>
-            <div className="space-y-2.5 text-xs w-full max-w-[200px]">
-              {PIE_DATA.map((item) => (
-                <div
-                  key={item.name}
-                  className="flex items-center justify-between"
-                >
-                  <div className="flex items-center gap-2">
-                    <div
-                      className="w-3 h-3 rounded-full"
-                      style={{ backgroundColor: item.color }}
-                    />
-                    <span className="text-muted-foreground font-medium">
-                      {item.name}
-                    </span>
-                  </div>
-                  <span className="font-semibold text-foreground">
-                    ৳{item.value.toLocaleString()}
-                  </span>
+            {isMonthlyLoading ? (
+              <Skeleton className="h-[220px] w-full" />
+            ) : pieData.length === 0 ? (
+              <div className="h-[220px] flex items-center justify-center text-xs text-muted-foreground">
+                No revenue data yet
+              </div>
+            ) : (
+              <>
+                <div className="w-full sm:w-[280px] h-[220px]">
+                  <ChartContainer config={{}} className="w-full h-full">
+                    <PieChart
+                      margin={{ top: 24, right: 40, bottom: 24, left: 40 }}
+                    >
+                      <ChartTooltip
+                        content={<ChartTooltipContent nameKey="name" />}
+                      />
+                      <Pie
+                        data={pieData}
+                        dataKey="value"
+                        nameKey="name"
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={35}
+                        outerRadius={55}
+                        paddingAngle={4}
+                        labelLine={renderPieLabelLine}
+                        label={renderPieLabel}
+                      >
+                        {pieData.map((entry, idx) => (
+                          <Cell key={idx} fill={entry.color} />
+                        ))}
+                      </Pie>
+                    </PieChart>
+                  </ChartContainer>
                 </div>
-              ))}
-            </div>
+                <div className="space-y-2.5 text-xs w-full max-w-[200px]">
+                  {pieData.map((item) => (
+                    <div
+                      key={item.name}
+                      className="flex items-center justify-between"
+                    >
+                      <div className="flex items-center gap-2">
+                        <div
+                          className="w-3 h-3 rounded-full shrink-0"
+                          style={{ backgroundColor: item.color }}
+                        />
+                        <span className="text-muted-foreground font-medium">
+                          {item.name}
+                        </span>
+                      </div>
+                      <span className="font-semibold text-foreground">
+                        ৳{item.value.toLocaleString()}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
           </CardContent>
         </Card>
 

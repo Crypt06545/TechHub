@@ -32,6 +32,7 @@ import AfterSalesSupport from "@/pages/Aftersalessupport";
 import VerifyEmail from "@/pages/VerifyEmail";
 import AdminInvoiceView from "@/pages/AdminInvoiceView";
 import Inventory from "@/pages/Dashboard/Inventory";
+import Expenses from "@/pages/Dashboard/Expenses";
 
 const router = createBrowserRouter([
   {
@@ -84,6 +85,7 @@ const router = createBrowserRouter([
           { path: "customers", element: <Customer /> },
           { path: "orders/invoice", element: <AdminInvoiceView /> },
           { path: "inventory", element: <Inventory /> },
+          { path: "expenses", element: <Expenses /> },
         ],
       },
     ],

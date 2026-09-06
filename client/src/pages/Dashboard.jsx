@@ -8,9 +8,9 @@ import RecentOrders from "./Dashboard/RecentOrder";
 
 // Sub-components importing
 
-
 const Dashboard = () => {
   const [loading, setLoading] = useState(true);
+  const [range, setRange] = useState("week");
 
   useEffect(() => {
     const t = setTimeout(() => setLoading(false), 1200);
@@ -32,14 +32,14 @@ const Dashboard = () => {
         </Button>
       </div>
 
-      {/* 1. Summary Stat Cards */}
-      <StatCards loading={loading} />
+      {/* 1. Summary Stat Cards — shares `range` with ChartsGrid below */}
+      <StatCards range={range} />
 
       {/* 2. Real-time Operational Metrics Tier (Payment, Inventory, Logistics) */}
       <MetricsTier loading={loading} />
 
-      {/* 3. Analytical Charts Grid (Area, Bar, Pie, Radar) */}
-      <ChartsGrid loading={loading} />
+      {/* 3. Analytical Charts Grid (Area, Bar, Pie, Radar) — owns the range selector UI */}
+      <ChartsGrid range={range} onRangeChange={setRange} />
 
       {/* 4. Recent Transactions Table */}
       <RecentOrders loading={loading} />
